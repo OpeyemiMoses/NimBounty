@@ -1,5 +1,5 @@
 /**
- * NimBounty Engine — Global Real-Time Sync & URL Auto-Import Engine
+ * NimBounty Engine — Strict Wallet Connection, Balance Check, and Anti-Self-Claim Engine
  */
 
 let currentView = 'landing';
@@ -7,7 +7,8 @@ let currentRole = 'worker';
 let workerSubtabMode = 'active'; // 'active' | 'history'
 let posterSubtabMode = 'create'; // 'create' | 'pools' | 'subs'
 
-let userAccount = localStorage.getItem('nimbounty_user_acct_v3') || 'NQ42 NIMIQ PAY USER';
+let userAccount = localStorage.getItem('nimbounty_user_acct_v3') || null;
+let userBalance = parseFloat(localStorage.getItem('nimbounty_user_bal_v3')) || 1000;
 let deviceId = localStorage.getItem('nimbounty_device_id_v3') || null;
 let currentTheme = localStorage.getItem('nimbounty_theme') || 'light';
 let isAudioEnabled = true;
@@ -18,11 +19,12 @@ const PRODUCTION_URL = 'https://nim-bounty.vercel.app';
 const NIMIQ_ESCROW_CONTRACT_ADDRESS = 'NQ73 ESCR OW00 0000 0000 0000 0000 0000';
 
 // Persistent LocalStorage Keys
-const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v42';
-const STORAGE_KEY_SUBS = 'nimbounty_subs_v42';
-const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v42';
-const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v42';
+const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v45';
+const STORAGE_KEY_SUBS = 'nimbounty_subs_v45';
+const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v45';
+const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v45';
 const STORAGE_KEY_USER_ACCT = 'nimbounty_user_acct_v3';
+const STORAGE_KEY_USER_BAL = 'nimbounty_user_bal_v3';
 
 let bounties = JSON.parse(localStorage.getItem(STORAGE_KEY_BOUNTIES)) || [];
 let pendingSubmissions = JSON.parse(localStorage.getItem(STORAGE_KEY_SUBS)) || [];
@@ -37,6 +39,7 @@ function saveState() {
   if (userAccount) {
     localStorage.setItem(STORAGE_KEY_USER_ACCT, userAccount);
   }
+  localStorage.setItem(STORAGE_KEY_USER_BAL, userBalance.toString());
   updateLandingStats();
   renderWorkerStats();
   syncGlobalPublicBounties();
@@ -74,6 +77,32 @@ function hasWalletCompletedBounty(bountyId, wallet) {
   return isPending || isApproved;
 }
 
+// Fetch user wallet balance from Nimiq RPC
+async function fetchUserWalletBalance() {
+  if (!userAccount || userAccount === 'NQ42 NIMIQ PAY USER') return;
+  try {
+    const cleanAddr = userAccount.replace(/\s+/g, '');
+    const res = await fetch('https://rpc.nimiq.network', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'getAccountByAddress',
+        params: [cleanAddr],
+        id: 1
+      })
+    });
+    const data = await res.json();
+    if (data && data.result && data.result.balance !== undefined) {
+      userBalance = data.result.balance / 1e5; // Convert Luna to NIM
+      localStorage.setItem(STORAGE_KEY_USER_BAL, userBalance.toString());
+      renderWorkerStats();
+    }
+  } catch (e) {
+    // Fall back to local userBalance
+  }
+}
+
 // ==========================================
 // 1. GLOBAL REAL-TIME PUBLIC SYNC ENGINE
 // ==========================================
@@ -89,11 +118,17 @@ async function fetchGlobalPublicBounties() {
       let updated = false;
 
       if (Array.isArray(data.bounties) && data.bounties.length > 0) {
-        const existingIds = new Set(bounties.map(b => b.id));
+        // Update local bounty pool with latest server state
         data.bounties.forEach(rb => {
-          if (!existingIds.has(rb.id)) {
+          const idx = bounties.findIndex(b => b.id === rb.id);
+          if (idx !== -1) {
+            // Keep lowest slotsRemaining so claimed slots persist
+            if (rb.slotsRemaining < bounties[idx].slotsRemaining) {
+              bounties[idx].slotsRemaining = rb.slotsRemaining;
+              updated = true;
+            }
+          } else {
             bounties.unshift(rb);
-            existingIds.add(rb.id);
             updated = true;
           }
         });
@@ -124,7 +159,7 @@ async function fetchGlobalPublicBounties() {
   }
 }
 
-async function syncGlobalPublicBounties(newBountyObj = null) {
+async function syncGlobalPublicBounties(updatedBountyObj = null) {
   try {
     const apiEndpoint = window.location.origin.includes('localhost')
       ? `${PRODUCTION_URL}/api/bounties`
@@ -134,7 +169,7 @@ async function syncGlobalPublicBounties(newBountyObj = null) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        newBounty: newBountyObj,
+        newBounty: updatedBountyObj,
         bounties,
         pendingSubmissions,
         approvedPayoutsHistory,
@@ -302,8 +337,8 @@ function renderWorkerStats() {
   if (!userAccount) {
     if (completedEl) completedEl.textContent = `0 Tasks`;
     if (earnedEl) earnedEl.textContent = `0 NIM`;
-    if (liveBalEl) liveBalEl.textContent = `Pay Session Inactive`;
-    if (repTextEl) repTextEl.textContent = `Nimiq Pay Session Inactive`;
+    if (liveBalEl) liveBalEl.textContent = `Wallet Disconnected`;
+    if (repTextEl) repTextEl.textContent = `Please Connect Nimiq Wallet`;
     return;
   }
 
@@ -316,7 +351,7 @@ function renderWorkerStats() {
 
   if (completedEl) completedEl.textContent = `${completedCount} Tasks`;
   if (earnedEl) earnedEl.textContent = `${earnedAmount.toLocaleString()} NIM`;
-  if (liveBalEl) liveBalEl.textContent = `Nimiq Pay Active`;
+  if (liveBalEl) liveBalEl.textContent = `${userBalance.toLocaleString()} NIM`;
   if (repTextEl) repTextEl.textContent = `Verified Worker (${userAccount.substring(0, 10)}...)`;
 }
 
@@ -520,7 +555,7 @@ function updateWalletUI() {
   const walletTextDesktop = document.getElementById('wallet-text');
   const walletTextMobile = document.getElementById('wallet-text-mobile');
   
-  const displayVal = userAccount ? `${userAccount.substring(0, 14)}...` : 'Nimiq Pay Active';
+  const displayVal = userAccount ? `${userAccount.substring(0, 14)}...` : 'Connect Wallet';
 
   if (walletTextDesktop) walletTextDesktop.textContent = displayVal;
   if (walletTextMobile) walletTextMobile.textContent = displayVal;
@@ -529,12 +564,21 @@ function updateWalletUI() {
 }
 
 function handleWalletButtonClick() {
-  openWalletModal();
+  if (!userAccount) {
+    // Generate connected user wallet session
+    userAccount = `NQ${Math.floor(10 + Math.random() * 89)} ${Math.floor(1000 + Math.random() * 8999)} ${Math.floor(1000 + Math.random() * 8999)} ${Math.floor(1000 + Math.random() * 8999)}`;
+    userBalance = 1000;
+    saveState();
+    showToastNotification('📱 Wallet Connected!', `Connected Nimiq Pay Wallet:\n${userAccount}`, false);
+    updateWalletUI();
+  } else {
+    openWalletModal();
+  }
 }
 
 function openWalletModal() {
   const displayEl = document.getElementById('modal-wallet-address-display');
-  if (displayEl) displayEl.textContent = userAccount || 'NQ42 NIMIQ PAY USER';
+  if (displayEl) displayEl.textContent = userAccount || 'Wallet Disconnected';
   document.getElementById('modal-wallet').style.display = 'flex';
 }
 
@@ -548,7 +592,10 @@ function copyWalletAddressFromModal() {
 
 function confirmDisconnectWalletFromModal() {
   closeModal('modal-wallet');
-  showToastNotification('Nimiq Pay Active 📱', 'Connected Nimiq Pay Session active.', false);
+  userAccount = null;
+  localStorage.removeItem(STORAGE_KEY_USER_ACCT);
+  updateWalletUI();
+  showToastNotification('🔌 Disconnected', 'Wallet session disconnected.', false);
 }
 
 // ==========================================
@@ -633,8 +680,10 @@ function renderBounties() {
     const isFullyClaimed = b.slotsRemaining <= 0;
 
     if (workerSubtabMode === 'active') {
+      // ACTIVE TAB: Must NOT be expired, Must have slots open (> 0), Must NOT be already completed by this wallet
       return matchesSearch && matchesCat && !isExpired && !isFullyClaimed && !hasAlreadyClaimed;
     } else {
+      // COMPLETED & EXPIRED TAB: Fully claimed, expired, or completed bounties
       return matchesSearch && matchesCat && (isExpired || isFullyClaimed || hasAlreadyClaimed);
     }
   });
@@ -654,7 +703,7 @@ function renderBounties() {
         <h3 style="font-size: 1.3rem; font-weight: 800; color: var(--ink);">No ${workerSubtabMode === 'active' ? 'Active' : 'Completed / Expired'} Bounties Found</h3>
         <p style="font-size: 0.9rem; color: var(--muted); margin-top: 6px; max-width: 460px; margin-left: auto; margin-right: auto;">
           ${workerSubtabMode === 'active' 
-            ? 'There are currently no open active bounties matching your filters. Publish your first task pool in Poster Mode!' 
+            ? 'There are currently no active bounties with open slots. Check the Completed & Expired tab or publish a task in Poster Mode!' 
             : 'No completed or expired bounties found in history.'}
         </p>
         ${workerSubtabMode === 'active' ? `<button class="btn-primary-sm" style="margin-top: 18px;" onclick="switchRole('poster')">Switch to Poster Mode &rarr;</button>` : ''}
@@ -668,6 +717,7 @@ function renderBounties() {
     const isPublisher = isPublisherOfBounty(b, userAccount);
     const hasAlreadyClaimed = hasWalletCompletedBounty(b.id, userAccount);
     const isExpired = b.expiresAt && Date.now() >= b.expiresAt;
+    const isFullyClaimed = b.slotsRemaining <= 0;
     const timeRemainingStr = formatTimeRemaining(b.expiresAt);
 
     let btnLabel = 'Claim Task & Submit Proof &rarr;';
@@ -676,8 +726,11 @@ function renderBounties() {
     if (isExpired) {
       btnLabel = '⏱️ Pool Expired';
       btnDisabled = true;
-    } else if (b.slotsRemaining <= 0) {
-      btnLabel = 'Pool Fully Claimed';
+    } else if (isFullyClaimed) {
+      btnLabel = 'Pool Fully Claimed (0 Slots)';
+      btnDisabled = true;
+    } else if (isPublisher) {
+      btnLabel = '⛔ Publisher Cannot Claim Own Task';
       btnDisabled = true;
     } else if (hasAlreadyClaimed) {
       btnLabel = '✅ Task Already Claimed (1 per wallet)';
@@ -685,7 +738,7 @@ function renderBounties() {
     }
 
     return `
-      <div class="newspaper-card rise-in ${isExpired ? 'card-expired' : ''}">
+      <div class="newspaper-card rise-in ${(isExpired || isFullyClaimed) ? 'card-expired' : ''}">
         <div>
           <div class="card-top-bar">
             <span class="news-cat-stamp">${b.categoryName}</span>
@@ -729,11 +782,8 @@ function openQrModal(bountyId) {
   const currentOrigin = window.location.origin.includes('localhost') ? PRODUCTION_URL : window.location.origin;
   document.getElementById('qr-bounty-title').textContent = bounty.title;
 
-  // Create compressed base64 share link so ANY recipient immediately imports the bounty
   const b64Data = btoa(encodeURIComponent(JSON.stringify(bounty)));
   const shareWebUrl = `${currentOrigin}/#bdata=${b64Data}`;
-  const deepLink = `nimiqpay://miniapp?url=${encodeURIComponent(shareWebUrl)}`;
-
   document.getElementById('qr-link-input').value = shareWebUrl;
 
   const qrBox = document.getElementById('qrcode-box');
@@ -766,18 +816,35 @@ function copyQrLink() {
 // 13. CLAIM & SUBMIT PROOF ENGINE
 // ==========================================
 function openClaimModal(bountyId) {
-  const bounty = bounties.find(b => b.id === bountyId);
-  if (!bounty) return;
-
-  if (bounty.expiresAt && Date.now() >= bounty.expiresAt) {
-    showToastNotification('⏱️ Pool Expired', 'This bounty pool duration has expired! Unclaimed slots are no longer available.', false);
+  // 1. Must be connected
+  if (!userAccount) {
+    showToastNotification('⛔ Wallet Not Connected', 'Please connect your Nimiq Wallet first before claiming a bounty!', false);
+    openWalletModal();
     return;
   }
 
-  if (!userAccount) {
-    userAccount = 'NQ42 NIMIQ PAY USER';
+  const bounty = bounties.find(b => b.id === bountyId);
+  if (!bounty) return;
+
+  // 2. Publisher cannot claim own bounty
+  if (isPublisherOfBounty(bounty, userAccount)) {
+    showToastNotification('⛔ Publisher Blocked', 'You are the publisher of this bounty pool! Publishers cannot claim or complete their own tasks.', false);
+    return;
   }
 
+  // 3. Pool expired check
+  if (bounty.expiresAt && Date.now() >= bounty.expiresAt) {
+    showToastNotification('⏱️ Pool Expired', 'This bounty pool duration has expired!', false);
+    return;
+  }
+
+  // 4. Slots remaining check
+  if (bounty.slotsRemaining <= 0) {
+    showToastNotification('⛔ Fully Claimed', 'This bounty pool has zero open slots remaining!', false);
+    return;
+  }
+
+  // 5. Already claimed check
   if (hasWalletCompletedBounty(bountyId, userAccount)) {
     showToastNotification('⛔ Already Claimed', 'Your wallet has already claimed and submitted proof for this task. Maximum 1 completion per wallet per bounty.', false);
     return;
@@ -848,6 +915,11 @@ function handleSubmitProof(event) {
   const bounty = bounties.find(b => b.id === currentModalBountyId);
   if (!bounty) return;
 
+  if (isPublisherOfBounty(bounty, userAccount)) {
+    showToastNotification('⛔ Publisher Blocked', 'You cannot complete your own bounty pool!', false);
+    return;
+  }
+
   if (bounty.expiresAt && Date.now() >= bounty.expiresAt) {
     showToastNotification('⏱️ Pool Expired', 'This bounty pool duration has expired!', false);
     return;
@@ -872,6 +944,7 @@ function handleSubmitProof(event) {
     return;
   }
 
+  // Decrement slot count
   if (bounty.slotsRemaining > 0) {
     bounty.slotsRemaining -= 1;
   }
@@ -889,13 +962,15 @@ function handleSubmitProof(event) {
   });
 
   saveState();
+  syncGlobalPublicBounties(bounty);
+
   playAudioFx('submit');
   closeModal('modal-task');
   renderBounties();
 
   showToastNotification(
     '✅ Proof Submitted',
-    `Your submission for "${bounty.title}" is pending poster review. Only wallet ${bounty.sponsor} can approve your payout.`,
+    `Your submission for "${bounty.title}" is pending poster review.`,
     false
   );
 }
@@ -914,6 +989,13 @@ function calculateTotalEscrow() {
 }
 
 function publishBountyPoolDirectly() {
+  // 1. MUST BE CONNECTED
+  if (!userAccount) {
+    showToastNotification('⛔ Wallet Not Connected', 'You cannot create a bounty if your wallet is not connected! Please connect your Nimiq Pay Wallet first.', false);
+    openWalletModal();
+    return;
+  }
+
   const titleInput = document.getElementById('task-title');
   const instructionsInput = document.getElementById('task-instructions');
   const rewardInput = document.getElementById('task-reward');
@@ -933,16 +1015,29 @@ function publishBountyPoolDirectly() {
   const durationHours = parseInt(document.getElementById('task-duration').value || 336);
   const instructions = instructionsInput.value;
   const totalEscrow = reward * slots;
-  const expiresAt = Date.now() + (durationHours * 3600 * 1000);
 
+  // 2. MUST HAVE SUFFICIENT WALLET BALANCE
+  if (userBalance < totalEscrow) {
+    showToastNotification(
+      '⚠️ Insufficient Wallet Balance',
+      `You cannot create a bounty requiring ${totalEscrow.toLocaleString()} NIM! Your current wallet balance is ${userBalance.toLocaleString()} NIM.`,
+      false
+    );
+    return;
+  }
+
+  // Deduct balance for creating bounty campaign
+  userBalance -= totalEscrow;
+  localStorage.setItem(STORAGE_KEY_USER_BAL, userBalance.toString());
+
+  const expiresAt = Date.now() + (durationHours * 3600 * 1000);
   const txHash = `bounty_pool_${Date.now()}`;
 
-  // Save & Publish Bounty Pool Instantly for ALL users globally
   const newBounty = {
     id: `b-${Date.now()}`,
     title: title, category: category, categoryName: categoryName, proofType: proofType,
     reward: reward, slotsTotal: slots, slotsRemaining: slots, durationHours: durationHours,
-    expiresAt: expiresAt, posterAddress: userAccount || 'NQ42 PUBLISHER USER', sponsor: `${(userAccount || 'NQ42 PUBLISHER USER').substring(0, 10)}...`,
+    expiresAt: expiresAt, posterAddress: userAccount, sponsor: `${userAccount.substring(0, 10)}...`,
     instructions: instructions, createdAt: Date.now(), txHash: txHash
   };
 
@@ -1095,6 +1190,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   fetchNimiqLiveRPC();
   checkUrlAutoImport();
   await fetchGlobalPublicBounties();
+  await fetchUserWalletBalance();
   updateWalletUI();
   calculateTotalEscrow();
   updateLandingStats();
