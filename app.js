@@ -1,5 +1,5 @@
 /**
- * NimBounty Engine — Automated Onchain Escrow Disburser Vault Protocol
+ * NimBounty Engine — Real Onchain Escrow Vault Protocol (Address: NQ65 R26Y VNQL H5H9 F19S U3PB FY7N EJ7H PGNN)
  */
 
 let currentView = 'landing';
@@ -28,8 +28,9 @@ let liveBlockHeight = 0;
 let uploadedImageDataUrl = null;
 
 const PRODUCTION_URL = 'https://nim-bounty.vercel.app';
-// Official Validated Nimiq Mainnet Escrow Vault Address
-const NIMIQ_ESCROW_CONTRACT_ADDRESS = 'NQ34 7B84 Q7T4 EFK8 L9M2 P4R6 S8V0 X2Z4';
+
+// OFFICIAL USER REAL NIMIQ MAINNET ESCROW VAULT ADDRESS
+const NIMIQ_ESCROW_CONTRACT_ADDRESS = 'NQ65 R26Y VNQL H5H9 F19S U3PB FY7N EJ7H PGNN';
 
 let bounties = JSON.parse(localStorage.getItem(STORAGE_KEY_BOUNTIES)) || [];
 let pendingSubmissions = JSON.parse(localStorage.getItem(STORAGE_KEY_SUBS)) || [];
@@ -1214,7 +1215,7 @@ async function publishBountyPoolDirectly() {
 }
 
 // ==========================================
-// 16. PUBLISHER REVIEW & AUTOMATED ESCROW PAYOUT DISBURSEMENT
+// 16. PUBLISHER REVIEW & ESCROW PAYOUT DISBURSEMENT
 // ==========================================
 function renderPosterDashboard() {
   const poolsList = document.getElementById('published-pools-list');
@@ -1365,7 +1366,7 @@ async function reviewProof(submissionId, action) {
       console.warn("API escrow disburse error:", e);
     }
 
-    // Fallback Nimiq Pay Provider & Deeplink Payout Trigger
+    // Nimiq Pay Provider & Deeplink Payout Trigger
     const provider = getNimiqProvider();
     if (provider) {
       try {
