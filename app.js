@@ -1,5 +1,5 @@
 /**
- * NimBounty Engine — Stable Worldwide Sync, Pending Review Status, & Combined Proof Engine
+ * NimBounty Engine — Reliable Submission Review & Address Normalization Engine
  */
 
 let currentView = 'landing';
@@ -69,19 +69,24 @@ function formatTimeRemaining(expiresAt) {
   return `${hours}h ${minutes}m left`;
 }
 
+// Helper: Normalized Nimiq Address Comparison
+function isSameNimiqAddress(addr1, addr2) {
+  if (!addr1 || !addr2) return false;
+  const clean1 = addr1.toString().replace(/\s+/g, '').toUpperCase();
+  const clean2 = addr2.toString().replace(/\s+/g, '').toUpperCase();
+  if (clean1 === clean2) return true;
+  return clean1.includes(clean2.substring(0, 10)) || clean2.includes(clean1.substring(0, 10));
+}
+
 function isPublisherOfBounty(bounty, wallet) {
   if (!bounty || !wallet) return false;
-  const w = wallet.toLowerCase();
-  const poster = (bounty.posterAddress || '').toLowerCase();
-  const sponsor = (bounty.sponsor || '').toLowerCase();
-  return (poster && w === poster) || (sponsor && w.includes(sponsor.substring(0, 8)));
+  return isSameNimiqAddress(bounty.posterAddress, wallet) || isSameNimiqAddress(bounty.sponsor, wallet);
 }
 
 function hasWalletCompletedBounty(bountyId, wallet) {
   if (!bountyId || !wallet) return false;
-  const w = wallet.toLowerCase();
-  const isPending = pendingSubmissions.some(s => s.bountyId === bountyId && s.workerAddress && s.workerAddress.toLowerCase() === w);
-  const isApproved = approvedPayoutsHistory.some(p => p.bountyId === bountyId && p.workerAddress && p.workerAddress.toLowerCase() === w);
+  const isPending = pendingSubmissions.some(s => s.bountyId === bountyId && s.workerAddress && isSameNimiqAddress(s.workerAddress, wallet));
+  const isApproved = approvedPayoutsHistory.some(p => p.bountyId === bountyId && p.workerAddress && isSameNimiqAddress(p.workerAddress, wallet));
   return isPending || isApproved;
 }
 
@@ -195,13 +200,17 @@ async function fetchGlobalPublicBounties() {
         localStorage.setItem(STORAGE_KEY_BOUNTIES, JSON.stringify(bounties));
       }
 
-      // Smart Merge Submissions
+      // Smart Merge Submissions (Always combine server and local submissions)
       if (Array.isArray(data.pendingSubmissions)) {
-        if (JSON.stringify(pendingSubmissions) !== JSON.stringify(data.pendingSubmissions)) {
-          pendingSubmissions = data.pendingSubmissions;
-          localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions));
-          stateChanged = true;
-        }
+        const existingSubIds = new Set(pendingSubmissions.map(s => s.id));
+        data.pendingSubmissions.forEach(serverSub => {
+          if (!existingSubIds.has(serverSub.id)) {
+            pendingSubmissions.unshift(serverSub);
+            existingSubIds.add(serverSub.id);
+            stateChanged = true;
+          }
+        });
+        localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions));
       }
 
       // Smart Merge Approved Payouts History
@@ -428,9 +437,8 @@ function renderWorkerStats() {
 
   let myApprovedPayouts = [];
   if (userAccount && isRealWalletConnected()) {
-    const w = userAccount.toLowerCase();
     myApprovedPayouts = approvedPayoutsHistory.filter(p => 
-      p.workerAddress && p.workerAddress.toLowerCase() === w
+      p.workerAddress && isSameNimiqAddress(p.workerAddress, userAccount)
     );
   }
 
@@ -807,7 +815,7 @@ function renderBounties() {
     const isExpired = b.expiresAt && Date.now() >= b.expiresAt;
     const isFullyClaimed = b.slotsRemaining <= 0;
     const isPaidOut = approvedPayoutsHistory.some(p => p.bountyId === b.id);
-    const hasPendingSub = pendingSubmissions.some(s => s.bountyId === b.id && s.workerAddress && s.workerAddress.toLowerCase() === (userAccount || '').toLowerCase());
+    const hasPendingSub = pendingSubmissions.some(s => s.bountyId === b.id && s.workerAddress && isSameNimiqAddress(s.workerAddress, userAccount));
     const timeRemainingStr = formatTimeRemaining(b.expiresAt);
 
     let btnLabel = 'Claim Task & Submit Proof &rarr;';
@@ -959,7 +967,6 @@ function openClaimModal(bountyId) {
   const groupUrl = document.getElementById('group-proof-url');
   const groupImage = document.getElementById('group-proof-image');
 
-  // DISPLAY MODAL INPUT GROUPS ACCORDING TO PROOF TYPE
   groupText.style.display = (bounty.proofType === 'text' || bounty.proofType === 'image_text') ? 'flex' : 'none';
   groupUrl.style.display = (bounty.proofType === 'url') ? 'flex' : 'none';
   groupImage.style.display = (bounty.proofType === 'image' || bounty.proofType === 'image_text') ? 'flex' : 'none';
@@ -1056,6 +1063,7 @@ function handleSubmitProof(event) {
   }
 
   const workerPayoutAddr = userAccount.trim().toUpperCase().replace(/\s+/g, '');
+  const posterPayoutAddr = (bounty.posterAddress || userAccount).trim().toUpperCase().replace(/\s+/g, '');
 
   if (bounty.slotsRemaining > 0) {
     bounty.slotsRemaining -= 1;
@@ -1065,7 +1073,7 @@ function handleSubmitProof(event) {
     id: `sub-${Date.now()}`,
     bountyId: bounty.id,
     bountyTitle: bounty.title,
-    posterAddress: bounty.posterAddress || bounty.sponsor,
+    posterAddress: posterPayoutAddr,
     workerAddress: workerPayoutAddr,
     proofType: bounty.proofType,
     content: proofContent,
@@ -1131,12 +1139,13 @@ function publishBountyPoolDirectly() {
 
   const expiresAt = Date.now() + (durationHours * 3600 * 1000);
   const txHash = `bounty_pool_${Date.now()}`;
+  const cleanPosterAddr = userAccount.trim().toUpperCase().replace(/\s+/g, '');
 
   const newBounty = {
     id: `b-${Date.now()}`,
     title: title, category: category, categoryName: categoryName, proofType: proofType,
     reward: reward, slotsTotal: slots, slotsRemaining: slots, durationHours: durationHours,
-    expiresAt: expiresAt, posterAddress: userAccount, sponsor: `${userAccount.substring(0, 10)}...`,
+    expiresAt: expiresAt, posterAddress: cleanPosterAddr, sponsor: `${cleanPosterAddr.substring(0, 10)}...`,
     instructions: instructions, createdAt: Date.now(), txHash: txHash
   };
 
@@ -1175,13 +1184,16 @@ function renderPosterDashboard() {
   }
 
   const myBounties = bounties.filter(b => 
-    b.posterAddress === userAccount || 
-    (b.sponsor && b.sponsor.toLowerCase().includes((userAccount || '').substring(0, 8).toLowerCase()))
+    isSameNimiqAddress(b.posterAddress, userAccount) || isSameNimiqAddress(b.sponsor, userAccount)
   );
 
+  // RELIABLE POSTER SUBMISSION MATCHING (Matching by poster address OR parent bounty)
   const mySubmissions = pendingSubmissions.filter(sub => {
-    return sub.posterAddress === userAccount || 
-           (sub.posterAddress && sub.posterAddress.toLowerCase().includes((userAccount || '').substring(0, 8).toLowerCase()));
+    if (!userAccount) return false;
+    if (isSameNimiqAddress(sub.posterAddress, userAccount)) return true;
+    const parentBounty = bounties.find(b => b.id === sub.bountyId);
+    if (parentBounty && isSameNimiqAddress(parentBounty.posterAddress, userAccount)) return true;
+    return false;
   });
 
   if (badgeSubs) {
