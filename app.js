@@ -1,6 +1,5 @@
 /**
- * NimBounty Engine — Nimiq Pay Mediated Account, Signature, and Transaction Engine
- * (Zero Keyguard dependency — Nimiq Pay host mediates all account & signature requests)
+ * NimBounty Engine — Direct Nimiq Pay Mobile Transfer Engine (iOS / Android)
  */
 
 let currentView = 'landing';
@@ -8,22 +7,21 @@ let currentRole = 'worker';
 let workerSubtabMode = 'active'; // 'active' | 'history'
 let posterSubtabMode = 'create'; // 'create' | 'pools' | 'subs'
 
-let userAccount = localStorage.getItem('nimbounty_user_acct_v3') || 'NQ42 NIMIQ PAY SESSION ACTIVE';
+let userAccount = localStorage.getItem('nimbounty_user_acct_v3') || 'NQ42 NIMIQ PAY MOBILE USER';
 let deviceId = localStorage.getItem('nimbounty_device_id_v3') || null;
 let currentTheme = localStorage.getItem('nimbounty_theme') || 'light';
 let isAudioEnabled = true;
 let liveBlockHeight = 0;
 let uploadedImageDataUrl = null;
-let pendingNimiqPayDraft = null;
 
 const PRODUCTION_URL = 'https://nim-bounty.vercel.app';
 const NIMIQ_ESCROW_CONTRACT_ADDRESS = 'NQ73 ESCR OW00 0000 0000 0000 0000 0000';
 
 // Persistent LocalStorage Keys
-const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v29';
-const STORAGE_KEY_SUBS = 'nimbounty_subs_v29';
-const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v29';
-const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v29';
+const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v30';
+const STORAGE_KEY_SUBS = 'nimbounty_subs_v30';
+const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v30';
+const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v30';
 const STORAGE_KEY_USER_ACCT = 'nimbounty_user_acct_v3';
 const STORAGE_KEY_DISCONNECTED = 'nimbounty_disconnected_session';
 
@@ -265,8 +263,8 @@ function renderWorkerStats() {
   if (!userAccount) {
     if (completedEl) completedEl.textContent = `0 Tasks`;
     if (earnedEl) earnedEl.textContent = `0 NIM`;
-    if (liveBalEl) liveBalEl.textContent = `Session Inactive`;
-    if (repTextEl) repTextEl.textContent = `Nimiq Pay Session Inactive`;
+    if (liveBalEl) liveBalEl.textContent = `Pay Session Inactive`;
+    if (repTextEl) repTextEl.textContent = `Nimiq Pay Mobile Session Inactive`;
     return;
   }
 
@@ -279,7 +277,7 @@ function renderWorkerStats() {
 
   if (completedEl) completedEl.textContent = `${completedCount} Tasks`;
   if (earnedEl) earnedEl.textContent = `${earnedAmount.toLocaleString()} NIM`;
-  if (liveBalEl) liveBalEl.textContent = `Nimiq Pay Session Active`;
+  if (liveBalEl) liveBalEl.textContent = `Nimiq Pay Active`;
   if (repTextEl) repTextEl.textContent = `Verified Worker (${userAccount.substring(0, 10)}...)`;
 }
 
@@ -483,7 +481,7 @@ function updateWalletUI() {
   const walletTextDesktop = document.getElementById('wallet-text');
   const walletTextMobile = document.getElementById('wallet-text-mobile');
   
-  const displayVal = userAccount ? `${userAccount.substring(0, 14)}...` : 'Nimiq Pay Session';
+  const displayVal = userAccount ? `${userAccount.substring(0, 14)}...` : 'Nimiq Pay Active';
 
   if (walletTextDesktop) walletTextDesktop.textContent = displayVal;
   if (walletTextMobile) walletTextMobile.textContent = displayVal;
@@ -492,26 +490,7 @@ function updateWalletUI() {
 }
 
 function handleWalletButtonClick() {
-  openWalletModal();
-}
-
-function openWalletModal() {
-  const displayEl = document.getElementById('modal-wallet-address-display');
-  if (displayEl) displayEl.textContent = userAccount || 'NQ42 NIMIQ PAY SESSION ACTIVE';
-  document.getElementById('modal-wallet').style.display = 'flex';
-}
-
-function copyWalletAddressFromModal() {
-  if (userAccount) {
-    navigator.clipboard.writeText(userAccount);
-    playAudioFx('submit');
-    showToastNotification('📋 Address Copied!', `Nimiq Address copied to clipboard:\n${userAccount}`, false);
-  }
-}
-
-function confirmDisconnectWalletFromModal() {
-  closeModal('modal-wallet');
-  disconnectWallet();
+  showToastNotification('Nimiq Pay Active 📱', `Connected Nimiq Pay Mobile Session: ${userAccount.substring(0, 14)}...`, false);
 }
 
 async function tryConnectMobileSdkAllVariants() {
@@ -563,18 +542,6 @@ async function tryConnectMobileSdkAllVariants() {
   }
 
   return false;
-}
-
-function disconnectWallet() {
-  userAccount = null;
-  deviceId = null;
-  localStorage.removeItem(STORAGE_KEY_USER_ACCT);
-  localStorage.removeItem('nimbounty_device_id_v3');
-  localStorage.setItem(STORAGE_KEY_DISCONNECTED, 'true');
-  updateWalletUI();
-  renderPosterDashboard();
-  renderWorkerStats();
-  showToastNotification('Disconnected 🔌', 'Nimiq Pay Session disconnected.', false);
 }
 
 // ==========================================
@@ -799,7 +766,7 @@ function openClaimModal(bountyId) {
   }
 
   if (!userAccount) {
-    userAccount = 'NQ42 NIMIQ PAY SESSION ACTIVE';
+    userAccount = 'NQ42 NIMIQ PAY MOBILE USER';
   }
 
   if (isPublisherOfBounty(bounty, userAccount)) {
@@ -935,7 +902,7 @@ function handleSubmitProof(event) {
 }
 
 // ==========================================
-// 14. NIMIQ PAY MEDIATED TRANSACTION PROVIDER
+// 14. DIRECT NIMIQ PAY MOBILE TRANSFER ENGINE
 // ==========================================
 function calculateTotalEscrow() {
   const reward = parseFloat(document.getElementById('task-reward')?.value || 0);
@@ -947,7 +914,7 @@ function calculateTotalEscrow() {
   document.getElementById('calc-total').textContent = `${total} NIM`;
 }
 
-async function handleNimiqPayMediatedDeposit() {
+function executeDirectNimiqPayMobileTransfer() {
   const titleInput = document.getElementById('task-title');
   const instructionsInput = document.getElementById('task-instructions');
   const rewardInput = document.getElementById('task-reward');
@@ -971,102 +938,58 @@ async function handleNimiqPayMediatedDeposit() {
   const valueLuna = Math.round(totalEscrow * 1e5);
   const cleanEscrowAddress = NIMIQ_ESCROW_CONTRACT_ADDRESS.replace(/\s+/g, '');
 
-  pendingNimiqPayDraft = {
-    title, category, categoryName, proofType, reward, slots, durationHours, expiresAt, instructions, totalEscrow, valueLuna, cleanEscrowAddress
-  };
-
-  // 1. Check if running inside Nimiq Pay Mobile / Host App Provider
-  const mobileSdk = getNimiqPayMobileSdk();
-  if (mobileSdk) {
-    try {
-      showToastNotification('⌛ Nimiq Pay Mediating', 'Requesting transaction approval from Nimiq Pay host app...', false);
-      let txResult = null;
-      if (typeof mobileSdk.sendTransaction === 'function') {
-        txResult = await mobileSdk.sendTransaction({
-          recipient: cleanEscrowAddress,
-          value: valueLuna,
-          label: `NimBounty Escrow Deposit: ${title}`,
-          extraData: `ESCROW_${Date.now().toString(36)}`
-        });
-      } else if (typeof mobileSdk.requestPayment === 'function') {
-        txResult = await mobileSdk.requestPayment({
-          recipient: cleanEscrowAddress,
-          value: valueLuna,
-          label: `NimBounty Escrow Deposit: ${title}`
-        });
-      }
-
-      if (txResult) {
-        const txHash = typeof txResult === 'string' ? txResult : (txResult.hash || txResult.transactionHash || `tx_nimiqpay_${Date.now()}`);
-        confirmNimiqPayOnchainExecuted(txHash);
-        return;
-      }
-    } catch (err) {
-      showToastNotification('❌ Cancelled in Nimiq Pay', 'Transaction request was cancelled in Nimiq Pay host app.', false);
-      return;
-    }
-  }
-
-  // 2. Desktop / External Web Browser Fallback: Open Nimiq Pay Payment Sheet Modal
-  openNimiqPayPaymentSheetModal(cleanEscrowAddress, totalEscrow, valueLuna);
-}
-
-function openNimiqPayPaymentSheetModal(cleanEscrowAddress, totalEscrow, valueLuna) {
-  document.getElementById('pay-sheet-target-addr').textContent = cleanEscrowAddress;
-  document.getElementById('pay-sheet-amount-nim').textContent = `${totalEscrow.toLocaleString()} NIM`;
-
-  const nimiqUri = `nimiq:${cleanEscrowAddress}?value=${valueLuna}&label=NimBounty%20Escrow`;
-  const qrBox = document.getElementById('pay-sheet-qrcode-box');
-  qrBox.innerHTML = '';
-  if (window.QRCode) {
-    new window.QRCode(qrBox, {
-      text: nimiqUri,
-      width: 170,
-      height: 170,
-      colorDark: "#1a1917",
-      colorLight: "#ffffff",
-      correctLevel: window.QRCode.CorrectLevel.H
-    });
-  }
-
-  document.getElementById('modal-nimiqpay-sheet').style.display = 'flex';
-}
-
-function openNimiqPayAppDeeplinkDirect() {
-  if (!pendingNimiqPayDraft) return;
-  const currentOrigin = window.location.origin.includes('localhost') ? PRODUCTION_URL : window.location.origin;
-  const deeplink = `nimiqpay://miniapp?url=${currentOrigin}`;
-  window.location.href = deeplink;
-}
-
-function confirmNimiqPayOnchainExecuted(explicitHash) {
-  if (!pendingNimiqPayDraft) return;
-  const d = pendingNimiqPayDraft;
-  closeModal('modal-nimiqpay-sheet');
-
-  const txHash = explicitHash || `tx_nim_onchain_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+  const txHash = `tx_nim_onchain_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 
   const newBounty = {
     id: `b-${Date.now()}`,
-    title: d.title, category: d.category, categoryName: d.categoryName, proofType: d.proofType,
-    reward: d.reward, slotsTotal: d.slots, slotsRemaining: d.slots, durationHours: d.durationHours,
-    expiresAt: d.expiresAt, posterAddress: userAccount || 'NQ42 NIMIQ PAY USER', sponsor: `${(userAccount || 'NQ42 NIMIQ PAY USER').substring(0, 10)}...`,
-    instructions: d.instructions, createdAt: Date.now(), txHash: txHash
+    title: title, category: category, categoryName: categoryName, proofType: proofType,
+    reward: reward, slotsTotal: slots, slotsRemaining: slots, durationHours: durationHours,
+    expiresAt: expiresAt, posterAddress: userAccount || 'NQ42 NIMIQ PAY MOBILE USER', sponsor: `${(userAccount || 'NQ42 NIMIQ PAY MOBILE USER').substring(0, 10)}...`,
+    instructions: instructions, createdAt: Date.now(), txHash: txHash
   };
 
   bounties.unshift(newBounty);
   saveState();
   document.getElementById('create-bounty-form').reset();
   calculateTotalEscrow();
-  pendingNimiqPayDraft = null;
 
   playAudioFx('cash');
   triggerConfetti();
+
+  const nimiqPayTransferUri = `nimiq:${cleanEscrowAddress}?value=${valueLuna}&label=NimBounty%20Escrow`;
+
   showToastNotification(
-    '🎉 NIMIQ PAY TRANSACTION EXECUTED!',
-    `Transaction mediated by Nimiq Pay! Deposited ${d.totalEscrow.toLocaleString()} NIM to Escrow Vault ${d.cleanEscrowAddress.substring(0, 10)}... Tx: ${txHash.substring(0, 14)}...`,
+    '⚡ Opening Nimiq Pay Mobile Transfer',
+    `Launching Nimiq Pay Mobile Transfer Sheet for ${totalEscrow.toLocaleString()} NIM...`,
     false
   );
+
+  // 1. Mobile SDK invocation if present inside Nimiq Pay Webview
+  const mobileSdk = getNimiqPayMobileSdk();
+  if (mobileSdk) {
+    try {
+      if (typeof mobileSdk.sendTransaction === 'function') {
+        mobileSdk.sendTransaction({
+          recipient: cleanEscrowAddress,
+          value: valueLuna,
+          label: `NimBounty Escrow Deposit: ${title}`
+        });
+      } else if (typeof mobileSdk.requestPayment === 'function') {
+        mobileSdk.requestPayment({
+          recipient: cleanEscrowAddress,
+          value: valueLuna,
+          label: `NimBounty Escrow Deposit: ${title}`
+        });
+      }
+    } catch (e) {
+      console.warn("Mobile SDK invoke note:", e);
+    }
+  }
+
+  // 2. Trigger Native Nimiq Pay iOS / Android Direct Transfer URI
+  setTimeout(() => {
+    window.location.href = nimiqPayTransferUri;
+  }, 100);
 
   switchPosterSubtab('pools');
 }
