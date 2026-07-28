@@ -372,6 +372,18 @@
       <!-- WORKER MODE PANEL -->
       <div id="view-worker" class="view-panel active fade-in">
         
+        <!-- Worker Sub-Tabs Navigation Bar -->
+        <div class="subtab-bar">
+          <button class="subtab-btn active" id="btn-worker-tab-active" onclick="switchWorkerSubtab('active')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+            Active & Open Bounties
+          </button>
+          <button class="subtab-btn" id="btn-worker-tab-history" onclick="switchWorkerSubtab('history')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Completed & Expired Bounties
+          </button>
+        </div>
+
         <!-- Filter Paper Bar -->
         <div class="filter-paper-card">
           <div class="filter-row">
@@ -424,9 +436,25 @@
       <!-- POSTER MODE PANEL -->
       <div id="view-poster" class="view-panel fade-in" style="display: none;">
         
-        <div class="poster-layout">
-          <!-- Form Card -->
-          <div class="paper-card">
+        <!-- Poster Sub-Tabs Navigation Bar -->
+        <div class="subtab-bar">
+          <button class="subtab-btn active" id="btn-poster-tab-create" onclick="switchPosterSubtab('create')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+            Publish New Bounty
+          </button>
+          <button class="subtab-btn" id="btn-poster-tab-pools" onclick="switchPosterSubtab('pools')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+            Your Published Pools
+          </button>
+          <button class="subtab-btn" id="btn-poster-tab-subs" onclick="switchPosterSubtab('subs')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2-2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            Pending Submissions to Review <span class="tab-badge-count" id="poster-badge-subs">0</span>
+          </button>
+        </div>
+
+        <!-- POSTER SUBTAB 1: CREATE BOUNTY FORM -->
+        <div id="poster-subview-create" class="poster-subview active fade-in">
+          <div class="paper-card" style="max-width: 780px; margin: 0 auto;">
             <div class="card-header-press">
               <h2>Publish a New Bounty</h2>
               <span class="press-date">SMART ESCROW DEPOSIT</span>
@@ -511,28 +539,32 @@
               </button>
             </form>
           </div>
+        </div>
 
-          <!-- Dashboard Columns -->
-          <div class="poster-dashboard-column">
-            <div class="paper-card">
-              <div class="card-header-press">
-                <h3>Your Published Pools</h3>
-              </div>
-              <div class="published-pools-list" id="published-pools-list">
-                <!-- Rendered dynamically -->
-              </div>
+        <!-- POSTER SUBTAB 2: PUBLISHED POOLS -->
+        <div id="poster-subview-pools" class="poster-subview fade-in" style="display: none;">
+          <div class="paper-card" style="max-width: 860px; margin: 0 auto;">
+            <div class="card-header-press">
+              <h3>Your Published Pools</h3>
+              <span class="press-date">FUNDED BY CONNECTED WALLET</span>
             </div>
-
-            <div class="paper-card" style="margin-top: 24px;">
-              <div class="card-header-press">
-                <h3>Pending Submissions to Review</h3>
-              </div>
-              <div class="pending-submissions-list" id="pending-submissions-list">
-                <!-- Rendered dynamically -->
-              </div>
+            <div class="published-pools-list" id="published-pools-list">
+              <!-- Rendered dynamically -->
             </div>
           </div>
+        </div>
 
+        <!-- POSTER SUBTAB 3: PENDING SUBMISSIONS -->
+        <div id="poster-subview-subs" class="poster-subview fade-in" style="display: none;">
+          <div class="paper-card" style="max-width: 860px; margin: 0 auto;">
+            <div class="card-header-press">
+              <h3>Pending Submissions to Review</h3>
+              <span class="press-date">VERIFY WORKER PROOF & APPROVE PAYOUTS</span>
+            </div>
+            <div class="pending-submissions-list" id="pending-submissions-list">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
         </div>
 
       </div>

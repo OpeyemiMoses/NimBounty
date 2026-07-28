@@ -1,9 +1,12 @@
 /**
- * NimBounty Engine — Onchain HTLC Smart Escrow, Dynamic Duration & Automated Release
+ * NimBounty Engine — Worker Sub-Tabs & Poster Tabbed Sub-Views Navigation System
  */
 
 let currentView = 'landing';
 let currentRole = 'worker';
+let workerSubtabMode = 'active'; // 'active' | 'history'
+let posterSubtabMode = 'create'; // 'create' | 'pools' | 'subs'
+
 let userAccount = localStorage.getItem('nimbounty_user_acct_v3') || null;
 let deviceId = localStorage.getItem('nimbounty_device_id_v3') || null;
 let currentTheme = localStorage.getItem('nimbounty_theme') || 'light';
@@ -16,10 +19,10 @@ let pendingEscrowDraft = null;
 const PRODUCTION_URL = 'https://nim-bounty.vercel.app';
 
 // Persistent LocalStorage Keys
-const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v13';
-const STORAGE_KEY_SUBS = 'nimbounty_subs_v13';
-const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v13';
-const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v13';
+const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v14';
+const STORAGE_KEY_SUBS = 'nimbounty_subs_v14';
+const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v14';
+const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v14';
 const STORAGE_KEY_USER_ACCT = 'nimbounty_user_acct_v3';
 const STORAGE_KEY_DISCONNECTED = 'nimbounty_disconnected_session';
 
@@ -637,7 +640,7 @@ function disconnectWallet() {
 }
 
 // ==========================================
-// 11. ROLE SWITCHER & TASK GRID
+// 11. SUB-TAB SWITCHING & ROLE ENGINE
 // ==========================================
 function switchRole(role) {
   currentRole = role;
@@ -662,6 +665,45 @@ function switchRole(role) {
   }
 }
 
+function switchWorkerSubtab(mode) {
+  workerSubtabMode = mode;
+  const btnActive = document.getElementById('btn-worker-tab-active');
+  const btnHistory = document.getElementById('btn-worker-tab-history');
+
+  if (mode === 'active') {
+    btnActive?.classList.add('active');
+    btnHistory?.classList.remove('active');
+  } else {
+    btnHistory?.classList.add('active');
+    btnActive?.classList.remove('active');
+  }
+
+  playAudioFx('submit');
+  renderBounties();
+}
+
+function switchPosterSubtab(mode) {
+  posterSubtabMode = mode;
+  const btnCreate = document.getElementById('btn-poster-tab-create');
+  const btnPools = document.getElementById('btn-poster-tab-pools');
+  const btnSubs = document.getElementById('btn-poster-tab-subs');
+
+  const subviewCreate = document.getElementById('poster-subview-create');
+  const subviewPools = document.getElementById('poster-subview-pools');
+  const subviewSubs = document.getElementById('poster-subview-subs');
+
+  btnCreate?.classList.toggle('active', mode === 'create');
+  btnPools?.classList.toggle('active', mode === 'pools');
+  btnSubs?.classList.toggle('active', mode === 'subs');
+
+  if (subviewCreate) subviewCreate.style.display = (mode === 'create') ? 'block' : 'none';
+  if (subviewPools) subviewPools.style.display = (mode === 'pools') ? 'block' : 'none';
+  if (subviewSubs) subviewSubs.style.display = (mode === 'subs') ? 'block' : 'none';
+
+  playAudioFx('submit');
+  renderPosterDashboard();
+}
+
 function renderBounties() {
   const grid = document.getElementById('bounties-grid');
   if (!grid) return;
@@ -673,7 +715,17 @@ function renderBounties() {
   let filtered = bounties.filter(b => {
     const matchesSearch = b.title.toLowerCase().includes(searchQuery) || b.instructions.toLowerCase().includes(searchQuery);
     const matchesCat = categoryFilter === 'all' || b.category === categoryFilter;
-    return matchesSearch && matchesCat;
+    
+    const isExpired = b.expiresAt && Date.now() >= b.expiresAt;
+    const hasAlreadyClaimed = hasWalletCompletedBounty(b.id, userAccount);
+    const isFullyClaimed = b.slotsRemaining <= 0;
+
+    // Filter by Worker Subtab Mode ('active' vs 'history')
+    if (workerSubtabMode === 'active') {
+      return matchesSearch && matchesCat && !isExpired && !isFullyClaimed && !hasAlreadyClaimed;
+    } else { // 'history'
+      return matchesSearch && matchesCat && (isExpired || isFullyClaimed || hasAlreadyClaimed);
+    }
   });
 
   if (sortBy === 'highest') {
@@ -688,11 +740,13 @@ function renderBounties() {
     grid.innerHTML = `
       <div style="grid-column: 1 / -1; text-align: center; padding: 60px 24px; background: var(--card); border: 1px dashed var(--border); border-radius: 20px;">
         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.8" style="margin-bottom: 12px;"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
-        <h3 style="font-size: 1.3rem; font-weight: 800; color: var(--ink);">No Active Bounty Pools</h3>
+        <h3 style="font-size: 1.3rem; font-weight: 800; color: var(--ink);">No ${workerSubtabMode === 'active' ? 'Active' : 'Completed / Expired'} Bounties Found</h3>
         <p style="font-size: 0.9rem; color: var(--muted); margin-top: 6px; max-width: 460px; margin-left: auto; margin-right: auto;">
-          There are no active bounties published yet. Switch to <strong>Poster Mode</strong> to deposit real NIM smart escrow and publish the first task pool!
+          ${workerSubtabMode === 'active' 
+            ? 'There are currently no open active bounties matching your filters. Check the Completed & Expired tab or create a new pool in Poster Mode!' 
+            : 'No completed or expired bounties found in history.'}
         </p>
-        <button class="btn-primary-sm" style="margin-top: 18px;" onclick="switchRole('poster')">Switch to Poster Mode &rarr;</button>
+        ${workerSubtabMode === 'active' ? `<button class="btn-primary-sm" style="margin-top: 18px;" onclick="switchRole('poster')">Switch to Poster Mode &rarr;</button>` : ''}
       </div>
     `;
     updateLandingStats();
@@ -977,7 +1031,6 @@ async function handleCreateBounty(event) {
   const totalEscrow = reward * slots;
   const expiresAt = Date.now() + (durationHours * 3600 * 1000);
 
-  // Generate SHA-256 Hash Root & Secret for Nimiq HTLC Smart Contract Vault
   const { secretHex, hashRoot } = await generateHtlcSecretAndHash();
 
   pendingEscrowDraft = {
@@ -1006,7 +1059,6 @@ async function executeEscrowPayment() {
   let paymentConfirmed = false;
   let txHash = null;
 
-  // 1. Nimiq Pay Mobile SDK HTLC Escrow Creation
   const mobileSdk = typeof getMobileNimiqProvider === 'function' ? getMobileNimiqProvider() : null;
   if (mobileSdk && typeof mobileSdk.sendTransaction === 'function') {
     try {
@@ -1028,7 +1080,6 @@ async function executeEscrowPayment() {
     }
   }
 
-  // 2. Desktop Nimiq Hub HTLC Contract Creation (https://hub.nimiq.com)
   if (!paymentConfirmed && window.HubApi) {
     try {
       if (!hubApiInstance) hubApiInstance = new window.HubApi('https://hub.nimiq.com');
@@ -1097,8 +1148,9 @@ async function executeEscrowPayment() {
     `${totalEscrow} NIM locked for ${durationHours}h in Nimiq HTLC Contract! Pool "${title}" is published onchain.`,
     false
   );
-  renderPosterDashboard();
-  renderBounties();
+
+  // Switch to Published Pools tab automatically after creating
+  switchPosterSubtab('pools');
 }
 
 // ==========================================
@@ -1107,10 +1159,12 @@ async function executeEscrowPayment() {
 function renderPosterDashboard() {
   const poolsList = document.getElementById('published-pools-list');
   const subsList = document.getElementById('pending-submissions-list');
+  const badgeSubs = document.getElementById('poster-badge-subs');
 
   if (!userAccount) {
     if (poolsList) poolsList.innerHTML = `<p style="font-size:0.85rem; color:var(--muted);">Please connect your Nimiq Wallet to view your published pools.</p>`;
     if (subsList) subsList.innerHTML = `<p style="font-size:0.85rem; color:var(--muted);">Please connect your Nimiq Wallet to review worker submissions.</p>`;
+    if (badgeSubs) badgeSubs.textContent = '0';
     return;
   }
 
@@ -1123,6 +1177,10 @@ function renderPosterDashboard() {
     return sub.posterAddress === userAccount || 
            (sub.posterAddress && sub.posterAddress.toLowerCase().includes((userAccount || '').substring(0, 8).toLowerCase()));
   });
+
+  if (badgeSubs) {
+    badgeSubs.textContent = mySubmissions.length;
+  }
 
   if (poolsList) {
     poolsList.innerHTML = myBounties.map(b => {

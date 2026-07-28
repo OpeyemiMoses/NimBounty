@@ -1630,3 +1630,82 @@ body {
   gap: 10px;
   flex-wrap: wrap;
 }
+
+/* Sub-Tab Navigation Bar & Badges */
+.subtab-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  background: var(--card);
+  padding: 6px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  overflow-x: auto;
+}
+
+.subtab-btn {
+  flex: 1;
+  padding: 10px 16px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.subtab-btn:hover {
+  color: var(--ink);
+  background: var(--bg-subtle);
+}
+
+.subtab-btn.active {
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+[data-theme="dark"] .subtab-btn.active {
+  box-shadow: 0 0 15px rgba(217, 155, 0, 0.25);
+  border-color: rgba(217, 155, 0, 0.4);
+}
+
+.tab-badge-count {
+  background: var(--gold);
+  color: #1a1917;
+  font-family: 'Geist Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 12px;
+}
+
+.time-left-pill {
+  font-family: 'Geist Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--gold);
+  background: var(--gold-tint);
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(217, 155, 0, 0.3);
+}
+
+.card-expired {
+  opacity: 0.7;
+}
+
+.card-expired .time-left-pill {
+  color: var(--danger, #e63946);
+  background: rgba(230, 57, 70, 0.1);
+  border-color: rgba(230, 57, 70, 0.3);
+}
+
