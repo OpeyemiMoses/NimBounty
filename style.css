@@ -42,6 +42,7 @@
 html {
   scroll-behavior: smooth;
   background-color: var(--bg);
+  height: 100%;
 }
 
 body {
@@ -50,6 +51,17 @@ body {
   font-family: 'Work Sans', sans-serif;
   overflow-x: hidden;
   line-height: 1.6;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Page View Layout for Sticky Footer */
+.page-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  width: 100%;
 }
 
 /* Confetti Canvas Overlay */
@@ -885,6 +897,8 @@ body {
   max-width: 1240px;
   margin: 24px auto 60px;
   padding: 0 16px;
+  flex: 1;
+  width: 100%;
 }
 
 .console-header-paper {
@@ -1452,12 +1466,14 @@ body {
   margin-bottom: 4px;
 }
 
-/* Footer */
+/* Footer Gazette — Sticky Docked to Bottom */
 .footer-gazette {
   background: var(--ink);
   color: #fff;
-  padding: 36px 20px;
+  padding: 32px 20px;
   border-top: 1px solid var(--border-dark);
+  margin-top: auto;
+  width: 100%;
 }
 
 .footer-container {
