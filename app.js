@@ -92,6 +92,23 @@ function hasWalletCompletedBounty(bountyId, wallet) {
   return isPending || isApproved;
 }
 
+function getNimiqPayMobileSdk() {
+  const providers = [
+    window.nimiqPay,
+    window.NimiqPay,
+    window.MiniApp,
+    (window.Nimiq && window.Nimiq.MiniApp),
+    window.MiniAppSdk,
+    window.nimiq
+  ];
+  for (const provider of providers) {
+    if (provider && (typeof provider.sendTransaction === 'function' || typeof provider.checkout === 'function' || typeof provider.requestPayment === 'function')) {
+      return provider;
+    }
+  }
+  return null;
+}
+
 // ==========================================
 // 1. GLOBAL PUBLIC BOUNTY REGISTRY SYNC
 // ==========================================
@@ -1054,29 +1071,36 @@ async function executeEscrowPayment() {
   if (!pendingEscrowDraft) return;
 
   const { title, category, categoryName, proofType, reward, slots, durationHours, expiresAt, instructions, totalEscrow, secretHex, hashRoot } = pendingEscrowDraft;
-  const totalEscrowSatoshis = totalEscrow * 1e5;
+  const totalEscrowSatoshis = Math.round(totalEscrow * 1e5);
 
   let paymentConfirmed = false;
   let txHash = null;
 
-  const mobileSdk = typeof getMobileNimiqProvider === 'function' ? getMobileNimiqProvider() : null;
-  if (mobileSdk && typeof mobileSdk.sendTransaction === 'function') {
+  const mobileSdk = getNimiqPayMobileSdk();
+  if (mobileSdk) {
     try {
       showToastNotification('⌛ Deploying HTLC Contract', 'Opening Nimiq Pay to sign HTLC Smart Contract Escrow...', false);
-      const txResult = await mobileSdk.sendTransaction({
-        recipient: userAccount,
-        value: totalEscrowSatoshis,
-        label: `NimBounty HTLC Escrow (${durationHours}h): ${title}`,
-        extraData: `HTLC_LOCK_${hashRoot}_EXP_${expiresAt}`
-      });
+      let txResult = null;
+      if (typeof mobileSdk.sendTransaction === 'function') {
+        txResult = await mobileSdk.sendTransaction({
+          recipient: userAccount,
+          value: totalEscrowSatoshis,
+          label: `NimBounty Escrow (${durationHours}h): ${title}`,
+          extraData: `HTLC_LOCK_${hashRoot}_EXP_${expiresAt}`
+        });
+      } else if (typeof mobileSdk.checkout === 'function') {
+        txResult = await mobileSdk.checkout({
+          recipient: userAccount,
+          value: totalEscrowSatoshis,
+          label: `NimBounty Escrow (${durationHours}h): ${title}`
+        });
+      }
       if (txResult) {
         paymentConfirmed = true;
         txHash = typeof txResult === 'string' ? txResult : (txResult.hash || txResult.transactionHash || 'tx_htlc_mobile_confirmed');
       }
     } catch (err) {
       console.warn("Mobile HTLC contract creation error / cancelled:", err);
-      showToastNotification('❌ HTLC Creation Cancelled', 'Escrow contract creation was cancelled or failed due to insufficient funds. Bounty was NOT published.', false);
-      return;
     }
   }
 
@@ -1085,31 +1109,35 @@ async function executeEscrowPayment() {
       if (!hubApiInstance) hubApiInstance = new window.HubApi('https://hub.nimiq.com');
       showToastNotification('⌛ Opening Nimiq Hub', 'Signing HTLC Escrow Smart Contract in Nimiq Hub...', false);
       
-      const signedTx = await hubApiInstance.checkout({
+      const checkoutOptions = {
         appName: 'NimBounty HTLC Smart Escrow',
         recipient: userAccount,
         value: totalEscrowSatoshis,
         extraData: `HTLC_LOCK_${hashRoot}_EXP_${expiresAt}`
-      });
+      };
+
+      const signedTx = await hubApiInstance.checkout(checkoutOptions);
 
       if (signedTx && (signedTx.hash || signedTx.sender)) {
         paymentConfirmed = true;
         txHash = signedTx.hash || 'tx_htlc_hub_confirmed';
-      } else {
-        showToastNotification('❌ HTLC Contract Cancelled', 'HTLC escrow deposit was not signed. Bounty was NOT published.', false);
-        return;
       }
     } catch(e) {
-      console.log("Nimiq Hub HTLC checkout cancelled or failed:", e);
-      showToastNotification('❌ HTLC Contract Cancelled', 'Escrow deposit transaction was cancelled or failed due to insufficient funds. Bounty was NOT published.', false);
+      console.warn("Nimiq Hub HTLC checkout error / cancelled:", e);
+      const errMessage = (e && e.message) ? e.message : String(e);
+      showToastNotification(
+        '❌ Escrow Note',
+        `Checkout note: ${errMessage}. Make sure your Nimiq Hub account has at least ${totalEscrow + 0.1} NIM to cover deposit + network fee.`,
+        false
+      );
       return;
     }
   }
 
   if (!paymentConfirmed) {
     showToastNotification(
-      '❌ Escrow Failed',
-      `Insufficient NIM balance or HTLC smart contract creation cancelled. Bounty was NOT published.`,
+      '❌ Escrow Cancelled',
+      `Escrow deposit was not signed or balance was insufficient. Bounty was NOT published.`,
       false
     );
     return;
@@ -1149,7 +1177,6 @@ async function executeEscrowPayment() {
     false
   );
 
-  // Switch to Published Pools tab automatically after creating
   switchPosterSubtab('pools');
 }
 
@@ -1250,7 +1277,7 @@ async function reviewProof(submissionId, action) {
         await hubApiInstance.checkout({
           appName: 'NimBounty HTLC Payout Release',
           recipient: sub.workerAddress,
-          value: sub.reward * 1e5
+          value: Math.round(sub.reward * 1e5)
         });
       } catch(e) {
         console.log("Nimiq Hub payout window closed:", e);
@@ -1287,7 +1314,6 @@ window.addEventListener('DOMContentLoaded', async () => {
   initTheme();
   runTypewriter();
   fetchNimiqLiveRPC();
-  initNimiqHub();
   await tryConnectMobileSdkAllVariants();
   await fetchGlobalPublicBounties();
   updateWalletUI();
