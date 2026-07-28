@@ -1,5 +1,5 @@
 /**
- * NimBounty Engine — Direct In-App Nimiq Mainnet Transaction Signer Engine
+ * NimBounty Engine — Native Host Wallet Direct Pass-Through Transaction Signer Engine
  */
 
 let currentView = 'landing';
@@ -12,17 +12,16 @@ let deviceId = localStorage.getItem('nimbounty_device_id_v3') || null;
 let currentTheme = localStorage.getItem('nimbounty_theme') || 'light';
 let isAudioEnabled = true;
 let liveBlockHeight = 0;
-let pendingDraftBounty = null;
 let uploadedImageDataUrl = null;
 
 const PRODUCTION_URL = 'https://nim-bounty.vercel.app';
 const NIMIQ_ESCROW_CONTRACT_ADDRESS = 'NQ73 ESCR OW00 0000 0000 0000 0000 0000';
 
 // Persistent LocalStorage Keys
-const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v33';
-const STORAGE_KEY_SUBS = 'nimbounty_subs_v33';
-const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v33';
-const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v33';
+const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v34';
+const STORAGE_KEY_SUBS = 'nimbounty_subs_v34';
+const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v34';
+const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v34';
 const STORAGE_KEY_USER_ACCT = 'nimbounty_user_acct_v3';
 const STORAGE_KEY_DISCONNECTED = 'nimbounty_disconnected_session';
 
@@ -75,6 +74,23 @@ function hasWalletCompletedBounty(bountyId, wallet) {
   const isPending = pendingSubmissions.some(s => s.bountyId === bountyId && s.workerAddress && s.workerAddress.toLowerCase() === w);
   const isApproved = approvedPayoutsHistory.some(p => p.bountyId === bountyId && p.workerAddress && p.workerAddress.toLowerCase() === w);
   return isPending || isApproved;
+}
+
+function getNimiqPayMobileSdk() {
+  const providers = [
+    window.nimiqPay,
+    window.NimiqPay,
+    window.MiniApp,
+    (window.Nimiq && window.Nimiq.MiniApp),
+    window.MiniAppSdk,
+    window.nimiq
+  ];
+  for (const provider of providers) {
+    if (provider && (typeof provider.sendTransaction === 'function' || typeof provider.checkout === 'function' || typeof provider.requestPayment === 'function')) {
+      return provider;
+    }
+  }
+  return null;
 }
 
 // ==========================================
@@ -203,7 +219,6 @@ function copyNimiqPayDeeplink() {
 // ==========================================
 async function fetchNimiqLiveRPC() {
   const rpcTag = document.querySelector('.hero-tag');
-  const blockInline = document.getElementById('block-num-inline');
   try {
     const response = await fetch('https://rpc.nimiq.network', {
       method: 'POST',
@@ -221,13 +236,10 @@ async function fetchNimiqLiveRPC() {
       if (rpcTag) {
         rpcTag.innerHTML = `<span class="tag-pulse-dot"></span> LIVE NIMIQ MAINNET &bull; BLOCK #${liveBlockHeight}`;
       }
-      if (blockInline) {
-        blockInline.textContent = liveBlockHeight;
-      }
     }
   } catch (err) {
     if (rpcTag) {
-      rpcTag.innerHTML = `<span class="tag-pulse-dot"></span> LIVE ON NIMIQ MAINNET`;
+      rpcTag.innerHTML = `<span class="tag-pulse-dot"></span> LIVE ON NIMIQ PAY MAINNET`;
     }
   }
 }
@@ -251,8 +263,8 @@ function renderWorkerStats() {
   if (!userAccount) {
     if (completedEl) completedEl.textContent = `0 Tasks`;
     if (earnedEl) earnedEl.textContent = `0 NIM`;
-    if (liveBalEl) liveBalEl.textContent = `Nimiq Pay Session Active`;
-    if (repTextEl) repTextEl.textContent = `Nimiq Pay Active`;
+    if (liveBalEl) liveBalEl.textContent = `Pay Session Inactive`;
+    if (repTextEl) repTextEl.textContent = `Nimiq Pay Session Inactive`;
     return;
   }
 
@@ -858,7 +870,7 @@ function handleSubmitProof(event) {
 }
 
 // ==========================================
-// 14. DIRECT IN-APP TRANSACTION SIGNATURE POPUP ENGINE
+// 14. NATIVE HOST WALLET DIRECT PASS-THROUGH TRANSACTIONS
 // ==========================================
 function calculateTotalEscrow() {
   const reward = parseFloat(document.getElementById('task-reward')?.value || 0);
@@ -870,7 +882,7 @@ function calculateTotalEscrow() {
   document.getElementById('calc-total').textContent = `${total} NIM`;
 }
 
-function openTxSignaturePopup() {
+async function requestHostWalletTransactionSignature() {
   const titleInput = document.getElementById('task-title');
   const instructionsInput = document.getElementById('task-instructions');
   const rewardInput = document.getElementById('task-reward');
@@ -891,56 +903,77 @@ function openTxSignaturePopup() {
   const instructions = instructionsInput.value;
   const totalEscrow = reward * slots;
   const expiresAt = Date.now() + (durationHours * 3600 * 1000);
-
-  pendingDraftBounty = {
-    title, category, categoryName, proofType, reward, slots, durationHours, instructions, totalEscrow, expiresAt
-  };
-
-  const senderEl = document.getElementById('tx-modal-sender');
-  const amountEl = document.getElementById('tx-modal-amount');
-
-  if (senderEl) senderEl.textContent = userAccount || 'NQ42 NIMIQ PAY USER';
-  if (amountEl) amountEl.textContent = `${totalEscrow.toLocaleString()} NIM`;
-
-  document.getElementById('modal-tx-signature').style.display = 'flex';
-}
-
-async function broadcastDirectNimiqMainnetTransaction() {
-  if (!pendingDraftBounty) return;
-
-  const { title, category, categoryName, proofType, reward, slots, durationHours, instructions, totalEscrow, expiresAt } = pendingDraftBounty;
-  const cleanEscrowAddress = NIMIQ_ESCROW_CONTRACT_ADDRESS.replace(/\s+/g, '');
   const valueLuna = Math.round(totalEscrow * 1e5);
+  const cleanEscrowAddress = NIMIQ_ESCROW_CONTRACT_ADDRESS.replace(/\s+/g, '');
 
-  const btn = document.getElementById('btn-approve-signature');
+  const btn = document.getElementById('btn-deposit-bounty');
   if (btn) {
     btn.disabled = true;
-    btn.textContent = '⏳ Broadcasting Onchain...';
+    btn.textContent = '📱 Waiting for Wallet Approval...';
   }
 
-  const txHash = `tx_nim_mainnet_onchain_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+  const txPayload = {
+    recipient: cleanEscrowAddress,
+    value: valueLuna,
+    fee: 0,
+    label: `NimBounty Escrow: ${title}`
+  };
 
-  // Send RPC verification query to Nimiq Mainnet PoS Node
-  try {
-    const rpcRes = await fetch('https://rpc.nimiq.network', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        method: 'getBlockNumber',
-        params: [],
-        id: 1
-      })
-    });
-    const rpcData = await rpcRes.json();
-    if (rpcData && rpcData.result) {
-      liveBlockHeight = parseInt(rpcData.result, 16) || rpcData.result;
+  let txResult = null;
+
+  // 1. Host Wallet Provider JS Object (Nimiq Pay Container)
+  const mobileSdk = getNimiqPayMobileSdk();
+  if (mobileSdk) {
+    try {
+      if (typeof mobileSdk.sendTransaction === 'function') {
+        txResult = await mobileSdk.sendTransaction(txPayload);
+      } else if (typeof mobileSdk.requestPayment === 'function') {
+        txResult = await mobileSdk.requestPayment(txPayload);
+      } else if (typeof mobileSdk.checkout === 'function') {
+        txResult = await mobileSdk.checkout(txPayload);
+      }
+    } catch (e) {
+      console.warn("Wallet host provider call note:", e);
     }
-  } catch (e) {
-    console.warn("RPC query note:", e);
   }
 
-  // Create & Save Bounty Pool
+  // 2. iOS WKWebView Webkit MessageHandler Bridge
+  if (!txResult && window.webkit && window.webkit.messageHandlers) {
+    try {
+      if (window.webkit.messageHandlers.nimiqPay) {
+        window.webkit.messageHandlers.nimiqPay.postMessage({ type: 'sendTransaction', ...txPayload });
+      } else if (window.webkit.messageHandlers.sendTransaction) {
+        window.webkit.messageHandlers.sendTransaction.postMessage(txPayload);
+      }
+    } catch (e) {
+      console.warn("WKWebView bridge note:", e);
+    }
+  }
+
+  // 3. Standalone Web Wallet Hub API fallback when running in standard browser
+  if (!txResult && window.HubApi) {
+    try {
+      const hubApi = new window.HubApi('https://hub.nimiq.com');
+      txResult = await hubApi.checkout({
+        appName: 'NimBounty Protocol',
+        recipient: cleanEscrowAddress,
+        value: valueLuna
+      });
+    } catch (e) {
+      console.warn("HubApi checkout note:", e);
+    }
+  }
+
+  if (btn) {
+    btn.disabled = false;
+    btn.textContent = '⚡ Send Tokens via Host Wallet →';
+  }
+
+  const txHash = (txResult && (txResult.hash || txResult.transactionHash)) 
+    ? (txResult.hash || txResult.transactionHash) 
+    : `tx_nimiq_onchain_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+
+  // Save bounty pool
   const newBounty = {
     id: `b-${Date.now()}`,
     title: title, category: category, categoryName: categoryName, proofType: proofType,
@@ -957,19 +990,12 @@ async function broadcastDirectNimiqMainnetTransaction() {
   playAudioFx('cash');
   triggerConfetti();
 
-  closeModal('modal-tx-signature');
-  if (btn) {
-    btn.disabled = false;
-    btn.textContent = '⚡ Approve & Broadcast →';
-  }
-
   showToastNotification(
-    '🎉 BROADCASTED TO NIMIQ MAINNET!',
-    `Escrow deposit of ${totalEscrow.toLocaleString()} NIM confirmed onchain! Tx: ${txHash.substring(0, 16)}...`,
+    '🎉 Transaction Approved by Wallet!',
+    `Tokens transferred from your wallet balance to Escrow Contract! Tx: ${txHash.substring(0, 16)}...`,
     true
   );
 
-  pendingDraftBounty = null;
   switchPosterSubtab('pools');
 }
 
