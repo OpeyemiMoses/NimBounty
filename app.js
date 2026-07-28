@@ -1,5 +1,5 @@
 /**
- * NimBounty Engine — Strict Payment Enforcement, Anti-Self-Claim & Anti-Sybil Duplicate Protections
+ * NimBounty Engine — Persistent Per-Wallet Stats, Global Protocol Metrics & Ownership Protection
  */
 
 let currentView = 'landing';
@@ -16,34 +16,29 @@ const PRODUCTION_URL = 'https://nim-bounty.vercel.app';
 const NIMIQ_ESCROW_VAULT = 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000';
 
 // Persistent LocalStorage Keys
-const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v7';
-const STORAGE_KEY_SUBS = 'nimbounty_subs_v7';
-const STORAGE_KEY_STATS = 'nimbounty_stats_v7';
-const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v7';
+const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v8';
+const STORAGE_KEY_SUBS = 'nimbounty_subs_v8';
+const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v8';
+const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v8';
 const STORAGE_KEY_USER_ACCT = 'nimbounty_user_acct_v3';
 
 let bounties = JSON.parse(localStorage.getItem(STORAGE_KEY_BOUNTIES)) || [];
 let pendingSubmissions = JSON.parse(localStorage.getItem(STORAGE_KEY_SUBS)) || [];
 let completedBountyIds = JSON.parse(localStorage.getItem(STORAGE_KEY_COMPLETED)) || [];
-
-let workerStats = JSON.parse(localStorage.getItem(STORAGE_KEY_STATS)) || {
-  completed: 0,
-  earned: 0,
-  activeClaims: 0,
-  reputation: 100
-};
+let approvedPayoutsHistory = JSON.parse(localStorage.getItem(STORAGE_KEY_PAID_HISTORY)) || [];
 
 function saveState() {
   localStorage.setItem(STORAGE_KEY_BOUNTIES, JSON.stringify(bounties));
   localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions));
-  localStorage.setItem(STORAGE_KEY_STATS, JSON.stringify(workerStats));
   localStorage.setItem(STORAGE_KEY_COMPLETED, JSON.stringify(completedBountyIds));
+  localStorage.setItem(STORAGE_KEY_PAID_HISTORY, JSON.stringify(approvedPayoutsHistory));
   if (userAccount) {
     localStorage.setItem(STORAGE_KEY_USER_ACCT, userAccount);
   } else {
     localStorage.removeItem(STORAGE_KEY_USER_ACCT);
   }
   updateLandingStats();
+  renderWorkerStats();
   syncGlobalPublicBounties();
 }
 
@@ -59,12 +54,18 @@ async function fetchGlobalPublicBounties() {
     const res = await fetch('https://api.npoint.io/46869bce5432nimbounty', { cache: 'no-cache' });
     if (res.ok) {
       const data = await res.json();
-      if (Array.isArray(data.bounties) && data.bounties.length > 0) {
+      if (Array.isArray(data.bounties)) {
         bounties = data.bounties;
         localStorage.setItem(STORAGE_KEY_BOUNTIES, JSON.stringify(bounties));
-        renderBounties();
-        renderPosterDashboard();
       }
+      if (Array.isArray(data.approvedPayoutsHistory)) {
+        approvedPayoutsHistory = data.approvedPayoutsHistory;
+        localStorage.setItem(STORAGE_KEY_PAID_HISTORY, JSON.stringify(approvedPayoutsHistory));
+      }
+      renderBounties();
+      renderPosterDashboard();
+      updateLandingStats();
+      renderWorkerStats();
     }
   } catch (e) {
     // Fall back gracefully
@@ -76,7 +77,7 @@ async function syncGlobalPublicBounties() {
     await fetch('https://api.npoint.io/46869bce5432nimbounty', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ bounties, pendingSubmissions, updatedAt: Date.now() })
+      body: JSON.stringify({ bounties, pendingSubmissions, approvedPayoutsHistory, updatedAt: Date.now() })
     });
   } catch (e) {
     // Fall back gracefully
@@ -167,7 +168,7 @@ function copyNimiqPayDeeplink() {
 }
 
 // ==========================================
-// 5. LIVE NIMIQ RPC NETWORK FETCH & STATS
+// 5. LIVE NIMIQ RPC NETWORK FETCH & PERSISTENT METRICS
 // ==========================================
 async function fetchNimiqLiveRPC() {
   const rpcTag = document.querySelector('.hero-tag');
@@ -200,8 +201,43 @@ function updateLandingStats() {
   const statBounties = document.getElementById('landing-stat-bounties');
   const statPayouts = document.getElementById('landing-stat-payouts');
 
+  const totalRewardsPaid = approvedPayoutsHistory.reduce((sum, item) => sum + (item.reward || 0), 0);
+
   if (statBounties) statBounties.textContent = bounties.length;
-  if (statPayouts) statPayouts.textContent = `${workerStats.earned} NIM`;
+  if (statPayouts) statPayouts.textContent = `${totalRewardsPaid} NIM`;
+}
+
+function renderWorkerStats() {
+  const completedEl = document.getElementById('worker-completed-count');
+  const earnedEl = document.getElementById('worker-earned-amount');
+  const activeClaimsEl = document.getElementById('worker-active-claims');
+  const repTextEl = document.getElementById('worker-rep-text');
+
+  if (!userAccount) {
+    if (completedEl) completedEl.textContent = `0 Tasks`;
+    if (earnedEl) earnedEl.textContent = `0 NIM`;
+    if (activeClaimsEl) activeClaimsEl.textContent = `0 / 3`;
+    if (repTextEl) repTextEl.textContent = `Connect Wallet to View Profile`;
+    return;
+  }
+
+  // Filter approved payouts for THIS EXACT WALLET
+  const myApprovedPayouts = approvedPayoutsHistory.filter(p => 
+    p.workerAddress && p.workerAddress.toLowerCase() === userAccount.toLowerCase()
+  );
+
+  const completedCount = myApprovedPayouts.length;
+  const earnedAmount = myApprovedPayouts.reduce((sum, p) => sum + (p.reward || 0), 0);
+
+  // Filter active pending claims for THIS EXACT WALLET
+  const myActiveClaims = pendingSubmissions.filter(s => 
+    s.workerAddress && s.workerAddress.toLowerCase() === userAccount.toLowerCase()
+  ).length;
+
+  if (completedEl) completedEl.textContent = `${completedCount} Tasks`;
+  if (earnedEl) earnedEl.textContent = `${earnedAmount} NIM`;
+  if (activeClaimsEl) activeClaimsEl.textContent = `${myActiveClaims} / 3`;
+  if (repTextEl) repTextEl.textContent = `Verified Worker (${userAccount.substring(0, 10)}...)`;
 }
 
 // ==========================================
@@ -373,6 +409,7 @@ function showView(viewName) {
     navBtnApp?.classList.add('active');
     navBtnLanding?.classList.remove('active');
     renderBounties();
+    renderWorkerStats();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 }
@@ -407,6 +444,8 @@ function updateWalletUI() {
 
   if (walletTextDesktop) walletTextDesktop.textContent = displayVal;
   if (walletTextMobile) walletTextMobile.textContent = displayVal;
+
+  renderWorkerStats();
 }
 
 function handleWalletButtonClick() {
@@ -493,6 +532,7 @@ async function connectWallet() {
     playAudioFx('cash');
     showToastNotification('Connected!', `Nimiq Pay Mobile Wallet connected:\n${userAccount}`, false);
     renderPosterDashboard();
+    renderWorkerStats();
     return;
   }
 
@@ -511,6 +551,7 @@ async function connectWallet() {
         playAudioFx('cash');
         showToastNotification('Connected!', `Nimiq Web Wallet connected:\n${userAccount}`, false);
         renderPosterDashboard();
+        renderWorkerStats();
         return;
       }
     } catch (err) {
@@ -530,6 +571,7 @@ function openWalletAddressModal() {
     playAudioFx('submit');
     showToastNotification('Wallet Connected!', `Address set: ${userAccount}`, false);
     renderPosterDashboard();
+    renderWorkerStats();
   }
 }
 
@@ -540,14 +582,8 @@ function disconnectWallet() {
   localStorage.removeItem('nimbounty_device_id_v3');
   updateWalletUI();
   renderPosterDashboard();
+  renderWorkerStats();
   showToastNotification('Disconnected 🔌', 'Nimiq Wallet disconnected successfully.', false);
-}
-
-function renderWorkerStats() {
-  const completedEl = document.getElementById('worker-completed-count');
-  const earnedEl = document.getElementById('worker-earned-amount');
-  if (completedEl) completedEl.textContent = `${workerStats.completed} Tasks`;
-  if (earnedEl) earnedEl.textContent = `${workerStats.earned} NIM`;
 }
 
 // ==========================================
@@ -566,6 +602,7 @@ function switchRole(role) {
     workerView.style.display = 'block';
     posterView.style.display = 'none';
     renderBounties();
+    renderWorkerStats();
   } else {
     posterBtn.classList.add('active');
     workerBtn.classList.remove('active');
@@ -706,7 +743,7 @@ function copyQrLink() {
 }
 
 // ==========================================
-// 13. CLAIM & SUBMIT PROOF ENGINE (WITH ANTI-SELF-CLAIM & ANTI-DUPLICATE GUARDS)
+// 13. CLAIM & SUBMIT PROOF ENGINE
 // ==========================================
 function openClaimModal(bountyId) {
   const bounty = bounties.find(b => b.id === bountyId);
@@ -718,13 +755,11 @@ function openClaimModal(bountyId) {
     return;
   }
 
-  // 1. Publisher Self-Claim Protection
   if (userAccount && bounty.posterAddress && userAccount.toLowerCase() === bounty.posterAddress.toLowerCase()) {
     showToastNotification('⛔ Self-Claim Blocked', 'You are the publisher of this bounty pool! Publishers cannot claim or complete their own tasks.', false);
     return;
   }
 
-  // 2. Duplicate Claim Protection (1 completion per wallet)
   const hasSubmitted = pendingSubmissions.some(s => s.bountyId === bountyId && s.workerAddress.toLowerCase() === userAccount.toLowerCase());
   const hasCompleted = completedBountyIds.includes(bountyId);
   if (hasSubmitted || hasCompleted) {
@@ -797,7 +832,6 @@ function handleSubmitProof(event) {
   const bounty = bounties.find(b => b.id === currentModalBountyId);
   if (!bounty) return;
 
-  // Double Check Self-Claim & Duplicate Protections
   if (userAccount && bounty.posterAddress && userAccount.toLowerCase() === bounty.posterAddress.toLowerCase()) {
     showToastNotification('⛔ Self-Claim Blocked', 'You cannot complete your own bounty.', false);
     return;
@@ -827,9 +861,7 @@ function handleSubmitProof(event) {
     bounty.slotsRemaining -= 1;
   }
 
-  workerStats.completed += 1;
   completedBountyIds.push(bounty.id);
-  renderWorkerStats();
 
   pendingSubmissions.unshift({
     id: `sub-${Date.now()}`,
@@ -856,7 +888,7 @@ function handleSubmitProof(event) {
 }
 
 // ==========================================
-// 14. STRICT ONCHAIN ESCROW PAYMENT & BOUNTY PUBLISH (ZERO-MOCK ABORT)
+// 14. STRICT ONCHAIN ESCROW PAYMENT & BOUNTY PUBLISH
 // ==========================================
 function calculateTotalEscrow() {
   const reward = parseFloat(document.getElementById('task-reward')?.value || 0);
@@ -889,7 +921,6 @@ async function handleCreateBounty(event) {
   let paymentConfirmed = false;
   let txHash = null;
 
-  // 1. Mobile Nimiq Pay SDK Payment
   const mobileSdk = typeof getMobileNimiqProvider === 'function' ? getMobileNimiqProvider() : null;
   if (mobileSdk && typeof mobileSdk.sendTransaction === 'function') {
     try {
@@ -906,11 +937,10 @@ async function handleCreateBounty(event) {
     } catch (err) {
       console.warn("Mobile escrow payment error / cancelled:", err);
       showToastNotification('❌ Payment Failed / Cancelled', 'Escrow transaction was cancelled or failed due to insufficient funds. Bounty was NOT published.', false);
-      return; // STRICT ABORT
+      return;
     }
   }
 
-  // 2. Desktop Real Nimiq Hub Checkout (https://hub.nimiq.com)
   if (!paymentConfirmed && window.HubApi) {
     try {
       if (!hubApiInstance) hubApiInstance = new window.HubApi('https://hub.nimiq.com');
@@ -927,26 +957,24 @@ async function handleCreateBounty(event) {
         txHash = signedTx.hash || 'tx_hub_confirmed';
       } else {
         showToastNotification('❌ Payment Cancelled', 'Escrow deposit was not signed. Bounty was NOT published.', false);
-        return; // STRICT ABORT
+        return;
       }
     } catch(e) {
       console.log("Nimiq Hub checkout cancelled or failed:", e);
       showToastNotification('❌ Payment Failed / Cancelled', 'Escrow deposit transaction was cancelled or failed due to insufficient funds. Bounty was NOT published.', false);
-      return; // STRICT ABORT
+      return;
     }
   }
 
-  // STRICT RULE: IF PAYMENT WAS NOT CONFIRMED ONCHAIN / HUB / SDK -> DO NOT PUBLISH BOUNTY!
   if (!paymentConfirmed) {
     showToastNotification(
       '❌ Payment Required',
       `Insufficient NIM balance or escrow deposit cancelled. Bounty was NOT published.`,
       false
     );
-    return; // STRICT ABORT — NO MOCK CREATION ALLOWED
+    return;
   }
 
-  // PUBLISH BOUNTY ONLY WHEN ESCROW TRANSACTION IS VALIDATED & CONFIRMED
   const newBounty = {
     id: `b-${Date.now()}`,
     title: title,
@@ -980,7 +1008,7 @@ async function handleCreateBounty(event) {
 }
 
 // ==========================================
-// 15. PUBLISHER REVIEW SCREENSHOT RENDERER
+// 15. PUBLISHER REVIEW & ACCURATE PAYOUT TRACKING
 // ==========================================
 function renderPosterDashboard() {
   const poolsList = document.getElementById('published-pools-list');
@@ -1071,9 +1099,17 @@ async function reviewProof(submissionId, action) {
       }
     }
 
-    workerStats.earned += sub.reward;
-    renderWorkerStats();
+    // Record verified approved payout in global history
+    approvedPayoutsHistory.push({
+      id: `pay-${Date.now()}`,
+      bountyId: sub.bountyId,
+      workerAddress: sub.workerAddress,
+      posterAddress: sub.posterAddress,
+      reward: sub.reward,
+      paidAt: Date.now()
+    });
 
+    saveState();
     playAudioFx('cash');
     triggerConfetti();
     showToastNotification(
@@ -1100,6 +1136,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   updateWalletUI();
   calculateTotalEscrow();
   updateLandingStats();
+  renderWorkerStats();
   
   setInterval(fetchGlobalPublicBounties, 15000);
 });
