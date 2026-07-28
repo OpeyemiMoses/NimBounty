@@ -1,5 +1,5 @@
 /**
- * NimBounty Engine — Clean Real Bounty Engine (Zero Dummy Bounties)
+ * NimBounty Engine — Global Real-Time Sync & URL Auto-Import Engine
  */
 
 let currentView = 'landing';
@@ -18,13 +18,12 @@ const PRODUCTION_URL = 'https://nim-bounty.vercel.app';
 const NIMIQ_ESCROW_CONTRACT_ADDRESS = 'NQ73 ESCR OW00 0000 0000 0000 0000 0000';
 
 // Persistent LocalStorage Keys
-const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v41';
-const STORAGE_KEY_SUBS = 'nimbounty_subs_v41';
-const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v41';
-const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v41';
+const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v42';
+const STORAGE_KEY_SUBS = 'nimbounty_subs_v42';
+const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v42';
+const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v42';
 const STORAGE_KEY_USER_ACCT = 'nimbounty_user_acct_v3';
 
-// Clean array — Zero dummy bounties!
 let bounties = JSON.parse(localStorage.getItem(STORAGE_KEY_BOUNTIES)) || [];
 let pendingSubmissions = JSON.parse(localStorage.getItem(STORAGE_KEY_SUBS)) || [];
 let completedBountyIds = JSON.parse(localStorage.getItem(STORAGE_KEY_COMPLETED)) || [];
@@ -76,40 +75,96 @@ function hasWalletCompletedBounty(bountyId, wallet) {
 }
 
 // ==========================================
-// 1. GLOBAL PUBLIC BOUNTY REGISTRY SYNC
+// 1. GLOBAL REAL-TIME PUBLIC SYNC ENGINE
 // ==========================================
 async function fetchGlobalPublicBounties() {
   try {
-    const res = await fetch('https://api.npoint.io/46869bce5432nimbounty', { cache: 'no-cache' });
+    const apiEndpoint = window.location.origin.includes('localhost')
+      ? `${PRODUCTION_URL}/api/bounties`
+      : `/api/bounties`;
+
+    const res = await fetch(apiEndpoint, { cache: 'no-cache' });
     if (res.ok) {
       const data = await res.json();
-      if (Array.isArray(data.bounties)) {
+      let updated = false;
+
+      if (Array.isArray(data.bounties) && data.bounties.length > 0) {
         const existingIds = new Set(bounties.map(b => b.id));
         data.bounties.forEach(rb => {
           if (!existingIds.has(rb.id)) {
             bounties.unshift(rb);
             existingIds.add(rb.id);
+            updated = true;
           }
         });
-        localStorage.setItem(STORAGE_KEY_BOUNTIES, JSON.stringify(bounties));
       }
-      renderBounties();
-      renderPosterDashboard();
-      updateLandingStats();
-      renderWorkerStats();
+
+      if (Array.isArray(data.pendingSubmissions) && data.pendingSubmissions.length > 0) {
+        const existingSubIds = new Set(pendingSubmissions.map(s => s.id));
+        data.pendingSubmissions.forEach(rs => {
+          if (!existingSubIds.has(rs.id)) {
+            pendingSubmissions.unshift(rs);
+            existingSubIds.add(rs.id);
+            updated = true;
+          }
+        });
+      }
+
+      if (updated) {
+        localStorage.setItem(STORAGE_KEY_BOUNTIES, JSON.stringify(bounties));
+        localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions));
+        renderBounties();
+        renderPosterDashboard();
+        updateLandingStats();
+        renderWorkerStats();
+      }
     }
   } catch (e) {
     // Fall back gracefully
   }
 }
 
-async function syncGlobalPublicBounties() {
+async function syncGlobalPublicBounties(newBountyObj = null) {
   try {
-    await fetch('https://api.npoint.io/46869bce5432nimbounty', {
+    const apiEndpoint = window.location.origin.includes('localhost')
+      ? `${PRODUCTION_URL}/api/bounties`
+      : `/api/bounties`;
+
+    await fetch(apiEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ bounties, pendingSubmissions, approvedPayoutsHistory, updatedAt: Date.now() })
+      body: JSON.stringify({
+        newBounty: newBountyObj,
+        bounties,
+        pendingSubmissions,
+        approvedPayoutsHistory,
+        updatedAt: Date.now()
+      })
     });
+  } catch (e) {
+    // Fall back gracefully
+  }
+}
+
+// Check URL Hash for shared bounty payload auto-import
+function checkUrlAutoImport() {
+  try {
+    const hash = window.location.hash;
+    if (hash && hash.includes('bdata=')) {
+      const b64 = hash.split('bdata=')[1];
+      if (b64) {
+        const jsonStr = decodeURIComponent(atob(b64));
+        const importedBounty = JSON.parse(jsonStr);
+        if (importedBounty && importedBounty.id) {
+          const exists = bounties.some(b => b.id === importedBounty.id);
+          if (!exists) {
+            bounties.unshift(importedBounty);
+            saveState();
+            showToastNotification('📥 Bounty Imported!', `Imported bounty: "${importedBounty.title}"`, false);
+          }
+        }
+      }
+    }
   } catch (e) {
     // Fall back gracefully
   }
@@ -665,7 +720,7 @@ function renderBounties() {
 }
 
 // ==========================================
-// 12. QR CODE GENERATOR & SHARE MODAL
+// 12. QR CODE GENERATOR & SHARE DEEPLINK MODAL
 // ==========================================
 function openQrModal(bountyId) {
   const bounty = bounties.find(b => b.id === bountyId);
@@ -673,14 +728,19 @@ function openQrModal(bountyId) {
 
   const currentOrigin = window.location.origin.includes('localhost') ? PRODUCTION_URL : window.location.origin;
   document.getElementById('qr-bounty-title').textContent = bounty.title;
-  const deepLink = `nimiqpay://miniapp?url=${currentOrigin}/#app?id=${bounty.id}`;
-  document.getElementById('qr-link-input').value = deepLink;
+
+  // Create compressed base64 share link so ANY recipient immediately imports the bounty
+  const b64Data = btoa(encodeURIComponent(JSON.stringify(bounty)));
+  const shareWebUrl = `${currentOrigin}/#bdata=${b64Data}`;
+  const deepLink = `nimiqpay://miniapp?url=${encodeURIComponent(shareWebUrl)}`;
+
+  document.getElementById('qr-link-input').value = shareWebUrl;
 
   const qrBox = document.getElementById('qrcode-box');
   qrBox.innerHTML = '';
   if (window.QRCode) {
     new window.QRCode(qrBox, {
-      text: deepLink,
+      text: shareWebUrl,
       width: 180,
       height: 180,
       colorDark: "#1a1917",
@@ -698,7 +758,7 @@ function copyQrLink() {
     input.select();
     navigator.clipboard.writeText(input.value);
     playAudioFx('submit');
-    showToastNotification('📋 Deeplink Copied!', 'Copied Nimiq Pay mobile deeplink to clipboard.', false);
+    showToastNotification('📋 Share Link Copied!', 'Copied direct bounty share link to clipboard.', false);
   }
 }
 
@@ -888,6 +948,8 @@ function publishBountyPoolDirectly() {
 
   bounties.unshift(newBounty);
   saveState();
+  syncGlobalPublicBounties(newBounty);
+  
   document.getElementById('create-bounty-form').reset();
   calculateTotalEscrow();
 
@@ -1031,11 +1093,12 @@ window.addEventListener('DOMContentLoaded', async () => {
   initTheme();
   runTypewriter();
   fetchNimiqLiveRPC();
+  checkUrlAutoImport();
   await fetchGlobalPublicBounties();
   updateWalletUI();
   calculateTotalEscrow();
   updateLandingStats();
   renderWorkerStats();
   
-  setInterval(fetchGlobalPublicBounties, 10000);
+  setInterval(fetchGlobalPublicBounties, 5000);
 });
