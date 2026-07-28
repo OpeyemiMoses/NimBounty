@@ -1449,38 +1449,6 @@ function showDirectPayoutModal(workerAddr, rewardNim, lunaValue, deeplink) {
   `;
   document.body.appendChild(modal);
 }
-            <button class="btn-primary-sm" onclick="navigator.clipboard.writeText('${workerAddr}');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500);">Copy</button>
-          </div>
-        </div>
-
-        <div style="display:flex;gap:12px;">
-          <div style="flex:1;background:var(--bg-subtle);border-radius:10px;padding:12px;text-align:center;">
-            <div style="font-size:0.72rem;color:var(--muted);font-weight:700;margin-bottom:4px;">AMOUNT TO SEND</div>
-            <div style="font-size:1.4rem;font-weight:900;color:var(--gold);">&#9889; ${rewardNim} NIM</div>
-          </div>
-          <div style="flex:1;background:var(--bg-subtle);border-radius:10px;padding:12px;text-align:center;">
-            <div style="font-size:0.72rem;color:var(--muted);font-weight:700;margin-bottom:4px;">IN LUNA (raw)</div>
-            <div style="font-size:1.1rem;font-weight:800;color:var(--ink);">${lunaValue.toLocaleString()}</div>
-          </div>
-        </div>
-
-        <div style="font-size:0.82rem;color:var(--muted);background:var(--bg-subtle);border-radius:10px;padding:12px;line-height:1.6;">
-          <strong>Steps:</strong><br/>
-          1. Open <strong>Nimiq Pay</strong> on your device<br/>
-          2. Switch active account to <strong>Escrow Vault</strong> (<code style="font-size:0.75rem;">${NIMIQ_ESCROW_CONTRACT_ADDRESS.substring(0,18)}...</code>)<br/>
-          3. Tap <strong>Send</strong> and paste the worker address<br/>
-          4. Enter <strong>${rewardNim} NIM</strong> and confirm
-        </div>
-
-        <button class="btn-primary-lg full-width" onclick="window.open('${deeplink}');" style="margin-top:4px;">
-          Open Nimiq Pay to Send &rarr;
-        </button>
-        <p style="font-size:0.72rem;color:var(--muted);text-align:center;margin-top:-6px;">Make sure you are logged in as the Escrow Vault account before confirming.</p>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(modal);
-}
 
 window.addEventListener('DOMContentLoaded', async () => {
   initTheme();
