@@ -1,5 +1,5 @@
 /**
- * NimBounty Engine — Live Nimiq Hub API & Nimiq Pay Mobile SDK Integration
+ * NimBounty Engine — Clean Live Protocol Engine (No Mocked Bounties)
  */
 
 let currentView = 'landing';
@@ -10,100 +10,21 @@ let isAudioEnabled = true;
 let liveBlockHeight = 0;
 let hubApiInstance = null;
 
-// Persistent LocalStorage State
-const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v1';
-const STORAGE_KEY_SUBS = 'nimbounty_subs_v1';
-const STORAGE_KEY_STATS = 'nimbounty_stats_v1';
-const STORAGE_KEY_USER_ACCT = 'nimbounty_user_acct_v1';
+// Persistent LocalStorage Keys
+const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v2';
+const STORAGE_KEY_SUBS = 'nimbounty_subs_v2';
+const STORAGE_KEY_STATS = 'nimbounty_stats_v2';
+const STORAGE_KEY_USER_ACCT = 'nimbounty_user_acct_v2';
 
-// Seed Data Fallbacks
-const defaultBounties = [
-  {
-    id: 'b1',
-    title: 'Test Nimiq Mini App & Write 3 Feedback Points',
-    category: 'app-test',
-    categoryName: 'APP TESTING',
-    proofType: 'text',
-    reward: 50,
-    slotsTotal: 10,
-    slotsRemaining: 8,
-    sponsor: 'Nimiq Dev Team',
-    instructions: 'Open our Nimiq Pay test app at https://nimiq.dev, navigate through the payment flow, and provide 3 clear points on what felt fast and what could be improved.',
-    createdAt: Date.now() - 3600000
-  },
-  {
-    id: 'b2',
-    title: 'Review NimBounty Console UI & Rate Experience',
-    category: 'feedback',
-    categoryName: 'UI/UX FEEDBACK',
-    proofType: 'text',
-    reward: 25,
-    slotsTotal: 15,
-    slotsRemaining: 14,
-    sponsor: 'Design Studio',
-    instructions: 'Check out the console app layout, typewriter animation, and fonts. Rate the design from 1 to 10 and mention your favorite feature.',
-    createdAt: Date.now() - 7200000
-  },
-  {
-    id: 'b3',
-    title: 'Share Nimiq Mini Apps Competition Launch',
-    category: 'social',
-    categoryName: 'SOCIAL SHARE',
-    proofType: 'url',
-    reward: 30,
-    slotsTotal: 20,
-    slotsRemaining: 4,
-    sponsor: 'MiniApp Competition',
-    instructions: 'Post a tweet introducing the Nimiq Mini Apps Competition with hashtag #NimiqMiniApps and paste your tweet link as proof.',
-    createdAt: Date.now() - 10800000
-  },
-  {
-    id: 'b4',
-    title: 'Bug Hunt: Test Mobile WebView Checkout Flow',
-    category: 'bug',
-    categoryName: 'BUG HUNT',
-    proofType: 'image',
-    reward: 100,
-    slotsTotal: 5,
-    slotsRemaining: 2,
-    sponsor: 'Nimiq Ecosystem',
-    instructions: 'Perform a checkout test in Nimiq Pay WebView on iOS or Android. Upload a screenshot showing the transaction confirmation dialog.',
-    createdAt: Date.now() - 14400000
-  },
-  {
-    id: 'b5',
-    title: 'Translate 4 Mini App UI Strings into Spanish',
-    category: 'copy',
-    categoryName: 'TRANSLATION',
-    proofType: 'text',
-    reward: 60,
-    slotsTotal: 5,
-    slotsRemaining: 5,
-    sponsor: 'Global Nimiq',
-    instructions: 'Translate the following strings into Spanish: 1. "Connect Wallet", 2. "Lock Escrow", 3. "Task Submitted", 4. "Instant Payout Released".',
-    createdAt: Date.now() - 18000000
-  }
-];
-
-let bounties = JSON.parse(localStorage.getItem(STORAGE_KEY_BOUNTIES)) || defaultBounties;
-let pendingSubmissions = JSON.parse(localStorage.getItem(STORAGE_KEY_SUBS)) || [
-  {
-    id: 'sub-1',
-    bountyId: 'b1',
-    bountyTitle: 'Test Nimiq Mini App & Write 3 Feedback Points',
-    workerAddress: 'NQ42 NIMIQ WORKER 7890',
-    proofType: 'text',
-    content: '1. Onboarding took 11 seconds (super fast).\n2. Payment pop-up styling is clean.\n3. Would love a dark mode toggle!',
-    submittedAt: '10 mins ago',
-    reward: 50
-  }
-];
+// Pure Real Data Store — Starts Empty until Created by Users
+let bounties = JSON.parse(localStorage.getItem(STORAGE_KEY_BOUNTIES)) || [];
+let pendingSubmissions = JSON.parse(localStorage.getItem(STORAGE_KEY_SUBS)) || [];
 
 let workerStats = JSON.parse(localStorage.getItem(STORAGE_KEY_STATS)) || {
-  completed: 5,
-  earned: 350,
+  completed: 0,
+  earned: 0,
   activeClaims: 0,
-  reputation: 98
+  reputation: 100
 };
 
 function saveState() {
@@ -351,6 +272,14 @@ function initNimiqHub() {
     const walletText = document.getElementById('wallet-text');
     if (walletText) walletText.textContent = `${userAccount.substring(0, 14)}...`;
   }
+  renderWorkerStats();
+}
+
+function renderWorkerStats() {
+  const completedEl = document.getElementById('worker-completed-count');
+  const earnedEl = document.getElementById('worker-earned-amount');
+  if (completedEl) completedEl.textContent = `${workerStats.completed} Tasks`;
+  if (earnedEl) earnedEl.textContent = `${workerStats.earned} NIM`;
 }
 
 async function connectWallet() {
@@ -458,9 +387,13 @@ function renderBounties() {
 
   if (filtered.length === 0) {
     grid.innerHTML = `
-      <div style="grid-column: 1 / -1; text-align: center; padding: 40px; background: var(--card); border: 1px solid var(--border); border-radius: 16px;">
-        <h3 style="font-size: 1.3rem; font-weight: 700; color: var(--muted);">No bounties match your search</h3>
-        <p style="font-size: 0.85rem; color: var(--muted); margin-top: 6px;">Try selecting another category or clear your search query.</p>
+      <div style="grid-column: 1 / -1; text-align: center; padding: 60px 24px; background: var(--card); border: 1px dashed var(--border); border-radius: 20px;">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--gold-dark)" stroke-width="1.8" style="margin-bottom: 12px;"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+        <h3 style="font-size: 1.3rem; font-weight: 800; color: var(--ink);">No Active Bounty Pools</h3>
+        <p style="font-size: 0.9rem; color: var(--muted); margin-top: 6px; max-width: 460px; margin-left: auto; margin-right: auto;">
+          There are no active bounties published yet. Switch to <strong>Poster Mode</strong> to create and deposit the first smart escrow task pool!
+        </p>
+        <button class="btn-primary-sm" style="margin-top: 18px;" onclick="switchRole('poster')">Switch to Poster Mode &rarr;</button>
       </div>
     `;
     return;
@@ -624,7 +557,7 @@ function handleSubmitProof(event) {
   }
 
   workerStats.completed += 1;
-  document.getElementById('worker-completed-count').textContent = `${workerStats.completed} Tasks`;
+  renderWorkerStats();
 
   pendingSubmissions.unshift({
     id: `sub-${Date.now()}`,
@@ -704,6 +637,7 @@ async function handleCreateBounty(event) {
   playAudioFx('submit');
   alert(`Escrow Locked & Bounty Published!\n${totalEscrow} NIM locked in Nimiq Pay escrow vault.`);
   renderPosterDashboard();
+  renderBounties();
 }
 
 function renderPosterDashboard() {
@@ -711,7 +645,7 @@ function renderPosterDashboard() {
   const subsList = document.getElementById('pending-submissions-list');
 
   if (poolsList) {
-    poolsList.innerHTML = bounties.filter(b => b.sponsor.includes('You') || b.sponsor.includes('NQ') || b.sponsor === 'Nimiq Dev Team').map(b => `
+    poolsList.innerHTML = bounties.map(b => `
       <div class="dashboard-item">
         <div class="dashboard-item-title">${b.title}</div>
         <div class="dashboard-item-meta">
@@ -719,7 +653,7 @@ function renderPosterDashboard() {
           <span>Slots: <strong>${b.slotsRemaining} / ${b.slotsTotal} Open</strong></span>
         </div>
       </div>
-    `).join('') || `<p style="font-size:0.85rem; color:var(--muted);">No published bounty pools yet.</p>`;
+    `).join('') || `<p style="font-size:0.85rem; color:var(--muted);">No published bounty pools yet. Use the form to deposit escrow & publish your first task pool!</p>`;
   }
 
   if (subsList) {
@@ -755,7 +689,6 @@ async function reviewProof(index, action) {
   if (!sub) return;
 
   if (action === 'approve') {
-    // Real Nimiq Hub transaction on desktop if available
     if (hubApiInstance && !window.nimiqPay && sub.workerAddress.startsWith('NQ')) {
       try {
         await hubApiInstance.checkout({
@@ -769,7 +702,7 @@ async function reviewProof(index, action) {
     }
 
     workerStats.earned += sub.reward;
-    document.getElementById('worker-earned-amount').textContent = `${workerStats.earned} NIM`;
+    renderWorkerStats();
 
     playAudioFx('cash');
     triggerConfetti();
