@@ -1,5 +1,5 @@
 /**
- * NimBounty Engine — Perfected Nimiq Pay MiniApp Integration & Permanent Sync Engine
+ * NimBounty Engine — Strict Real Nimiq Pay Wallet Engine (Zero Dummy Fallbacks)
  */
 
 let currentView = 'landing';
@@ -8,8 +8,6 @@ let workerSubtabMode = 'active'; // 'active' | 'history'
 let posterSubtabMode = 'create'; // 'create' | 'pools' | 'subs'
 
 let userAccount = localStorage.getItem('nimbounty_user_acct_v3') || null;
-let userBalance = parseFloat(localStorage.getItem('nimbounty_user_bal_v3')) || 1000;
-let deviceId = localStorage.getItem('nimbounty_device_id_v3') || null;
 let currentTheme = localStorage.getItem('nimbounty_theme') || 'light';
 let isAudioEnabled = true;
 let liveBlockHeight = 0;
@@ -19,12 +17,11 @@ const PRODUCTION_URL = 'https://nim-bounty.vercel.app';
 const NIMIQ_ESCROW_CONTRACT_ADDRESS = 'NQ73 ESCR OW00 0000 0000 0000 0000 0000';
 
 // Persistent LocalStorage Keys
-const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v65';
-const STORAGE_KEY_SUBS = 'nimbounty_subs_v65';
-const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v65';
-const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v65';
+const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v70';
+const STORAGE_KEY_SUBS = 'nimbounty_subs_v70';
+const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v70';
+const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v70';
 const STORAGE_KEY_USER_ACCT = 'nimbounty_user_acct_v3';
-const STORAGE_KEY_USER_BAL = 'nimbounty_user_bal_v3';
 
 let bounties = JSON.parse(localStorage.getItem(STORAGE_KEY_BOUNTIES)) || [];
 let pendingSubmissions = JSON.parse(localStorage.getItem(STORAGE_KEY_SUBS)) || [];
@@ -39,7 +36,6 @@ function saveState() {
   if (userAccount) {
     localStorage.setItem(STORAGE_KEY_USER_ACCT, userAccount);
   }
-  localStorage.setItem(STORAGE_KEY_USER_BAL, userBalance.toString());
   updateLandingStats();
   renderWorkerStats();
   syncGlobalPublicBounties();
@@ -82,6 +78,13 @@ function getNimiqProvider() {
   return window.nimiq || window.Nimiq || window.nimiqPay || window.NimiqPay || window.miniApp || null;
 }
 
+// Strict Check: Is a real, valid Nimiq address connected?
+function isRealWalletConnected() {
+  if (!userAccount || typeof userAccount !== 'string') return false;
+  const clean = userAccount.replace(/\s+/g, '').toUpperCase();
+  return /^NQ[0-9A-Z]{30,44}$/.test(clean);
+}
+
 // Helper: Validate Nimiq Address Format
 function isValidNimiqAddress(address) {
   if (!address || typeof address !== 'string') return false;
@@ -90,7 +93,7 @@ function isValidNimiqAddress(address) {
 }
 
 // ==========================================
-// 1. BULLETPROOF NIMIQ PAY WALLET CONNECTION ENGINE
+// 1. STRICT NIMIQ PAY WALLET CONNECTION ENGINE
 // ==========================================
 async function connectNimiqPayWallet() {
   const provider = getNimiqProvider();
@@ -102,6 +105,7 @@ async function connectNimiqPayWallet() {
       if (accounts && accounts.length) {
         const rawAcct = accounts[0];
         userAccount = typeof rawAcct === 'string' ? rawAcct : (rawAcct.address || rawAcct);
+        userAccount = userAccount.replace(/\s+/g, '').toUpperCase();
         localStorage.setItem(STORAGE_KEY_USER_ACCT, userAccount);
         
         updateWalletUI();
@@ -113,10 +117,10 @@ async function connectNimiqPayWallet() {
     }
   }
 
-  // If outside Nimiq Pay container, prompt user to connect or confirm their Nimiq address
-  let inputAddr = prompt("Enter your Nimiq Wallet Address (e.g. NQ42 1234 5678...):", userAccount || "");
+  // Prompt user for their real Nimiq wallet address
+  let inputAddr = prompt("Enter your Nimiq Wallet Address (must begin with NQ):", userAccount || "");
   if (inputAddr && inputAddr.trim()) {
-    const cleanAddr = inputAddr.trim().toUpperCase();
+    const cleanAddr = inputAddr.trim().toUpperCase().replace(/\s+/g, '');
     if (isValidNimiqAddress(cleanAddr)) {
       userAccount = cleanAddr;
       localStorage.setItem(STORAGE_KEY_USER_ACCT, userAccount);
@@ -124,20 +128,18 @@ async function connectNimiqPayWallet() {
       showToastNotification('📱 Wallet Connected!', `Connected Address:\n${userAccount}`, false);
       return;
     } else {
-      alert("Invalid Nimiq Address format. Must begin with NQ followed by digits and letters.");
+      alert("Invalid Nimiq Address format! Address must begin with NQ followed by valid alphanumeric characters.");
       return;
     }
   }
 
-  // Fallback test account if prompt canceled
-  if (!userAccount) {
-    userAccount = `NQ42 ${Math.floor(1000 + Math.random() * 8999)} ${Math.floor(1000 + Math.random() * 8999)} ${Math.floor(1000 + Math.random() * 8999)}`;
-    userBalance = 1000;
-    saveState();
-    updateWalletUI();
-    showToastNotification('📱 Web Test Session Active', `Running in Web Test Session:\n${userAccount}`, false);
-  } else {
+  if (userAccount && isRealWalletConnected()) {
     openWalletModal();
+  } else {
+    userAccount = null;
+    localStorage.removeItem(STORAGE_KEY_USER_ACCT);
+    updateWalletUI();
+    showToastNotification('⚠️ Connection Required', 'Please connect your Nimiq Wallet to participate or publish bounties.', false);
   }
 }
 
@@ -154,7 +156,6 @@ async function fetchGlobalPublicBounties() {
     if (res.ok) {
       const data = await res.json();
       
-      // STRICT OVERWRITE OF PENDING SUBMISSIONS FROM SERVER SO REJECTED/APPROVED ITEMS STAY REMOVED!
       if (Array.isArray(data.pendingSubmissions)) {
         pendingSubmissions = data.pendingSubmissions;
         localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions));
@@ -310,7 +311,7 @@ function copyNimiqPayDeeplink() {
 }
 
 // ==========================================
-// 6. LIVE NIMIQ RPC NETWORK FETCH & PERSISTENT METRICS
+// 6. LIVE NIMIQ RPC NETWORK FETCH & METRICS
 // ==========================================
 async function fetchNimiqLiveRPC() {
   const rpcTag = document.querySelector('.hero-tag');
@@ -355,7 +356,7 @@ function renderWorkerStats() {
   const liveBalEl = document.getElementById('worker-live-balance');
   const repTextEl = document.getElementById('worker-rep-text');
 
-  if (!userAccount) {
+  if (!isRealWalletConnected()) {
     if (completedEl) completedEl.textContent = `0 Tasks`;
     if (earnedEl) earnedEl.textContent = `0 NIM`;
     if (liveBalEl) liveBalEl.textContent = `Wallet Disconnected`;
@@ -372,8 +373,8 @@ function renderWorkerStats() {
 
   if (completedEl) completedEl.textContent = `${completedCount} Tasks`;
   if (earnedEl) earnedEl.textContent = `${earnedAmount.toLocaleString()} NIM`;
-  if (liveBalEl) liveBalEl.textContent = `${userBalance.toLocaleString()} NIM`;
-  if (repTextEl) repTextEl.textContent = `Verified Worker (${userAccount.substring(0, 10)}...)`;
+  if (liveBalEl) liveBalEl.textContent = `Connected (Nimiq Pay)`;
+  if (repTextEl) repTextEl.textContent = `Verified Wallet (${userAccount.substring(0, 10)}...)`;
 }
 
 // ==========================================
@@ -576,7 +577,7 @@ function updateWalletUI() {
   const walletTextDesktop = document.getElementById('wallet-text');
   const walletTextMobile = document.getElementById('wallet-text-mobile');
   
-  const displayVal = userAccount ? `${userAccount.substring(0, 14)}...` : 'CONNECT NIMIQ PAY';
+  const displayVal = isRealWalletConnected() ? `${userAccount.substring(0, 14)}...` : 'CONNECT NIMIQ PAY';
 
   if (walletTextDesktop) walletTextDesktop.textContent = displayVal;
   if (walletTextMobile) walletTextMobile.textContent = displayVal;
@@ -822,9 +823,9 @@ function copyQrLink() {
 // 14. CLAIM & SUBMIT PROOF ENGINE
 // ==========================================
 function openClaimModal(bountyId) {
-  // 1. Must be connected with a valid address
-  if (!userAccount) {
-    showToastNotification('⛔ Wallet Not Connected', 'Please connect your Nimiq Wallet first before claiming a bounty!', false);
+  // STRICT REAL WALLET CHECK: User MUST be connected with a valid Nimiq address
+  if (!isRealWalletConnected()) {
+    showToastNotification('⛔ Real Wallet Connection Required', 'You must connect a valid Nimiq Pay Wallet address before claiming or submitting proof!', false);
     connectNimiqPayWallet();
     return;
   }
@@ -832,25 +833,25 @@ function openClaimModal(bountyId) {
   const bounty = bounties.find(b => b.id === bountyId);
   if (!bounty) return;
 
-  // 2. Publisher cannot claim own bounty
+  // Publisher cannot claim own bounty
   if (isPublisherOfBounty(bounty, userAccount)) {
     showToastNotification('⛔ Publisher Blocked', 'You are the publisher of this bounty pool! Publishers cannot claim or complete their own tasks.', false);
     return;
   }
 
-  // 3. Pool expired check
+  // Pool expired check
   if (bounty.expiresAt && Date.now() >= bounty.expiresAt) {
     showToastNotification('⏱️ Pool Expired', 'This bounty pool duration has expired!', false);
     return;
   }
 
-  // 4. Slots remaining check
+  // Slots remaining check
   if (bounty.slotsRemaining <= 0) {
     showToastNotification('⛔ Fully Claimed', 'This bounty pool has zero open slots remaining!', false);
     return;
   }
 
-  // 5. Already claimed check
+  // Already claimed check
   if (hasWalletCompletedBounty(bountyId, userAccount)) {
     showToastNotification('⛔ Already Claimed', 'Your wallet has already claimed and submitted proof for this task. Maximum 1 completion per wallet per bounty.', false);
     return;
@@ -918,6 +919,14 @@ function previewScreenshot(event) {
 
 function handleSubmitProof(event) {
   event.preventDefault();
+
+  // STRICT REAL WALLET CHECK BEFORE SUBMITTING PROOF
+  if (!isRealWalletConnected()) {
+    showToastNotification('⛔ Real Wallet Required', 'You must connect a valid Nimiq Pay Wallet before submitting proof!', false);
+    connectNimiqPayWallet();
+    return;
+  }
+
   const bounty = bounties.find(b => b.id === currentModalBountyId);
   if (!bounty) return;
 
@@ -950,19 +959,7 @@ function handleSubmitProof(event) {
     return;
   }
 
-  // Ensure worker address is valid
-  let workerPayoutAddr = userAccount;
-  if (!isValidNimiqAddress(workerPayoutAddr)) {
-    let input = prompt("Please enter your valid Nimiq Worker Wallet Address to receive payout rewards (e.g. NQ42 1234 5678...):", "");
-    if (input && isValidNimiqAddress(input.trim())) {
-      workerPayoutAddr = input.trim().toUpperCase();
-      userAccount = workerPayoutAddr;
-      localStorage.setItem(STORAGE_KEY_USER_ACCT, userAccount);
-    } else {
-      showToastNotification('⚠️ Valid Address Required', 'Please enter a valid Nimiq address starting with NQ to receive worker payouts.', false);
-      return;
-    }
-  }
+  const workerPayoutAddr = userAccount.trim().toUpperCase().replace(/\s+/g, '');
 
   // Decrement slot count
   if (bounty.slotsRemaining > 0) {
@@ -1011,9 +1008,9 @@ function calculateTotalEscrow() {
 }
 
 function publishBountyPoolDirectly() {
-  // 1. MUST BE CONNECTED
-  if (!userAccount) {
-    showToastNotification('⛔ Wallet Not Connected', 'You cannot create a bounty if your wallet is not connected! Please connect your Nimiq Pay Wallet first.', false);
+  // STRICT REAL WALLET CHECK BEFORE PUBLISHING
+  if (!isRealWalletConnected()) {
+    showToastNotification('⛔ Real Wallet Required', 'You cannot create a bounty if your real wallet is not connected! Connect your Nimiq Pay Wallet first.', false);
     connectNimiqPayWallet();
     return;
   }
@@ -1037,20 +1034,6 @@ function publishBountyPoolDirectly() {
   const durationHours = parseInt(document.getElementById('task-duration').value || 336);
   const instructions = instructionsInput.value;
   const totalEscrow = reward * slots;
-
-  // 2. MUST HAVE SUFFICIENT WALLET BALANCE
-  if (userBalance < totalEscrow) {
-    showToastNotification(
-      '⚠️ Insufficient Wallet Balance',
-      `You cannot create a bounty requiring ${totalEscrow.toLocaleString()} NIM! Your current wallet balance is ${userBalance.toLocaleString()} NIM.`,
-      false
-    );
-    return;
-  }
-
-  // Deduct balance for creating bounty campaign
-  userBalance -= totalEscrow;
-  localStorage.setItem(STORAGE_KEY_USER_BAL, userBalance.toString());
 
   const expiresAt = Date.now() + (durationHours * 3600 * 1000);
   const txHash = `bounty_pool_${Date.now()}`;
@@ -1083,14 +1066,14 @@ function publishBountyPoolDirectly() {
 }
 
 // ==========================================
-// 16. PUBLISHER REVIEW & WORKER PAYOUT DISBURSEMENT ENGINE
+// 16. PUBLISHER REVIEW & DIRECT NATIVE NIMIQ PAY PAYOUT DISBURSEMENT
 // ==========================================
 function renderPosterDashboard() {
   const poolsList = document.getElementById('published-pools-list');
   const subsList = document.getElementById('pending-submissions-list');
   const badgeSubs = document.getElementById('poster-badge-subs');
 
-  if (!userAccount) {
+  if (!isRealWalletConnected()) {
     if (poolsList) poolsList.innerHTML = `<p style="font-size:0.85rem; color:var(--muted);">Please connect your Nimiq Wallet to view your published pools.</p>`;
     if (subsList) subsList.innerHTML = `<p style="font-size:0.85rem; color:var(--muted);">Please connect your Nimiq Wallet to review worker submissions.</p>`;
     if (badgeSubs) badgeSubs.textContent = '0';
@@ -1173,7 +1156,6 @@ async function reviewProof(submissionId, action) {
   const sub = pendingSubmissions[subIndex];
 
   if (action === 'approve') {
-    // Read input worker address in case publisher updated/confirmed it
     const inputEl = document.getElementById(`worker-addr-input-${sub.id}`);
     const targetWorkerAddr = (inputEl && inputEl.value) ? inputEl.value.trim().toUpperCase() : sub.workerAddress.trim().toUpperCase();
 
@@ -1186,7 +1168,7 @@ async function reviewProof(submissionId, action) {
     const lunaValue = Math.round(sub.reward * 100000);
 
     showToastNotification(
-      '⚡ Processing Nimiq Pay Settlement...',
+      '⚡ Confirming Nimiq Pay Settlement...',
       `Paying out ${sub.reward} NIM to worker address:\n${cleanWorkerAddr}`,
       false
     );
@@ -1244,7 +1226,7 @@ async function reviewProof(submissionId, action) {
       paidAt: Date.now()
     });
 
-    // REMOVE SUBMISSION PERMANENTLY FROM LOCAL AND SERVER STATE
+    // PERMANENT REMOVAL FROM STATE
     pendingSubmissions.splice(subIndex, 1);
     saveState();
     playAudioFx('cash');
@@ -1262,7 +1244,7 @@ async function reviewProof(submissionId, action) {
       bounties[bountyIndex].slotsRemaining = Math.min(bounties[bountyIndex].slotsTotal, bounties[bountyIndex].slotsRemaining + 1);
     }
 
-    // REMOVE SUBMISSION PERMANENTLY FROM LOCAL AND SERVER STATE
+    // PERMANENT REMOVAL FROM STATE
     pendingSubmissions.splice(subIndex, 1);
     saveState();
     playAudioFx('submit');
