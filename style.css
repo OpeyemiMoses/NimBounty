@@ -52,6 +52,16 @@ body {
   line-height: 1.6;
 }
 
+/* Confetti Canvas Overlay */
+#confetti-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 99999;
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
@@ -687,7 +697,7 @@ body {
 }
 
 /* ─────────────────────────────────────────
-   APP CONSOLE VIEW & TASK CARDS
+   APP CONSOLE VIEW & HEADER ACTIONS
 ───────────────────────────────────────── */
 .console-main {
   max-width: 1240px;
@@ -719,6 +729,61 @@ body {
 .console-sub {
   font-size: 0.85rem;
   color: var(--muted);
+}
+
+.console-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Demo Drive Pulse Button */
+.btn-demo-mode {
+  font-family: 'Work Sans', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 8px 18px;
+  background: var(--gold-tint);
+  color: var(--gold-dark);
+  border: 1px solid var(--gold);
+  border-radius: var(--r-btn);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  animation: goldPulse 2.5s infinite;
+}
+
+@keyframes goldPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(217, 155, 0, 0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(217, 155, 0, 0); }
+}
+
+.btn-demo-mode:hover {
+  background: var(--gold);
+  color: var(--ink);
+  transform: translateY(-1px);
+}
+
+.btn-sound-toggle {
+  font-family: 'Geist Mono', monospace;
+  font-size: 0.78rem;
+  font-weight: 500;
+  padding: 8px 16px;
+  background: var(--card);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: var(--r-btn);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-sound-toggle:hover {
+  border-color: var(--ink);
 }
 
 .role-switcher-container {
@@ -835,7 +900,7 @@ body {
   font-family: 'Geist Mono', monospace;
 }
 
-/* Task Cards Grid (Clean SVG Bolt Icons) */
+/* Task Cards Grid */
 .bounties-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
@@ -865,6 +930,31 @@ body {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 12px;
+}
+
+.card-top-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-share-qr {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--muted);
+  transition: all 0.2s ease;
+}
+
+.btn-share-qr:hover {
+  color: var(--ink);
+  border-color: var(--ink);
 }
 
 .news-cat-stamp {

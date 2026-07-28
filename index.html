@@ -11,9 +11,15 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&family=Work+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,600&display=swap" rel="stylesheet">
   
+  <!-- QRCode.js library for fast QR generation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+
+  <!-- Fullscreen Confetti Canvas Layer -->
+  <canvas id="confetti-canvas"></canvas>
 
   <!-- Floating Navigation Bar -->
   <nav class="navbar" id="navbar">
@@ -291,23 +297,37 @@
 
     <main class="console-main">
       
-      <!-- Console Header Bar -->
+      <!-- Console Header Bar with Demo Mode & Sound Controls -->
       <div class="console-header-paper">
         <div class="console-header-left">
           <h2 class="console-title">App Console</h2>
           <span class="console-sub">Manage worker tasks and poster escrow pools</span>
         </div>
 
-        <!-- Role Toggle Switcher -->
-        <div class="role-switcher-container">
-          <button class="role-btn active" id="btn-role-worker" onclick="switchRole('worker')">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
-            Worker Mode
+        <div class="console-header-actions">
+          <!-- 1-Click Interactive Demo Mode Button -->
+          <button class="btn-demo-mode" onclick="triggerJudgeDemoMode()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            1-Click Demo Drive
           </button>
-          <button class="role-btn" id="btn-role-poster" onclick="switchRole('poster')">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
-            Poster Mode
+
+          <!-- Audio Sound Effects Toggle -->
+          <button class="btn-sound-toggle" id="btn-sound-toggle" onclick="toggleAudioFx()">
+            <svg class="sound-icon-on" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+            <span id="sound-toggle-text">Audio FX: ON</span>
           </button>
+
+          <!-- Role Toggle Switcher -->
+          <div class="role-switcher-container">
+            <button class="role-btn active" id="btn-role-worker" onclick="switchRole('worker')">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+              Worker Mode
+            </button>
+            <button class="role-btn" id="btn-role-poster" onclick="switchRole('poster')">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+              Poster Mode
+            </button>
+          </div>
         </div>
       </div>
 
@@ -520,6 +540,23 @@
             Submit Proof & Claim Reward &rarr;
           </button>
         </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for QR Code & Share -->
+  <div class="modal-overlay" id="modal-qr" style="display: none;">
+    <div class="modal-paper paper-card rise-in" style="text-align: center; max-width: 420px;">
+      <button class="modal-close" onclick="closeModal('modal-qr')">&times;</button>
+      
+      <h3 style="font-size: 1.4rem; font-weight: 800; margin-bottom: 6px;">Share Bounty QR</h3>
+      <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 20px;" id="qr-bounty-title">Scan in Nimiq Pay Mobile App</p>
+
+      <div id="qrcode-box" style="display: inline-block; padding: 16px; background: #fff; border-radius: 16px; border: 1px solid var(--border); margin-bottom: 20px;"></div>
+
+      <div style="display: flex; gap: 8px;">
+        <input type="text" id="qr-link-input" readonly style="font-family: 'Geist Mono', monospace; font-size: 0.75rem; width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-subtle);" />
+        <button class="btn-primary-sm" onclick="copyQrLink()">Copy</button>
       </div>
     </div>
   </div>

@@ -1,11 +1,13 @@
 /**
- * NimBounty Engine — HatchAI Gold Architecture
+ * NimBounty Engine — Interactive Upgrades
  */
 
 let currentView = 'landing';
 let currentRole = 'worker';
 let userAccount = null;
 let deviceId = null;
+let isAudioEnabled = true;
+
 let workerStats = {
   completed: 5,
   earned: 350,
@@ -82,7 +84,7 @@ let bounties = [
   }
 ];
 
-// Pending Proof Submissions Queue for Poster Review
+// Pending Proof Submissions Queue
 let pendingSubmissions = [
   {
     id: 'sub-1',
@@ -98,27 +100,135 @@ let pendingSubmissions = [
 
 let activeClaimTimer = null;
 let currentModalBountyId = null;
-
-// SVG Lightning Bolt Icon Template
 const boltSvgIcon = `<svg class="bolt-icon-svg" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`;
 
 // ==========================================
-// 1. TYPEWRITER ANIMATION (HatchAI Gold Style)
+// 1. WEB AUDIO SYNTHESIZER (Sound Effects)
+// ==========================================
+function playAudioFx(type) {
+  if (!isAudioEnabled) return;
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+
+    if (type === 'cash') {
+      // Arpeggio chime sound for payout
+      const freqs = [523.25, 659.25, 783.99, 1046.50];
+      freqs.forEach((f, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.frequency.value = f;
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        const startTime = ctx.currentTime + (i * 0.08);
+        gain.gain.setValueAtTime(0.15, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.3);
+        osc.start(startTime);
+        osc.stop(startTime + 0.3);
+      });
+    } else if (type === 'submit') {
+      // Crisp confirm blip
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.frequency.setValueAtTime(440, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      gain.gain.setValueAtTime(0.1, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.15);
+    }
+  } catch (e) {
+    console.warn("Audio Context error:", e);
+  }
+}
+
+function toggleAudioFx() {
+  isAudioEnabled = !isAudioEnabled;
+  const toggleBtn = document.getElementById('sound-toggle-text');
+  if (toggleBtn) {
+    toggleBtn.textContent = isAudioEnabled ? 'Audio FX: ON' : 'Audio FX: OFF';
+  }
+}
+
+// ==========================================
+// 2. CANVAS CONFETTI PARTICLE EXPLOSION
+// ==========================================
+function triggerConfetti() {
+  const canvas = document.getElementById('confetti-canvas');
+  if (!canvas) return;
+
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  const particles = [];
+  const colors = ['#d99b00', '#1a7a4a', '#1a1917', '#ffffff', '#fdf5ec'];
+
+  for (let i = 0; i < 90; i++) {
+    particles.push({
+      x: canvas.width / 2,
+      y: canvas.height / 3,
+      vx: (Math.random() - 0.5) * 14,
+      vy: (Math.random() - 0.7) * 16,
+      size: Math.random() * 8 + 4,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      rotation: Math.random() * 360,
+      rv: (Math.random() - 0.5) * 10,
+      opacity: 1
+    });
+  }
+
+  let animationFrame;
+  function animate() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    let activeParticles = 0;
+
+    particles.forEach(p => {
+      if (p.opacity > 0) {
+        activeParticles++;
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.4; // gravity
+        p.opacity -= 0.012;
+        p.rotation += p.rv;
+
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate((p.rotation * Math.PI) / 180);
+        ctx.globalAlpha = Math.max(0, p.opacity);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+        ctx.restore();
+      }
+    });
+
+    if (activeParticles > 0) {
+      animationFrame = requestAnimationFrame(animate);
+    } else {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      cancelAnimationFrame(animationFrame);
+    }
+  }
+
+  animate();
+}
+
+// ==========================================
+// 3. TYPEWRITER ANIMATION (HatchAI Gold Style)
 // ==========================================
 const typewriterPhrases = ["fast", "safe", "direct", "onchain", "instant"];
 let phraseIndex = 0;
 let charIndex = 4;
 let isDeleting = true;
-const typewriterSpeed = 120;
-const typewriterDeleteSpeed = 70;
-const typewriterDelay = 2200;
 
 function runTypewriter() {
   const textEl = document.getElementById('typewriter-text');
   if (!textEl) return;
 
   const currentPhrase = typewriterPhrases[phraseIndex];
-
   if (isDeleting) {
     textEl.textContent = currentPhrase.substring(0, charIndex - 1);
     charIndex--;
@@ -127,10 +237,9 @@ function runTypewriter() {
     charIndex++;
   }
 
-  let timeout = isDeleting ? typewriterDeleteSpeed : typewriterSpeed;
-
+  let timeout = isDeleting ? 70 : 120;
   if (!isDeleting && charIndex === currentPhrase.length) {
-    timeout = typewriterDelay;
+    timeout = 2200;
     isDeleting = true;
   } else if (isDeleting && charIndex === 0) {
     isDeleting = false;
@@ -142,7 +251,7 @@ function runTypewriter() {
 }
 
 // ==========================================
-// 2. VIEW & SECTION SWITCHER
+// 4. VIEW & SECTION ROUTER
 // ==========================================
 function showView(viewName) {
   currentView = viewName;
@@ -178,23 +287,16 @@ function scrollToSection(sectionId) {
   }
 }
 
-// ==========================================
-// 3. FAQ ACCORDION TOGGLE
-// ==========================================
 function toggleFaq(buttonEl) {
   const faqItem = buttonEl.closest('.faq-item');
   if (!faqItem) return;
-
   const isOpen = faqItem.classList.contains('open');
   document.querySelectorAll('.faq-item').forEach(item => item.classList.remove('open'));
-
-  if (!isOpen) {
-    faqItem.classList.add('open');
-  }
+  if (!isOpen) faqItem.classList.add('open');
 }
 
 // ==========================================
-// 4. SDK & WALLET INTEGRATION
+// 5. SDK & WALLET INTEGRATION
 // ==========================================
 async function initNimiqSDK() {
   const walletText = document.getElementById('wallet-text');
@@ -220,7 +322,7 @@ function connectWallet() {
 }
 
 // ==========================================
-// 5. ROLE SWITCHER & RENDER ENGINE
+// 6. ROLE SWITCHER & BOUNTIES GRID
 // ==========================================
 function switchRole(role) {
   currentRole = role;
@@ -281,7 +383,12 @@ function renderBounties() {
       <div>
         <div class="card-top-bar">
           <span class="news-cat-stamp">${b.categoryName}</span>
-          <span class="reward-stamp">${boltSvgIcon} ${b.reward} NIM</span>
+          <div class="card-top-right">
+            <button class="btn-share-qr" title="Share QR Code" onclick="openQrModal('${b.id}')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            </button>
+            <span class="reward-stamp">${boltSvgIcon} ${b.reward} NIM</span>
+          </div>
         </div>
 
         <h3 class="card-title">${b.title}</h3>
@@ -306,7 +413,44 @@ function renderBounties() {
 }
 
 // ==========================================
-// 6. MODAL & CLAIM ENGINE
+// 7. QR CODE GENERATOR & SHARE MODAL
+// ==========================================
+function openQrModal(bountyId) {
+  const bounty = bounties.find(b => b.id === bountyId);
+  if (!bounty) return;
+
+  document.getElementById('qr-bounty-title').textContent = bounty.title;
+  const deepLink = `nimiqpay://miniapp?url=https://nimbounty.dev/app?id=${bounty.id}`;
+  document.getElementById('qr-link-input').value = deepLink;
+
+  const qrBox = document.getElementById('qrcode-box');
+  qrBox.innerHTML = '';
+  if (window.QRCode) {
+    new window.QRCode(qrBox, {
+      text: deepLink,
+      width: 180,
+      height: 180,
+      colorDark: "#1a1917",
+      colorLight: "#ffffff",
+      correctLevel: window.QRCode.CorrectLevel.H
+    });
+  }
+
+  document.getElementById('modal-qr').style.display = 'flex';
+}
+
+function copyQrLink() {
+  const input = document.getElementById('qr-link-input');
+  if (input) {
+    input.select();
+    navigator.clipboard.writeText(input.value);
+    playAudioFx('submit');
+    alert("📋 Nimiq Pay Deeplink copied to clipboard!");
+  }
+}
+
+// ==========================================
+// 8. CLAIM & SUBMIT ENGINE
 // ==========================================
 function openClaimModal(bountyId) {
   const bounty = bounties.find(b => b.id === bountyId);
@@ -333,18 +477,15 @@ function openClaimModal(bountyId) {
 
 function startClaimTimer(durationSeconds) {
   if (activeClaimTimer) clearInterval(activeClaimTimer);
-
   let timer = durationSeconds;
   const timerEl = document.getElementById('modal-task-timer');
 
   activeClaimTimer = setInterval(() => {
     const minutes = Math.floor(timer / 60);
     const seconds = timer % 60;
-
     if (timerEl) {
       timerEl.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> ${minutes}:${seconds < 10 ? '0' : ''}${seconds} Lock Remaining`;
     }
-
     if (--timer < 0) {
       clearInterval(activeClaimTimer);
       alert("Reservation timer expired! Slot released.");
@@ -373,7 +514,6 @@ function previewScreenshot(event) {
 
 function handleSubmitProof(event) {
   event.preventDefault();
-
   const bounty = bounties.find(b => b.id === currentModalBountyId);
   if (!bounty) return;
 
@@ -409,6 +549,7 @@ function handleSubmitProof(event) {
     reward: bounty.reward
   });
 
+  playAudioFx('submit');
   closeModal('modal-task');
   renderBounties();
 
@@ -416,7 +557,7 @@ function handleSubmitProof(event) {
 }
 
 // ==========================================
-// 7. POSTER CREATION & DASHBOARD ENGINE
+// 9. POSTER CREATION & REVIEW ENGINE
 // ==========================================
 function calculateTotalEscrow() {
   const reward = parseFloat(document.getElementById('task-reward')?.value || 0);
@@ -430,7 +571,6 @@ function calculateTotalEscrow() {
 
 function handleCreateBounty(event) {
   event.preventDefault();
-
   const title = document.getElementById('task-title').value;
   const category = document.getElementById('task-category').value;
   const categoryName = document.getElementById('task-category').options[document.getElementById('task-category').selectedIndex].text.toUpperCase();
@@ -457,8 +597,8 @@ function handleCreateBounty(event) {
   document.getElementById('create-bounty-form').reset();
   calculateTotalEscrow();
 
-  alert(`Escrow Locked & Bounty Published!\n${reward * slots} NIM locked in Nimiq Pay escrow vault. Workers can now claim your task.`);
-
+  playAudioFx('submit');
+  alert(`Escrow Locked & Bounty Published!\n${reward * slots} NIM locked in Nimiq Pay escrow vault.`);
   renderPosterDashboard();
 }
 
@@ -513,13 +653,63 @@ function reviewProof(index, action) {
   if (action === 'approve') {
     workerStats.earned += sub.reward;
     document.getElementById('worker-earned-amount').textContent = `${workerStats.earned} NIM`;
-    alert(`Payout Released!\nSent ${sub.reward} NIM to ${sub.workerAddress} via Nimiq Pay.`);
+
+    // Trigger Audio FX & Confetti Particle Explosion
+    playAudioFx('cash');
+    triggerConfetti();
+
+    alert(`🎉 Payout Released!\nSent ${sub.reward} NIM to ${sub.workerAddress} via Nimiq Pay.`);
   } else {
     alert(`Rejected submission from ${sub.workerAddress}. Worker notified.`);
   }
 
   pendingSubmissions.splice(index, 1);
   renderPosterDashboard();
+}
+
+// ==========================================
+// 10. INTERACTIVE 1-CLICK DEMO DRIVE
+// ==========================================
+function triggerJudgeDemoMode() {
+  showView('app');
+  switchRole('poster');
+
+  // Create Demo Bounty if not present
+  const demoBountyId = 'b-demo-judge';
+  let demoBounty = bounties.find(b => b.id === demoBountyId);
+  if (!demoBounty) {
+    demoBounty = {
+      id: demoBountyId,
+      title: '🎮 Interactive Judge Demo Pool',
+      category: 'app-test',
+      categoryName: 'INTERACTIVE DEMO',
+      proofType: 'text',
+      reward: 100,
+      slotsTotal: 10,
+      slotsRemaining: 7,
+      sponsor: 'You (Poster)',
+      instructions: 'Live demo pool to test 1-click escrow release, web audio chimes, and particle confetti explosions.',
+      createdAt: Date.now()
+    };
+    bounties.unshift(demoBounty);
+  }
+
+  // Pre-seed mock submission
+  pendingSubmissions = [
+    {
+      id: 'sub-demo-1',
+      bountyId: demoBountyId,
+      bountyTitle: '🎮 Interactive Judge Demo Pool',
+      workerAddress: 'NQ88 JUDGE TESTER 5555',
+      proofType: 'text',
+      content: 'Tested the NimBounty flow live. UI is ultra-fast and onboarding took 10 seconds!',
+      submittedAt: 'Just now',
+      reward: 100
+    }
+  ];
+
+  renderPosterDashboard();
+  alert(`🎮 Interactive Demo Mode Active!\nWe've loaded a pending submission below. Click "Approve & Pay 100 NIM" to trigger the Web Audio cash chime & confetti explosion!`);
 }
 
 window.addEventListener('DOMContentLoaded', () => {
