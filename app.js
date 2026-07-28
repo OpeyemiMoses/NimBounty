@@ -1,5 +1,5 @@
 /**
- * NimBounty Engine — Strictly Enforced Real Onchain Escrow & Public Global Task Sync
+ * NimBounty Engine — Strict Publisher Wallet Ownership & Approval Guards
  */
 
 let currentView = 'landing';
@@ -14,13 +14,10 @@ let hubApiInstance = null;
 const PRODUCTION_URL = 'https://nim-bounty.vercel.app';
 const NIMIQ_ESCROW_VAULT = 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000';
 
-// Global Public Relay Endpoint for Cross-Device Public Task Sync
-const GLOBAL_SYNC_ENDPOINT = 'https://api.jsonbin.io/v3/b/660a5d5a1f56774612e3e601'; // Public shared registry
-
 // Persistent LocalStorage Keys
-const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v4';
-const STORAGE_KEY_SUBS = 'nimbounty_subs_v4';
-const STORAGE_KEY_STATS = 'nimbounty_stats_v4';
+const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v5';
+const STORAGE_KEY_SUBS = 'nimbounty_subs_v5';
+const STORAGE_KEY_STATS = 'nimbounty_stats_v5';
 const STORAGE_KEY_USER_ACCT = 'nimbounty_user_acct_v3';
 
 let bounties = JSON.parse(localStorage.getItem(STORAGE_KEY_BOUNTIES)) || [];
@@ -66,7 +63,7 @@ async function fetchGlobalPublicBounties() {
       }
     }
   } catch (e) {
-    // Fall back gracefully to localStorage bounties
+    // Fall back gracefully
   }
 }
 
@@ -78,7 +75,7 @@ async function syncGlobalPublicBounties() {
       body: JSON.stringify({ bounties, pendingSubmissions, updatedAt: Date.now() })
     });
   } catch (e) {
-    // Silent fallback
+    // Fall back gracefully
   }
 }
 
@@ -491,6 +488,7 @@ async function connectWallet() {
   if (isMobileConnected) {
     playAudioFx('cash');
     showToastNotification('Connected!', `Nimiq Pay Mobile Wallet connected:\n${userAccount}`, false);
+    renderPosterDashboard();
     return;
   }
 
@@ -508,6 +506,7 @@ async function connectWallet() {
         updateWalletUI();
         playAudioFx('cash');
         showToastNotification('Connected!', `Nimiq Web Wallet connected:\n${userAccount}`, false);
+        renderPosterDashboard();
         return;
       }
     } catch (err) {
@@ -526,6 +525,7 @@ function openWalletAddressModal() {
     updateWalletUI();
     playAudioFx('submit');
     showToastNotification('Wallet Connected!', `Address set: ${userAccount}`, false);
+    renderPosterDashboard();
   }
 }
 
@@ -535,6 +535,7 @@ function disconnectWallet() {
   localStorage.removeItem(STORAGE_KEY_USER_ACCT);
   localStorage.removeItem('nimbounty_device_id_v3');
   updateWalletUI();
+  renderPosterDashboard();
   showToastNotification('Disconnected 🔌', 'Nimiq Wallet disconnected successfully.', false);
 }
 
@@ -776,6 +777,7 @@ function handleSubmitProof(event) {
     id: `sub-${Date.now()}`,
     bountyId: bounty.id,
     bountyTitle: bounty.title,
+    posterAddress: bounty.posterAddress || bounty.sponsor, // Tied strictly to the publisher's wallet!
     workerAddress: userAccount || 'NQ42 WORKER UNKNOWN',
     proofType: bounty.proofType,
     content: proofContent,
@@ -790,7 +792,7 @@ function handleSubmitProof(event) {
 
   showToastNotification(
     '✅ Proof Submitted',
-    `Your submission for "${bounty.title}" is pending poster review. Payout will trigger upon approval.`,
+    `Your submission for "${bounty.title}" is pending poster review. Only wallet ${bounty.sponsor} can approve your payout.`,
     false
   );
 }
@@ -886,7 +888,7 @@ async function handleCreateBounty(event) {
     txHash = 'tx_session_' + Date.now();
   }
 
-  // PUBLISH BOUNTY GLOBALLY ONLY AFTER CONFIRMED PAYMENT
+  // PUBLISH BOUNTY GLOBALLY TIED TO EXACT PUBLISHER WALLET
   const newBounty = {
     id: `b-${Date.now()}`,
     title: title,
@@ -896,6 +898,7 @@ async function handleCreateBounty(event) {
     reward: reward,
     slotsTotal: slots,
     slotsRemaining: slots,
+    posterAddress: userAccount, // Full actual Nimiq address of publisher!
     sponsor: `${userAccount.substring(0, 10)}...`,
     instructions: instructions,
     createdAt: Date.now(),
@@ -910,38 +913,59 @@ async function handleCreateBounty(event) {
   playAudioFx('submit');
   triggerConfetti();
   showToastNotification(
-    '🎉 Onchain Escrow Locked & Published Globally!',
-    `${totalEscrow} NIM locked in Nimiq Escrow Vault! Pool "${title}" is now published publicly for all workers worldwide.`,
+    '🎉 Onchain Escrow Locked & Published!',
+    `${totalEscrow} NIM locked in Nimiq Escrow Vault! Task "${title}" is now published and tied to your wallet (${userAccount.substring(0, 10)}...).`,
     false
   );
   renderPosterDashboard();
   renderBounties();
 }
 
+// ==========================================
+// 15. STRICT PUBLISHER OWNERSHIP REVIEW GUARD
+// ==========================================
 function renderPosterDashboard() {
   const poolsList = document.getElementById('published-pools-list');
   const subsList = document.getElementById('pending-submissions-list');
 
+  if (!userAccount) {
+    if (poolsList) poolsList.innerHTML = `<p style="font-size:0.85rem; color:var(--muted);">Please connect your Nimiq Wallet to view your published pools.</p>`;
+    if (subsList) subsList.innerHTML = `<p style="font-size:0.85rem; color:var(--muted);">Please connect your Nimiq Wallet to review worker submissions.</p>`;
+    return;
+  }
+
+  // Filter published pools by connected wallet address
+  const myBounties = bounties.filter(b => 
+    b.posterAddress === userAccount || 
+    (b.sponsor && b.sponsor.toLowerCase().includes((userAccount || '').substring(0, 8).toLowerCase()))
+  );
+
+  // Filter pending submissions ONLY for tasks published by THIS EXACT WALLET!
+  const mySubmissions = pendingSubmissions.filter(sub => {
+    return sub.posterAddress === userAccount || 
+           (sub.posterAddress && sub.posterAddress.toLowerCase().includes((userAccount || '').substring(0, 8).toLowerCase()));
+  });
+
   if (poolsList) {
-    poolsList.innerHTML = bounties.map(b => `
+    poolsList.innerHTML = myBounties.map(b => `
       <div class="dashboard-item">
         <div class="dashboard-item-title">${b.title}</div>
         <div class="dashboard-item-meta">
           <span>Reward: <strong>${b.reward} NIM</strong> / worker</span>
           <span>Slots: <strong>${b.slotsRemaining} / ${b.slotsTotal} Open</strong></span>
         </div>
-        ${b.txHash ? `<div style="font-size:0.68rem; color:var(--gold); margin-top:4px; font-family:'Geist Mono',monospace;">&bull; Onchain Tx: ${b.txHash.substring(0, 16)}...</div>` : ''}
+        ${b.txHash ? `<div style="font-size:0.68rem; color:var(--gold); margin-top:4px; font-family:'Geist Mono',monospace;">&bull; Escrow Tx: ${b.txHash.substring(0, 16)}...</div>` : ''}
       </div>
-    `).join('') || `<p style="font-size:0.85rem; color:var(--muted);">No published bounty pools yet. Use the form to deposit escrow & publish your first task pool!</p>`;
+    `).join('') || `<p style="font-size:0.85rem; color:var(--muted);">No published bounty pools found for connected wallet (<strong>${userAccount.substring(0, 12)}...</strong>). Deposit escrow to create a new task pool!</p>`;
   }
 
   if (subsList) {
-    if (pendingSubmissions.length === 0) {
-      subsList.innerHTML = `<p style="font-size:0.85rem; color:var(--muted);">No pending worker submissions to review.</p>`;
+    if (mySubmissions.length === 0) {
+      subsList.innerHTML = `<p style="font-size:0.85rem; color:var(--muted);">No pending worker submissions to review for your wallet (<strong>${userAccount.substring(0, 12)}...</strong>). Only the publisher can approve payouts.</p>`;
       return;
     }
 
-    subsList.innerHTML = pendingSubmissions.map((sub, index) => `
+    subsList.innerHTML = mySubmissions.map((sub, index) => `
       <div class="dashboard-item">
         <div class="dashboard-item-title">${sub.bountyTitle}</div>
         <div class="dashboard-item-meta">
@@ -955,17 +979,24 @@ function renderPosterDashboard() {
         </div>
 
         <div class="review-actions">
-          <button class="btn-approve" onclick="reviewProof(${index}, 'approve')">Approve & Pay ${sub.reward} NIM</button>
-          <button class="btn-reject" onclick="reviewProof(${index}, 'reject')">Reject</button>
+          <button class="btn-approve" onclick="reviewProof('${sub.id}', 'approve')">Approve & Pay ${sub.reward} NIM</button>
+          <button class="btn-reject" onclick="reviewProof('${sub.id}', 'reject')">Reject</button>
         </div>
       </div>
     `).join('');
   }
 }
 
-async function reviewProof(index, action) {
-  const sub = pendingSubmissions[index];
-  if (!sub) return;
+async function reviewProof(submissionId, action) {
+  const subIndex = pendingSubmissions.findIndex(s => s.id === submissionId);
+  if (subIndex === -1) return;
+  const sub = pendingSubmissions[subIndex];
+
+  // STRICT OWNERSHIP CHECK: Ensure caller is the publisher of this bounty!
+  if (sub.posterAddress && userAccount && !userAccount.toLowerCase().includes(sub.posterAddress.substring(0, 8).toLowerCase()) && !sub.posterAddress.toLowerCase().includes(userAccount.substring(0, 8).toLowerCase())) {
+    showToastNotification('⛔ Access Denied', 'Only the publisher wallet that funded this escrow pool can review and approve worker payouts!', false);
+    return;
+  }
 
   if (action === 'approve') {
     if (hubApiInstance && !window.nimiqPay && sub.workerAddress.startsWith('NQ')) {
@@ -994,7 +1025,7 @@ async function reviewProof(index, action) {
     showToastNotification('❌ Submission Rejected', `Rejected submission from ${sub.workerAddress.substring(0, 14)}...`, false);
   }
 
-  pendingSubmissions.splice(index, 1);
+  pendingSubmissions.splice(subIndex, 1);
   saveState();
   renderPosterDashboard();
 }
