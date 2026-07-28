@@ -1,5 +1,5 @@
 /**
- * NimBounty Engine — Strict Publisher Wallet Ownership & Approval Guards
+ * NimBounty Engine — Screenshot Proof Processing & Publisher Review UI
  */
 
 let currentView = 'landing';
@@ -10,14 +10,15 @@ let currentTheme = localStorage.getItem('nimbounty_theme') || 'light';
 let isAudioEnabled = true;
 let liveBlockHeight = 0;
 let hubApiInstance = null;
+let uploadedImageDataUrl = null;
 
 const PRODUCTION_URL = 'https://nim-bounty.vercel.app';
 const NIMIQ_ESCROW_VAULT = 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000';
 
 // Persistent LocalStorage Keys
-const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v5';
-const STORAGE_KEY_SUBS = 'nimbounty_subs_v5';
-const STORAGE_KEY_STATS = 'nimbounty_stats_v5';
+const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v6';
+const STORAGE_KEY_SUBS = 'nimbounty_subs_v6';
+const STORAGE_KEY_STATS = 'nimbounty_stats_v6';
 const STORAGE_KEY_USER_ACCT = 'nimbounty_user_acct_v3';
 
 let bounties = JSON.parse(localStorage.getItem(STORAGE_KEY_BOUNTIES)) || [];
@@ -305,7 +306,7 @@ function triggerConfetti() {
       animationFrame = requestAnimationFrame(animate);
     } else {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      cancelAnimationFrame(animationFrame);
+      cancelAnimationFrame(animate);
     }
   }
 
@@ -692,6 +693,7 @@ function openClaimModal(bountyId) {
   }
 
   currentModalBountyId = bountyId;
+  uploadedImageDataUrl = null;
 
   document.getElementById('modal-task-title').textContent = bounty.title;
   document.getElementById('modal-task-cat').textContent = bounty.categoryName;
@@ -705,6 +707,8 @@ function openClaimModal(bountyId) {
   groupText.style.display = (bounty.proofType === 'text') ? 'flex' : 'none';
   groupUrl.style.display = (bounty.proofType === 'url') ? 'flex' : 'none';
   groupImage.style.display = (bounty.proofType === 'image') ? 'flex' : 'none';
+
+  document.getElementById('image-preview-box').style.display = 'none';
 
   startClaimTimer(15 * 60);
   document.getElementById('modal-task').style.display = 'flex';
@@ -740,8 +744,9 @@ function previewScreenshot(event) {
   if (file) {
     const reader = new FileReader();
     reader.onload = function(e) {
-      document.getElementById('image-preview-img').src = e.target.result;
-      document.getElementById('image-preview-box').style.display = 'block';
+      uploadedImageDataUrl = e.target.result;
+      document.getElementById('image-preview-img').src = uploadedImageDataUrl;
+      document.getElementById('image-preview-box').style.display = 'flex';
     };
     reader.readAsDataURL(file);
   }
@@ -758,11 +763,11 @@ function handleSubmitProof(event) {
   } else if (bounty.proofType === 'url') {
     proofContent = document.getElementById('proof-url-input').value;
   } else {
-    proofContent = 'Screenshot attachment uploaded';
+    proofContent = uploadedImageDataUrl || 'https://placehold.co/600x400?text=Screenshot+Proof';
   }
 
-  if (!proofContent.trim()) {
-    showToastNotification('⚠️ Proof Required', 'Please provide your proof before submitting.', false);
+  if (!proofContent || !proofContent.trim()) {
+    showToastNotification('⚠️ Proof Required', 'Please provide your proof screenshot or feedback before submitting.', false);
     return;
   }
 
@@ -777,7 +782,7 @@ function handleSubmitProof(event) {
     id: `sub-${Date.now()}`,
     bountyId: bounty.id,
     bountyTitle: bounty.title,
-    posterAddress: bounty.posterAddress || bounty.sponsor, // Tied strictly to the publisher's wallet!
+    posterAddress: bounty.posterAddress || bounty.sponsor,
     workerAddress: userAccount || 'NQ42 WORKER UNKNOWN',
     proofType: bounty.proofType,
     content: proofContent,
@@ -848,7 +853,7 @@ async function handleCreateBounty(event) {
     } catch (err) {
       console.warn("Mobile escrow payment error / cancelled:", err);
       showToastNotification('❌ Payment Failed / Cancelled', 'Escrow transaction was cancelled or failed due to insufficient funds. Bounty was NOT published.', false);
-      return; // STRICT ABORT
+      return;
     }
   }
 
@@ -869,12 +874,12 @@ async function handleCreateBounty(event) {
         txHash = signedTx.hash || 'tx_hub_confirmed';
       } else {
         showToastNotification('❌ Payment Cancelled', 'Escrow deposit was not signed. Bounty was NOT published.', false);
-        return; // STRICT ABORT
+        return;
       }
     } catch(e) {
       console.log("Nimiq Hub checkout cancelled or failed:", e);
       showToastNotification('❌ Payment Failed / Cancelled', 'Escrow deposit transaction was cancelled or failed due to insufficient funds. Bounty was NOT published.', false);
-      return; // STRICT ABORT
+      return;
     }
   }
 
@@ -888,7 +893,6 @@ async function handleCreateBounty(event) {
     txHash = 'tx_session_' + Date.now();
   }
 
-  // PUBLISH BOUNTY GLOBALLY TIED TO EXACT PUBLISHER WALLET
   const newBounty = {
     id: `b-${Date.now()}`,
     title: title,
@@ -898,7 +902,7 @@ async function handleCreateBounty(event) {
     reward: reward,
     slotsTotal: slots,
     slotsRemaining: slots,
-    posterAddress: userAccount, // Full actual Nimiq address of publisher!
+    posterAddress: userAccount,
     sponsor: `${userAccount.substring(0, 10)}...`,
     instructions: instructions,
     createdAt: Date.now(),
@@ -922,7 +926,7 @@ async function handleCreateBounty(event) {
 }
 
 // ==========================================
-// 15. STRICT PUBLISHER OWNERSHIP REVIEW GUARD
+// 15. PUBLISHER REVIEW SCREENSHOT RENDERER
 // ==========================================
 function renderPosterDashboard() {
   const poolsList = document.getElementById('published-pools-list');
@@ -934,13 +938,11 @@ function renderPosterDashboard() {
     return;
   }
 
-  // Filter published pools by connected wallet address
   const myBounties = bounties.filter(b => 
     b.posterAddress === userAccount || 
     (b.sponsor && b.sponsor.toLowerCase().includes((userAccount || '').substring(0, 8).toLowerCase()))
   );
 
-  // Filter pending submissions ONLY for tasks published by THIS EXACT WALLET!
   const mySubmissions = pendingSubmissions.filter(sub => {
     return sub.posterAddress === userAccount || 
            (sub.posterAddress && sub.posterAddress.toLowerCase().includes((userAccount || '').substring(0, 8).toLowerCase()));
@@ -975,7 +977,12 @@ function renderPosterDashboard() {
 
         <div class="proof-card-review">
           <strong>Submitted Proof (${sub.proofType}):</strong>
-          <div class="proof-content-text">${sub.content}</div>
+          ${sub.proofType === 'image' ? `
+            <img src="${sub.content}" class="proof-image-review" alt="Uploaded Proof Screenshot" onclick="window.open('${sub.content}')" title="Click to view full image in new window" />
+            <span style="font-size:0.68rem; color:var(--muted); font-family:'Geist Mono',monospace;">💡 Click screenshot to open full size</span>
+          ` : `
+            <div class="proof-content-text">${sub.content}</div>
+          `}
         </div>
 
         <div class="review-actions">
@@ -992,7 +999,6 @@ async function reviewProof(submissionId, action) {
   if (subIndex === -1) return;
   const sub = pendingSubmissions[subIndex];
 
-  // STRICT OWNERSHIP CHECK: Ensure caller is the publisher of this bounty!
   if (sub.posterAddress && userAccount && !userAccount.toLowerCase().includes(sub.posterAddress.substring(0, 8).toLowerCase()) && !sub.posterAddress.toLowerCase().includes(userAccount.substring(0, 8).toLowerCase())) {
     showToastNotification('⛔ Access Denied', 'Only the publisher wallet that funded this escrow pool can review and approve worker payouts!', false);
     return;
@@ -1041,6 +1047,5 @@ window.addEventListener('DOMContentLoaded', async () => {
   calculateTotalEscrow();
   updateLandingStats();
   
-  // Refresh global bounties every 15s
   setInterval(fetchGlobalPublicBounties, 15000);
 });
