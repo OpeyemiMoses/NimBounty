@@ -1,5 +1,5 @@
 /**
- * NimBounty Engine — Accurate Active Bounty Counting Engine
+ * NimBounty Engine — Permanent Total Rewards & Persistent Metrics Engine
  */
 
 let currentView = 'landing';
@@ -15,10 +15,12 @@ const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_main';
 const STORAGE_KEY_USER_ACCT = 'nimbounty_user_acct_main';
 const STORAGE_KEY_SAVED_EARNED = 'nimbounty_worker_saved_earned_main';
 const STORAGE_KEY_SAVED_COMPLETED = 'nimbounty_worker_saved_completed_main';
+const STORAGE_KEY_SAVED_TOTAL_PAYOUTS = 'nimbounty_saved_total_rewards_paid_main';
 
 let userAccount = localStorage.getItem(STORAGE_KEY_USER_ACCT) || null;
 let savedWorkerEarnedNim = parseFloat(localStorage.getItem(STORAGE_KEY_SAVED_EARNED)) || 0;
 let savedWorkerCompletedTasks = parseInt(localStorage.getItem(STORAGE_KEY_SAVED_COMPLETED)) || 0;
+let savedTotalRewardsPaid = parseFloat(localStorage.getItem(STORAGE_KEY_SAVED_TOTAL_PAYOUTS)) || 0;
 
 let currentTheme = localStorage.getItem('nimbounty_theme') || 'light';
 let isAudioEnabled = true;
@@ -40,6 +42,7 @@ function saveState() {
   localStorage.setItem(STORAGE_KEY_PAID_HISTORY, JSON.stringify(approvedPayoutsHistory));
   localStorage.setItem(STORAGE_KEY_SAVED_EARNED, savedWorkerEarnedNim.toString());
   localStorage.setItem(STORAGE_KEY_SAVED_COMPLETED, savedWorkerCompletedTasks.toString());
+  localStorage.setItem(STORAGE_KEY_SAVED_TOTAL_PAYOUTS, savedTotalRewardsPaid.toString());
   if (userAccount) {
     localStorage.setItem(STORAGE_KEY_USER_ACCT, userAccount);
   }
@@ -364,9 +367,14 @@ function updateLandingStats() {
   const statBounties = document.getElementById('landing-stat-bounties');
   const statPayouts = document.getElementById('landing-stat-payouts');
 
-  const totalRewardsPaid = approvedPayoutsHistory.reduce((sum, item) => sum + (parseFloat(item.reward) || 0), 0);
+  const dynamicPayoutTotal = approvedPayoutsHistory.reduce((sum, item) => sum + (parseFloat(item.reward) || 0), 0);
+  const finalPayoutsTotal = Math.max(savedTotalRewardsPaid, dynamicPayoutTotal);
+
+  if (finalPayoutsTotal > savedTotalRewardsPaid) {
+    savedTotalRewardsPaid = finalPayoutsTotal;
+    localStorage.setItem(STORAGE_KEY_SAVED_TOTAL_PAYOUTS, savedTotalRewardsPaid.toString());
+  }
   
-  // Count only truly open, active bounties that have NOT been completed by user or paid out!
   const activeCount = bounties.filter(b => {
     const isExpired = b.expiresAt && Date.now() >= b.expiresAt;
     const isFullyClaimed = b.slotsRemaining <= 0;
@@ -379,7 +387,7 @@ function updateLandingStats() {
     statBounties.textContent = `${activeCount}`;
   }
   if (statPayouts) {
-    statPayouts.textContent = `${totalRewardsPaid.toLocaleString()} NIM`;
+    statPayouts.textContent = `${finalPayoutsTotal.toLocaleString()} NIM`;
   }
 }
 
@@ -1272,6 +1280,7 @@ async function reviewProof(submissionId, action) {
 
     savedWorkerCompletedTasks += 1;
     savedWorkerEarnedNim += (parseFloat(sub.reward) || 0);
+    savedTotalRewardsPaid += (parseFloat(sub.reward) || 0);
 
     pendingSubmissions.splice(subIndex, 1);
     saveState();

@@ -35,9 +35,15 @@ export default async function handler(req, res) {
         globalSubmissions = body.pendingSubmissions;
       }
 
-      // Update approved payouts history
+      // ACCUMULATE AND PERSIST APPROVED PAYOUTS PERMANENTLY
       if (Array.isArray(body.approvedPayoutsHistory)) {
-        globalPayouts = body.approvedPayoutsHistory;
+        const existingPayIds = new Set(globalPayouts.map(p => p.id));
+        body.approvedPayoutsHistory.forEach(p => {
+          if (!existingPayIds.has(p.id)) {
+            globalPayouts.unshift(p);
+            existingPayIds.add(p.id);
+          }
+        });
       }
 
       return res.status(200).json({
