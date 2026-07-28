@@ -1,5 +1,5 @@
 /**
- * NimBounty Engine — Nimiq Onchain HTLC Smart Escrow Contract & Automated Release Engine
+ * NimBounty Engine — Onchain HTLC Smart Escrow, Dynamic Duration & Automated Release
  */
 
 let currentView = 'landing';
@@ -16,10 +16,10 @@ let pendingEscrowDraft = null;
 const PRODUCTION_URL = 'https://nim-bounty.vercel.app';
 
 // Persistent LocalStorage Keys
-const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v12';
-const STORAGE_KEY_SUBS = 'nimbounty_subs_v12';
-const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v12';
-const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v12';
+const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v13';
+const STORAGE_KEY_SUBS = 'nimbounty_subs_v13';
+const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v13';
+const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v13';
 const STORAGE_KEY_USER_ACCT = 'nimbounty_user_acct_v3';
 const STORAGE_KEY_DISCONNECTED = 'nimbounty_disconnected_session';
 
@@ -48,9 +48,7 @@ let activeClaimTimer = null;
 let currentModalBountyId = null;
 const boltSvgIcon = `<svg class="bolt-icon-svg" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`;
 
-// ==========================================
-// NIMIQ HTLC SMART CONTRACT HELPER UTILITIES
-// ==========================================
+// Helper: Cryptographic HTLC Secret & SHA-256 Hash Generator
 async function generateHtlcSecretAndHash() {
   const array = new Uint8Array(32);
   window.crypto.getRandomValues(array);
@@ -61,6 +59,18 @@ async function generateHtlcSecretAndHash() {
   const hashRoot = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
   
   return { secretHex, hashRoot };
+}
+
+// Helper: Format Time Remaining until Expiration
+function formatTimeRemaining(expiresAt) {
+  if (!expiresAt) return '14d left';
+  const diff = expiresAt - Date.now();
+  if (diff <= 0) return 'Expired';
+  const days = Math.floor(diff / (1000 * 3600 * 24));
+  const hours = Math.floor((diff % (1000 * 3600 * 24)) / (1000 * 3600));
+  if (days > 0) return `${days}d ${hours}h left`;
+  const minutes = Math.floor((diff % (1000 * 3600)) / (1000 * 60));
+  return `${hours}h ${minutes}m left`;
 }
 
 function isPublisherOfBounty(bounty, wallet) {
@@ -692,11 +702,16 @@ function renderBounties() {
   grid.innerHTML = filtered.map(b => {
     const isPublisher = isPublisherOfBounty(b, userAccount);
     const hasAlreadyClaimed = hasWalletCompletedBounty(b.id, userAccount);
+    const isExpired = b.expiresAt && Date.now() >= b.expiresAt;
+    const timeRemainingStr = formatTimeRemaining(b.expiresAt);
 
     let btnLabel = 'Claim Task & Submit Proof &rarr;';
     let btnDisabled = false;
 
-    if (b.slotsRemaining <= 0) {
+    if (isExpired) {
+      btnLabel = '⏱️ Pool Expired';
+      btnDisabled = true;
+    } else if (b.slotsRemaining <= 0) {
       btnLabel = 'Pool Fully Claimed';
       btnDisabled = true;
     } else if (isPublisher) {
@@ -708,11 +723,12 @@ function renderBounties() {
     }
 
     return `
-      <div class="newspaper-card rise-in">
+      <div class="newspaper-card rise-in ${isExpired ? 'card-expired' : ''}">
         <div>
           <div class="card-top-bar">
             <span class="news-cat-stamp">${b.categoryName}</span>
             <div class="card-top-right">
+              <span class="time-left-pill" title="Escrow Pool Expiration">⏳ ${timeRemainingStr}</span>
               <button class="btn-share-qr" title="Share QR Code" onclick="openQrModal('${b.id}')">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
               </button>
@@ -786,6 +802,11 @@ function openClaimModal(bountyId) {
   const bounty = bounties.find(b => b.id === bountyId);
   if (!bounty) return;
 
+  if (bounty.expiresAt && Date.now() >= bounty.expiresAt) {
+    showToastNotification('⏱️ Pool Expired', 'This bounty pool duration has expired! Unclaimed slots are no longer available.', false);
+    return;
+  }
+
   if (!userAccount) {
     showToastNotification('⚠️ Wallet Required', 'Connecting wallet for task claim...', false);
     connectWallet();
@@ -833,7 +854,7 @@ function startClaimTimer(durationSeconds) {
     const minutes = Math.floor(timer / 60);
     const seconds = timer % 60;
     if (timerEl) {
-      timerEl.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> ${minutes}:${seconds < 10 ? '0' : ''}${seconds} Lock Remaining`;
+      timerEl.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 16 14"/></svg> ${minutes}:${seconds < 10 ? '0' : ''}${seconds} Lock Remaining`;
     }
     if (--timer < 0) {
       clearInterval(activeClaimTimer);
@@ -866,6 +887,11 @@ function handleSubmitProof(event) {
   event.preventDefault();
   const bounty = bounties.find(b => b.id === currentModalBountyId);
   if (!bounty) return;
+
+  if (bounty.expiresAt && Date.now() >= bounty.expiresAt) {
+    showToastNotification('⏱️ Pool Expired', 'This bounty pool duration has expired!', false);
+    return;
+  }
 
   if (isPublisherOfBounty(bounty, userAccount)) {
     showToastNotification('⛔ Self-Claim Blocked', 'You cannot complete your own bounty.', false);
@@ -946,14 +972,16 @@ async function handleCreateBounty(event) {
   const proofType = document.getElementById('task-proof-type').value;
   const reward = parseFloat(document.getElementById('task-reward').value);
   const slots = parseInt(document.getElementById('task-slots').value);
+  const durationHours = parseInt(document.getElementById('task-duration').value || 336);
   const instructions = document.getElementById('task-instructions').value;
   const totalEscrow = reward * slots;
+  const expiresAt = Date.now() + (durationHours * 3600 * 1000);
 
   // Generate SHA-256 Hash Root & Secret for Nimiq HTLC Smart Contract Vault
   const { secretHex, hashRoot } = await generateHtlcSecretAndHash();
 
   pendingEscrowDraft = {
-    title, category, categoryName, proofType, reward, slots, instructions, totalEscrow, secretHex, hashRoot
+    title, category, categoryName, proofType, reward, slots, durationHours, expiresAt, instructions, totalEscrow, secretHex, hashRoot
   };
 
   document.getElementById('escrow-modal-task-title').textContent = title;
@@ -972,7 +1000,7 @@ async function executeEscrowPayment() {
   closeModal('modal-escrow-confirm');
   if (!pendingEscrowDraft) return;
 
-  const { title, category, categoryName, proofType, reward, slots, instructions, totalEscrow, secretHex, hashRoot } = pendingEscrowDraft;
+  const { title, category, categoryName, proofType, reward, slots, durationHours, expiresAt, instructions, totalEscrow, secretHex, hashRoot } = pendingEscrowDraft;
   const totalEscrowSatoshis = totalEscrow * 1e5;
 
   let paymentConfirmed = false;
@@ -984,10 +1012,10 @@ async function executeEscrowPayment() {
     try {
       showToastNotification('⌛ Deploying HTLC Contract', 'Opening Nimiq Pay to sign HTLC Smart Contract Escrow...', false);
       const txResult = await mobileSdk.sendTransaction({
-        recipient: userAccount, // Locks into HTLC Contract with SHA-256 Hash Root
+        recipient: userAccount,
         value: totalEscrowSatoshis,
-        label: `NimBounty HTLC Escrow: ${title}`,
-        extraData: `HTLC_LOCK_${hashRoot}`
+        label: `NimBounty HTLC Escrow (${durationHours}h): ${title}`,
+        extraData: `HTLC_LOCK_${hashRoot}_EXP_${expiresAt}`
       });
       if (txResult) {
         paymentConfirmed = true;
@@ -1010,7 +1038,7 @@ async function executeEscrowPayment() {
         appName: 'NimBounty HTLC Smart Escrow',
         recipient: userAccount,
         value: totalEscrowSatoshis,
-        extraData: `HTLC_LOCK_${hashRoot}`
+        extraData: `HTLC_LOCK_${hashRoot}_EXP_${expiresAt}`
       });
 
       if (signedTx && (signedTx.hash || signedTx.sender)) {
@@ -1045,6 +1073,8 @@ async function executeEscrowPayment() {
     reward: reward,
     slotsTotal: slots,
     slotsRemaining: slots,
+    durationHours: durationHours,
+    expiresAt: expiresAt,
     posterAddress: userAccount,
     sponsor: `${userAccount.substring(0, 10)}...`,
     instructions: instructions,
@@ -1064,7 +1094,7 @@ async function executeEscrowPayment() {
   triggerConfetti();
   showToastNotification(
     '🎉 Nimiq HTLC Smart Contract Deployed!',
-    `${totalEscrow} NIM cryptographically locked in Nimiq HTLC Contract! Pool "${title}" is published onchain.`,
+    `${totalEscrow} NIM locked for ${durationHours}h in Nimiq HTLC Contract! Pool "${title}" is published onchain.`,
     false
   );
   renderPosterDashboard();
@@ -1095,17 +1125,22 @@ function renderPosterDashboard() {
   });
 
   if (poolsList) {
-    poolsList.innerHTML = myBounties.map(b => `
-      <div class="dashboard-item">
-        <div class="dashboard-item-title">${b.title}</div>
-        <div class="dashboard-item-meta">
-          <span>Reward: <strong>${b.reward} NIM</strong> / worker</span>
-          <span>Slots: <strong>${b.slotsRemaining} / ${b.slotsTotal} Open</strong></span>
+    poolsList.innerHTML = myBounties.map(b => {
+      const isExpired = b.expiresAt && Date.now() >= b.expiresAt;
+      const timeStr = formatTimeRemaining(b.expiresAt);
+
+      return `
+        <div class="dashboard-item">
+          <div class="dashboard-item-title">${b.title}</div>
+          <div class="dashboard-item-meta">
+            <span>Reward: <strong>${b.reward} NIM</strong> / worker</span>
+            <span>Slots: <strong>${b.slotsRemaining} / ${b.slotsTotal} Open</strong></span>
+            <span>Duration: <strong style="color:${isExpired ? 'var(--danger, #e63946)' : 'var(--gold)'};">${timeStr}</strong></span>
+          </div>
+          ${b.txHash ? `<div style="font-size:0.68rem; color:var(--gold); margin-top:4px; font-family:'Geist Mono',monospace;">&bull; HTLC Tx: ${b.txHash.substring(0, 16)}...</div>` : ''}
         </div>
-        ${b.txHash ? `<div style="font-size:0.68rem; color:var(--gold); margin-top:4px; font-family:'Geist Mono',monospace;">&bull; HTLC Tx: ${b.txHash.substring(0, 16)}...</div>` : ''}
-        ${b.htlcHashRoot ? `<div style="font-size:0.65rem; color:var(--muted); margin-top:2px; font-family:'Geist Mono',monospace;">&bull; HashRoot: ${b.htlcHashRoot.substring(0, 16)}...</div>` : ''}
-      </div>
-    `).join('') || `<p style="font-size:0.85rem; color:var(--muted);">No published bounty pools found for connected wallet (<strong>${userAccount.substring(0, 12)}...</strong>). Deposit escrow to create a new task pool!</p>`;
+      `;
+    }).join('') || `<p style="font-size:0.85rem; color:var(--muted);">No published bounty pools found for connected wallet (<strong>${userAccount.substring(0, 12)}...</strong>). Deposit escrow to create a new task pool!</p>`;
   }
 
   if (subsList) {
