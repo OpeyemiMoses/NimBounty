@@ -423,29 +423,26 @@ function updateLandingStats() {
   const statBounties = document.getElementById('landing-stat-bounties');
   const statPayouts = document.getElementById('landing-stat-payouts');
 
-  const dynamicPayoutTotal = approvedPayoutsHistory.reduce((sum, item) => sum + (parseFloat(item.reward) || 0), 0);
-  const finalPayoutsTotal = Math.max(savedTotalRewardsPaid, dynamicPayoutTotal);
+  // GLOBAL stat: total NIM paid out across ALL workers, from the real persistent server store.
+  // This is app-wide usage data — always visible regardless of which wallet is connected.
+  const globalTotalPaid = approvedPayoutsHistory.reduce((sum, item) => sum + (parseFloat(item.reward) || 0), 0);
 
-  if (finalPayoutsTotal > savedTotalRewardsPaid) {
-    savedTotalRewardsPaid = finalPayoutsTotal;
-    localStorage.setItem(STORAGE_KEY_SAVED_TOTAL_PAYOUTS, savedTotalRewardsPaid.toString());
-  }
-  
+  // GLOBAL stat: count of bounties that are currently open (not expired, not fully claimed).
+  // No wallet-specific filtering — shows platform-wide availability.
   const activeCount = bounties.filter(b => {
     const isExpired = b.expiresAt && Date.now() >= b.expiresAt;
     const isFullyClaimed = b.slotsRemaining <= 0;
-    const hasClaimed = hasWalletCompletedBounty(b.id, userAccount);
-    const isPaidOut = approvedPayoutsHistory.some(p => p.bountyId === b.id);
-    return !isExpired && !isFullyClaimed && !hasClaimed && !isPaidOut;
+    return !isExpired && !isFullyClaimed;
   }).length;
 
   if (statBounties) {
     statBounties.textContent = `${activeCount}`;
   }
   if (statPayouts) {
-    statPayouts.textContent = `${finalPayoutsTotal.toLocaleString()} NIM`;
+    statPayouts.textContent = `${globalTotalPaid.toLocaleString()} NIM`;
   }
 }
+
 
 // STRICT WORKER-ONLY STATS RENDERING ENGINE (EXCLUDES POSTER PAYOUTS)
 function renderWorkerStats() {
