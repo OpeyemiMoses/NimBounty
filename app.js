@@ -1,5 +1,5 @@
 /**
- * NimBounty Engine — Toast Notification & Wallet Engine (Production Live Vercel Domain)
+ * NimBounty Engine — Responsive & Clean Wallet Connect Engine (Zero Prompt Alerts)
  */
 
 let currentView = 'landing';
@@ -45,7 +45,19 @@ let currentModalBountyId = null;
 const boltSvgIcon = `<svg class="bolt-icon-svg" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`;
 
 // ==========================================
-// 1. FLOATING TOAST NOTIFICATION SYSTEM
+// 1. MOBILE HAMBURGER MENU ENGINE
+// ==========================================
+function toggleMobileMenu() {
+  const btn = document.getElementById('hamburger-btn');
+  const drawer = document.getElementById('mobile-nav-drawer');
+  if (btn && drawer) {
+    btn.classList.toggle('active');
+    drawer.classList.toggle('open');
+  }
+}
+
+// ==========================================
+// 2. FLOATING TOAST NOTIFICATION SYSTEM
 // ==========================================
 function showToastNotification(title, message, showActionBtn = true) {
   const container = document.getElementById('toast-container');
@@ -85,7 +97,7 @@ function copyNimiqPayDeeplink() {
 }
 
 // ==========================================
-// 2. LIVE NIMIQ RPC NETWORK FETCH & STATS
+// 3. LIVE NIMIQ RPC NETWORK FETCH & STATS
 // ==========================================
 async function fetchNimiqLiveRPC() {
   const rpcTag = document.querySelector('.hero-tag');
@@ -123,7 +135,7 @@ function updateLandingStats() {
 }
 
 // ==========================================
-// 3. WEB AUDIO SYNTHESIZER
+// 4. WEB AUDIO SYNTHESIZER
 // ==========================================
 function playAudioFx(type) {
   if (!isAudioEnabled) return;
@@ -172,7 +184,7 @@ function toggleAudioFx() {
 }
 
 // ==========================================
-// 4. CANVAS CONFETTI PARTICLE EXPLOSION
+// 5. CANVAS CONFETTI PARTICLE EXPLOSION
 // ==========================================
 function triggerConfetti() {
   const canvas = document.getElementById('confetti-canvas');
@@ -235,7 +247,7 @@ function triggerConfetti() {
 }
 
 // ==========================================
-// 5. TYPEWRITER ANIMATION ENGINE
+// 6. TYPEWRITER ANIMATION ENGINE
 // ==========================================
 const typewriterPhrases = ["fast", "safe", "direct", "onchain", "instant"];
 let phraseIndex = 0;
@@ -269,7 +281,7 @@ function runTypewriter() {
 }
 
 // ==========================================
-// 6. VIEW ROUTER & SECTION SCROLLING
+// 7. VIEW ROUTER & SECTION SCROLLING
 // ==========================================
 function showView(viewName) {
   currentView = viewName;
@@ -281,15 +293,15 @@ function showView(viewName) {
   if (viewName === 'landing') {
     landingView.style.display = 'block';
     appView.style.display = 'none';
-    navBtnLanding.classList.add('active');
-    navBtnApp.classList.remove('active');
+    navBtnLanding?.classList.add('active');
+    navBtnApp?.classList.remove('active');
     window.scrollTo({ top: 0, behavior: 'smooth' });
     updateLandingStats();
   } else {
     landingView.style.display = 'none';
     appView.style.display = 'block';
-    navBtnApp.classList.add('active');
-    navBtnLanding.classList.remove('active');
+    navBtnApp?.classList.add('active');
+    navBtnLanding?.classList.remove('active');
     renderBounties();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -315,16 +327,16 @@ function toggleFaq(buttonEl) {
 }
 
 // ==========================================
-// 7. REAL NIMIQ WALLET CONNECT ENGINE
+// 8. REAL NIMIQ WALLET CONNECT ENGINE (Zero Prompt Alerts)
 // ==========================================
 function updateWalletUI() {
-  const walletText = document.getElementById('wallet-text');
-  if (!walletText) return;
-  if (userAccount) {
-    walletText.textContent = `${userAccount.substring(0, 16)}...`;
-  } else {
-    walletText.textContent = "Connect Nimiq Wallet";
-  }
+  const walletTextDesktop = document.getElementById('wallet-text');
+  const walletTextMobile = document.getElementById('wallet-text-mobile');
+  
+  const displayVal = userAccount ? `${userAccount.substring(0, 14)}...` : 'Connect Nimiq Wallet';
+
+  if (walletTextDesktop) walletTextDesktop.textContent = displayVal;
+  if (walletTextMobile) walletTextMobile.textContent = displayVal;
 }
 
 async function connectWallet() {
@@ -336,8 +348,7 @@ async function connectWallet() {
     return;
   }
 
-  const walletText = document.getElementById('wallet-text');
-
+  // 1. Mobile Nimiq Pay App SDK
   if (window.nimiqPay || (window.Nimiq && window.Nimiq.MiniApp)) {
     try {
       const sdk = window.nimiqPay || window.Nimiq.MiniApp;
@@ -350,7 +361,7 @@ async function connectWallet() {
         saveState();
         updateWalletUI();
         playAudioFx('cash');
-        alert(`Connected Nimiq Pay Mobile Wallet:\n${userAccount}`);
+        showToastNotification('Connected!', `Nimiq Pay Mobile Wallet connected:\n${userAccount}`, false);
         return;
       }
     } catch (e) {
@@ -358,9 +369,9 @@ async function connectWallet() {
     }
   }
 
+  // 2. Real Desktop Nimiq Hub Web Wallet (https://hub.nimiq.com)
   if (window.HubApi) {
     try {
-      if (walletText) walletText.textContent = "Opening Nimiq Hub...";
       if (!hubApiInstance) hubApiInstance = new window.HubApi('https://hub.nimiq.com');
       
       const choosenAccount = await hubApiInstance.chooseAddress({
@@ -372,7 +383,7 @@ async function connectWallet() {
         saveState();
         updateWalletUI();
         playAudioFx('cash');
-        alert(`Connected Nimiq Web Wallet:\n${userAccount}`);
+        showToastNotification('Connected!', `Nimiq Web Wallet connected:\n${userAccount}`, false);
         return;
       }
     } catch (err) {
@@ -380,26 +391,12 @@ async function connectWallet() {
     }
   }
 
+  // 3. Floating Toast Guidance for Mobile App or Pop-up Block
   showToastNotification(
     '📱 Open in Nimiq Pay Mobile App',
-    `Browser pop-up was blocked or not detected. Open this link inside Nimiq Pay Mobile App for direct wallet connection: ${PRODUCTION_URL}`,
+    `Browser pop-up was blocked or closed. Open this link inside Nimiq Pay Mobile App for 1-click hardware wallet connection: ${PRODUCTION_URL}`,
     true
   );
-
-  promptManualAddress();
-}
-
-function promptManualAddress() {
-  const inputAddress = prompt("Or enter your Nimiq Wallet Address manually (starts with NQ...):");
-  if (inputAddress && inputAddress.trim().length >= 10) {
-    userAccount = inputAddress.trim();
-    saveState();
-    updateWalletUI();
-    playAudioFx('submit');
-    alert(`Wallet Address Set:\n${userAccount}`);
-  } else {
-    updateWalletUI();
-  }
 }
 
 function disconnectWallet() {
@@ -408,7 +405,7 @@ function disconnectWallet() {
   localStorage.removeItem(STORAGE_KEY_USER_ACCT);
   localStorage.removeItem('nimbounty_device_id_v3');
   updateWalletUI();
-  alert("Nimiq Wallet disconnected.");
+  showToastNotification('Disconnected', 'Nimiq Wallet disconnected successfully.', false);
 }
 
 function renderWorkerStats() {
@@ -419,7 +416,7 @@ function renderWorkerStats() {
 }
 
 // ==========================================
-// 8. ROLE SWITCHER & TASK GRID
+// 9. ROLE SWITCHER & TASK GRID
 // ==========================================
 function switchRole(role) {
   currentRole = role;
@@ -514,7 +511,7 @@ function renderBounties() {
 }
 
 // ==========================================
-// 9. QR CODE GENERATOR & SHARE MODAL
+// 10. QR CODE GENERATOR & SHARE MODAL
 // ==========================================
 function openQrModal(bountyId) {
   const bounty = bounties.find(b => b.id === bountyId);
@@ -552,7 +549,7 @@ function copyQrLink() {
 }
 
 // ==========================================
-// 10. CLAIM & SUBMIT PROOF ENGINE
+// 11. CLAIM & SUBMIT PROOF ENGINE
 // ==========================================
 function openClaimModal(bountyId) {
   const bounty = bounties.find(b => b.id === bountyId);
@@ -670,7 +667,7 @@ function handleSubmitProof(event) {
 }
 
 // ==========================================
-// 11. POSTER ESCROW CREATION & PAYOUT ENGINE
+// 12. POSTER ESCROW CREATION & PAYOUT ENGINE
 // ==========================================
 function calculateTotalEscrow() {
   const reward = parseFloat(document.getElementById('task-reward')?.value || 0);

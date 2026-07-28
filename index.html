@@ -37,8 +37,8 @@
         <span class="logo-text">nim<span class="logo-serif">Bounty</span></span>
       </a>
 
-      <!-- Center Navigation Links -->
-      <div class="nav-center-links">
+      <!-- Desktop Center Navigation Links -->
+      <div class="nav-center-links desktop-nav">
         <button class="nav-link-btn active" id="nav-btn-landing" onclick="showView('landing')">Overview</button>
         <button class="nav-link-btn" onclick="scrollToSection('how-it-works')">How It Works</button>
         <button class="nav-link-btn" onclick="scrollToSection('features')">Protections</button>
@@ -46,16 +46,40 @@
         <button class="nav-link-btn" id="nav-btn-app" onclick="showView('app')">Console App</button>
       </div>
 
-      <!-- Right Actions -->
+      <!-- Right Actions & Hamburger Button -->
       <div class="nav-right-actions">
-        <button class="btn-ghost-sm" onclick="connectWallet()" id="btn-connect-wallet">
+        <button class="btn-ghost-sm desktop-wallet-btn" onclick="connectWallet()" id="btn-connect-wallet">
           <span class="wallet-dot"></span>
           <span id="wallet-text">Connect Nimiq Wallet</span>
         </button>
-        <button class="btn-primary-sm" onclick="showView('app')">
+        <button class="btn-primary-sm desktop-launch-btn" onclick="showView('app')">
           Launch App &rarr;
         </button>
+
+        <!-- Mobile Hamburger Toggle Button -->
+        <button class="hamburger-btn" id="hamburger-btn" onclick="toggleMobileMenu()" aria-label="Toggle Navigation Menu">
+          <span class="bar bar1"></span>
+          <span class="bar bar2"></span>
+          <span class="bar bar3"></span>
+        </button>
       </div>
+    </div>
+
+    <!-- Mobile Navigation Drawer -->
+    <div class="mobile-nav-drawer" id="mobile-nav-drawer">
+      <button class="mobile-nav-link active" onclick="showView('landing'); toggleMobileMenu();">Overview</button>
+      <button class="mobile-nav-link" onclick="scrollToSection('how-it-works'); toggleMobileMenu();">How It Works</button>
+      <button class="mobile-nav-link" onclick="scrollToSection('features'); toggleMobileMenu();">Protections</button>
+      <button class="mobile-nav-link" onclick="scrollToSection('faq'); toggleMobileMenu();">FAQ</button>
+      <button class="mobile-nav-link" onclick="showView('app'); toggleMobileMenu();">Console App</button>
+      <div class="mobile-drawer-divider"></div>
+      <button class="btn-ghost-sm full-width" onclick="connectWallet(); toggleMobileMenu();">
+        <span class="wallet-dot"></span>
+        <span id="wallet-text-mobile">Connect Nimiq Wallet</span>
+      </button>
+      <button class="btn-primary-lg full-width" onclick="showView('app'); toggleMobileMenu();" style="margin-top: 10px;">
+        Launch App Console &rarr;
+      </button>
     </div>
   </nav>
 
