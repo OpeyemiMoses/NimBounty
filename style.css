@@ -62,6 +62,79 @@ body {
   z-index: 99999;
 }
 
+/* Floating Toast Notification */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 999999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.toast-box {
+  pointer-events: auto;
+  background: var(--ink);
+  color: #fff;
+  border: 1px solid var(--gold);
+  border-radius: 16px;
+  padding: 16px 20px;
+  max-width: 380px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: slideToast 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideToast {
+  from { opacity: 0; transform: translateY(20px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.toast-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--gold);
+}
+
+.toast-close-btn {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.toast-body {
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.8);
+  line-height: 1.5;
+}
+
+.toast-action-btn {
+  font-family: 'Geist Mono', monospace;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 8px 14px;
+  background: var(--gold);
+  color: var(--ink);
+  border: none;
+  border-radius: var(--r-btn);
+  cursor: pointer;
+  align-self: flex-start;
+  transition: all 0.2s ease;
+}
+
+.toast-action-btn:hover {
+  background: #fff;
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
@@ -736,35 +809,6 @@ body {
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
-}
-
-/* Demo Drive Pulse Button */
-.btn-demo-mode {
-  font-family: 'Work Sans', sans-serif;
-  font-size: 0.82rem;
-  font-weight: 700;
-  padding: 8px 18px;
-  background: var(--gold-tint);
-  color: var(--gold-dark);
-  border: 1px solid var(--gold);
-  border-radius: var(--r-btn);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  transition: all 0.2s ease;
-  animation: goldPulse 2.5s infinite;
-}
-
-@keyframes goldPulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(217, 155, 0, 0.4); }
-  50% { box-shadow: 0 0 0 8px rgba(217, 155, 0, 0); }
-}
-
-.btn-demo-mode:hover {
-  background: var(--gold);
-  color: var(--ink);
-  transform: translateY(-1px);
 }
 
 .btn-sound-toggle {

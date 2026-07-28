@@ -1,5 +1,5 @@
 /**
- * NimBounty Engine — Pure Real Nimiq Wallet Connection (Zero Dummy Data)
+ * NimBounty Engine — Toast Notification & Wallet Engine
  */
 
 let currentView = 'landing';
@@ -43,7 +43,48 @@ let currentModalBountyId = null;
 const boltSvgIcon = `<svg class="bolt-icon-svg" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`;
 
 // ==========================================
-// 1. LIVE NIMIQ RPC NETWORK FETCH & STATS
+// 1. FLOATING TOAST NOTIFICATION SYSTEM
+// ==========================================
+function showToastNotification(title, message, showActionBtn = true) {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+
+  const toastId = `toast-${Date.now()}`;
+  const toastHtml = `
+    <div class="toast-box" id="${toastId}">
+      <div class="toast-header">
+        <span>${title}</span>
+        <button class="toast-close-btn" onclick="removeToast('${toastId}')">&times;</button>
+      </div>
+      <div class="toast-body">${message}</div>
+      ${showActionBtn ? `<button class="toast-action-btn" onclick="copyNimiqPayDeeplink()">Copy Nimiq Pay Deeplink 📋</button>` : ''}
+    </div>
+  `;
+
+  container.insertAdjacentHTML('beforeend', toastHtml);
+
+  // Auto-remove after 9 seconds
+  setTimeout(() => removeToast(toastId), 9000);
+}
+
+function removeToast(toastId) {
+  const toast = document.getElementById(toastId);
+  if (toast) {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(10px)';
+    setTimeout(() => toast.remove(), 300);
+  }
+}
+
+function copyNimiqPayDeeplink() {
+  const deeplink = `nimiqpay://miniapp?url=${window.location.origin}`;
+  navigator.clipboard.writeText(deeplink);
+  playAudioFx('submit');
+  showToastNotification('📋 Deeplink Copied!', 'Open the Nimiq Pay Mobile App and paste/open the deeplink.', false);
+}
+
+// ==========================================
+// 2. LIVE NIMIQ RPC NETWORK FETCH & STATS
 // ==========================================
 async function fetchNimiqLiveRPC() {
   const rpcTag = document.querySelector('.hero-tag');
@@ -81,7 +122,7 @@ function updateLandingStats() {
 }
 
 // ==========================================
-// 2. WEB AUDIO SYNTHESIZER
+// 3. WEB AUDIO SYNTHESIZER
 // ==========================================
 function playAudioFx(type) {
   if (!isAudioEnabled) return;
@@ -130,7 +171,7 @@ function toggleAudioFx() {
 }
 
 // ==========================================
-// 3. CANVAS CONFETTI PARTICLE EXPLOSION
+// 4. CANVAS CONFETTI PARTICLE EXPLOSION
 // ==========================================
 function triggerConfetti() {
   const canvas = document.getElementById('confetti-canvas');
@@ -193,7 +234,7 @@ function triggerConfetti() {
 }
 
 // ==========================================
-// 4. TYPEWRITER ANIMATION ENGINE
+// 5. TYPEWRITER ANIMATION ENGINE
 // ==========================================
 const typewriterPhrases = ["fast", "safe", "direct", "onchain", "instant"];
 let phraseIndex = 0;
@@ -227,7 +268,7 @@ function runTypewriter() {
 }
 
 // ==========================================
-// 5. VIEW ROUTER & SECTION SCROLLING
+// 6. VIEW ROUTER & SECTION SCROLLING
 // ==========================================
 function showView(viewName) {
   currentView = viewName;
@@ -273,7 +314,7 @@ function toggleFaq(buttonEl) {
 }
 
 // ==========================================
-// 6. REAL NIMIQ WALLET CONNECT ENGINE (No Dummy Fallbacks)
+// 7. REAL NIMIQ WALLET CONNECT ENGINE
 // ==========================================
 function updateWalletUI() {
   const walletText = document.getElementById('wallet-text');
@@ -286,7 +327,6 @@ function updateWalletUI() {
 }
 
 async function connectWallet() {
-  // If already connected, show options modal to view address or disconnect
   if (userAccount) {
     const choice = confirm(`Connected Nimiq Wallet Address:\n${userAccount}\n\nDo you want to disconnect this wallet?`);
     if (choice) {
@@ -297,7 +337,7 @@ async function connectWallet() {
 
   const walletText = document.getElementById('wallet-text');
 
-  // 1. Check for Mobile Nimiq Pay App SDK
+  // 1. Mobile Nimiq Pay App SDK
   if (window.nimiqPay || (window.Nimiq && window.Nimiq.MiniApp)) {
     try {
       const sdk = window.nimiqPay || window.Nimiq.MiniApp;
@@ -341,12 +381,18 @@ async function connectWallet() {
     }
   }
 
-  // 3. Manual Nimiq Address Prompt if Popup Blocked / Unsupported
+  // 3. If Hub popup blocked / cancelled, trigger Toast Notification encouraging Nimiq Pay Mobile App!
+  showToastNotification(
+    '📱 Open in Nimiq Pay Mobile App',
+    'Browser pop-up was blocked or not detected. For hardware-bound device protection and zero gas fees, open this link inside the Nimiq Pay Mobile App!',
+    true
+  );
+
   promptManualAddress();
 }
 
 function promptManualAddress() {
-  const inputAddress = prompt("Enter your Nimiq Wallet Address (starts with NQ...):");
+  const inputAddress = prompt("Or enter your Nimiq Wallet Address manually (starts with NQ...):");
   if (inputAddress && inputAddress.trim().length >= 10) {
     userAccount = inputAddress.trim();
     saveState();
@@ -375,7 +421,7 @@ function renderWorkerStats() {
 }
 
 // ==========================================
-// 7. ROLE SWITCHER & TASK GRID
+// 8. ROLE SWITCHER & TASK GRID
 // ==========================================
 function switchRole(role) {
   currentRole = role;
@@ -470,7 +516,7 @@ function renderBounties() {
 }
 
 // ==========================================
-// 8. QR CODE GENERATOR & SHARE MODAL
+// 9. QR CODE GENERATOR & SHARE MODAL
 // ==========================================
 function openQrModal(bountyId) {
   const bounty = bounties.find(b => b.id === bountyId);
@@ -502,19 +548,19 @@ function copyQrLink() {
     input.select();
     navigator.clipboard.writeText(input.value);
     playAudioFx('submit');
-    alert("📋 Nimiq Pay Deeplink copied to clipboard!");
+    showToastNotification('📋 Deeplink Copied!', 'Copied Nimiq Pay mobile deeplink to clipboard.', false);
   }
 }
 
 // ==========================================
-// 9. CLAIM & SUBMIT PROOF ENGINE
+// 10. CLAIM & SUBMIT PROOF ENGINE
 // ==========================================
 function openClaimModal(bountyId) {
   const bounty = bounties.find(b => b.id === bountyId);
   if (!bounty) return;
 
   if (!userAccount) {
-    alert("Please connect your Nimiq Wallet first before claiming a task!");
+    showToastNotification('⚠️ Wallet Required', 'Please connect your Nimiq Wallet before claiming a bounty task.', false);
     connectWallet();
     return;
   }
@@ -551,7 +597,7 @@ function startClaimTimer(durationSeconds) {
     }
     if (--timer < 0) {
       clearInterval(activeClaimTimer);
-      alert("Reservation timer expired! Slot released.");
+      showToastNotification('⏱️ Timer Expired', 'Reservation timer expired! Task slot has been released.', false);
       closeModal('modal-task');
     }
   }, 1000);
@@ -590,7 +636,7 @@ function handleSubmitProof(event) {
   }
 
   if (!proofContent.trim()) {
-    alert("Please provide the required proof before submitting!");
+    showToastNotification('⚠️ Proof Required', 'Please provide your proof before submitting.', false);
     return;
   }
 
@@ -617,11 +663,15 @@ function handleSubmitProof(event) {
   closeModal('modal-task');
   renderBounties();
 
-  alert(`Proof Submitted Successfully!\nYour submission for "${bounty.title}" is pending review. Payout will trigger upon approval.`);
+  showToastNotification(
+    '✅ Proof Submitted',
+    `Your submission for "${bounty.title}" is pending poster review. Payout will trigger upon approval.`,
+    false
+  );
 }
 
 // ==========================================
-// 10. POSTER ESCROW CREATION & PAYOUT ENGINE
+// 11. POSTER ESCROW CREATION & PAYOUT ENGINE
 // ==========================================
 function calculateTotalEscrow() {
   const reward = parseFloat(document.getElementById('task-reward')?.value || 0);
@@ -636,7 +686,7 @@ function calculateTotalEscrow() {
 async function handleCreateBounty(event) {
   event.preventDefault();
   if (!userAccount) {
-    alert("Please connect your Nimiq Wallet before depositing escrow and publishing a bounty!");
+    showToastNotification('⚠️ Wallet Required', 'Please connect your Nimiq Wallet before depositing escrow.', false);
     connectWallet();
     return;
   }
@@ -682,7 +732,11 @@ async function handleCreateBounty(event) {
   calculateTotalEscrow();
 
   playAudioFx('submit');
-  alert(`Escrow Locked & Bounty Published!\n${totalEscrow} NIM locked in Nimiq Pay escrow vault for pool: "${title}".`);
+  showToastNotification(
+    '🎉 Escrow Deposited & Published',
+    `${totalEscrow} NIM locked in smart escrow pool for "${title}".`,
+    false
+  );
   renderPosterDashboard();
   renderBounties();
 }
@@ -753,9 +807,13 @@ async function reviewProof(index, action) {
 
     playAudioFx('cash');
     triggerConfetti();
-    alert(`🎉 Payout Released!\nSent ${sub.reward} NIM to ${sub.workerAddress} via Nimiq Pay.`);
+    showToastNotification(
+      '🎉 Payout Released!',
+      `Released ${sub.reward} NIM to worker ${sub.workerAddress.substring(0, 14)}...`,
+      false
+    );
   } else {
-    alert(`Rejected submission from ${sub.workerAddress}. Worker notified.`);
+    showToastNotification('❌ Submission Rejected', `Rejected submission from ${sub.workerAddress.substring(0, 14)}...`, false);
   }
 
   pendingSubmissions.splice(index, 1);
