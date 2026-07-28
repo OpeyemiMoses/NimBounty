@@ -1172,142 +1172,20 @@ async function publishBountyPoolDirectly() {
   const slots = parseInt(slotsInput.value);
   const durationHours = parseInt(document.getElementById('task-duration').value || 336);
   const instructions = instructionsInput.value;
-  const totalEscrowNim = reward * slots;
-  const totalEscrowLuna = Math.round(totalEscrowNim * 100000);
 
   const expiresAt = Date.now() + (durationHours * 3600 * 1000);
   const bountyId = `b-${Date.now()}`;
   const cleanPosterAddr = userAccount.trim().toUpperCase().replace(/\s+/g, '');
 
-  showToastNotification(
-    '🔒 Funding Onchain Escrow...',
-    `Depositing ${totalEscrowNim} NIM to NimBounty Escrow Vault:\n${NIMIQ_ESCROW_CONTRACT_ADDRESS}`,
-    false
-  );
-
-  let escrowTxHash = null;
-  const provider = getNimiqProvider();
-
-  if (provider) {
-    showToastNotification(
-      '🔒 Funding Onchain Escrow...',
-      `Depositing ${totalEscrowNim} NIM to NimBounty Escrow Vault:\n${NIMIQ_ESCROW_CONTRACT_ADDRESS}`,
-      false
-    );
-
-    try {
-      let validityStartHeight = liveBlockHeight || 0;
-      if (typeof provider.getBlockNumber === 'function') {
-        try { validityStartHeight = await provider.getBlockNumber(); } catch (e) {}
-      }
-
-      const cleanEscrowAddr = NIMIQ_ESCROW_CONTRACT_ADDRESS.replace(/\s+/g, '');
-      if (typeof provider.sendBasicTransactionWithData === 'function') {
-        escrowTxHash = await provider.sendBasicTransactionWithData({
-          recipient: cleanEscrowAddr,
-          value: totalEscrowLuna,
-          data: `NIMBOUNTY_ESCROW_DEPOSIT:${bountyId.slice(0, 14)}`,
-          validityStartHeight: validityStartHeight
-        });
-      } else if (typeof provider.sendBasicTransaction === 'function') {
-        escrowTxHash = await provider.sendBasicTransaction({
-          recipient: cleanEscrowAddr,
-          value: totalEscrowLuna,
-          validityStartHeight: validityStartHeight
-        });
-      }
-    } catch (err) {
-      console.warn("Escrow deposit provider error or user dismissed modal:", err);
-      showToastNotification(
-        '⛔ Escrow Deposit Cancelled',
-        'Payment modal was dismissed or cancelled. Bounty pool was NOT created.',
-        false
-      );
-      return; // STOP EXECUTION! Do NOT publish task if user dismissed/cancelled payment!
-    }
-
-    if (!escrowTxHash) {
-      showToastNotification(
-        '⛔ Escrow Deposit Failed',
-        'Transaction was not confirmed by wallet. Bounty pool was NOT created.',
-        false
-      );
-      return; // STOP EXECUTION!
-    }
-  } else {
-    // Standard web browser fallback outside Nimiq Pay MiniApp
-    showDepositConfirmModal(title, totalEscrowNim, totalEscrowLuna, bountyId, category, categoryName, proofType, reward, slots, durationHours, instructions, expiresAt, cleanPosterAddr);
-    return;
-  }
-
-  finishPublishBounty({
-    id: bountyId, title, category, categoryName, proofType, reward, slotsTotal: slots, slotsRemaining: slots,
-    durationHours, expiresAt, posterAddress: cleanPosterAddr, sponsor: `${cleanPosterAddr.substring(0, 10)}...`,
-    instructions, createdAt: Date.now(), txHash: escrowTxHash, escrowFunded: true, escrowVaultAddress: NIMIQ_ESCROW_CONTRACT_ADDRESS
-  });
-}
-
-function showDepositConfirmModal(title, totalEscrowNim, totalEscrowLuna, bountyId, category, categoryName, proofType, reward, slots, durationHours, instructions, expiresAt, cleanPosterAddr) {
-  const existing = document.getElementById('modal-deposit-confirm');
-  if (existing) existing.remove();
-
-  const escrowDeepLink = `nimiq:${NIMIQ_ESCROW_CONTRACT_ADDRESS.replace(/\s+/g, '')}?value=${totalEscrowLuna}&label=NimBounty%20Escrow%20Deposit`;
-
-  const modal = document.createElement('div');
-  modal.id = 'modal-deposit-confirm';
-  modal.className = 'modal-overlay';
-  modal.style.display = 'flex';
-  modal.innerHTML = `
-    <div class="modal-paper paper-card rise-in" style="max-width:500px;">
-      <button class="modal-close" onclick="document.getElementById('modal-deposit-confirm').remove()">&times;</button>
-      <div class="modal-header">
-        <span class="news-category-tag" style="background:var(--gold,#f59e0b);color:#000;">DEPOSIT ESCROW TO PUBLISH</span>
-        <h2 style="font-size:1.3rem;margin-top:12px;">Fund Bounty Campaign</h2>
-      </div>
-      <div class="modal-body" style="gap:14px;">
-        <p style="font-size:0.88rem;color:var(--ink);">
-          To publish <strong>"${title}"</strong>, deposit <strong>${totalEscrowNim} NIM</strong> into the Escrow Vault:
-        </p>
-
-        <div style="background:var(--bg-subtle);border-radius:10px;padding:12px;text-align:center;">
-          <div style="font-size:0.75rem;color:var(--muted);font-weight:700;">ESCROW VAULT ADDRESS</div>
-          <code style="font-size:0.85rem;font-weight:800;color:var(--gold);word-break:break-all;">${NIMIQ_ESCROW_CONTRACT_ADDRESS}</code>
-        </div>
-
-        <button class="btn-primary-lg full-width" onclick="window.open('${escrowDeepLink}');">
-          Open Nimiq Pay App &rarr;
-        </button>
-
-        <div style="display:flex;gap:10px;margin-top:6px;">
-          <button class="btn-primary-sm full-width" style="background:var(--emerald);" id="btn-confirm-escrow-sent">
-            ✅ I Have Sent Deposit — Publish Task
-          </button>
-          <button class="btn-secondary-sm full-width" id="btn-cancel-escrow-deposit">
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(modal);
-
-  document.getElementById('btn-confirm-escrow-sent').onclick = () => {
-    document.getElementById('modal-deposit-confirm').remove();
-    finishPublishBounty({
-      id: bountyId, title, category, categoryName, proofType, reward, slotsTotal: slots, slotsRemaining: slots,
-      durationHours, expiresAt, posterAddress: cleanPosterAddr, sponsor: `${cleanPosterAddr.substring(0, 10)}...`,
-      instructions, createdAt: Date.now(), txHash: `escrow_dep_${Date.now()}`,
-      escrowFunded: true, escrowVaultAddress: NIMIQ_ESCROW_CONTRACT_ADDRESS
-    });
+  const newBounty = {
+    id: bountyId,
+    title: title, category: category, categoryName: categoryName, proofType: proofType,
+    reward: reward, slotsTotal: slots, slotsRemaining: slots, durationHours: durationHours,
+    expiresAt: expiresAt, posterAddress: cleanPosterAddr, sponsor: `${cleanPosterAddr.substring(0, 10)}...`,
+    instructions: instructions, createdAt: Date.now(), txHash: `pool_${Date.now()}`,
+    escrowFunded: false
   };
 
-  document.getElementById('btn-cancel-escrow-deposit').onclick = () => {
-    document.getElementById('modal-deposit-confirm').remove();
-    showToastNotification('⛔ Escrow Deposit Cancelled', 'Bounty pool was not published.', false);
-  };
-}
-
-function finishPublishBounty(newBounty) {
   bounties.unshift(newBounty);
   saveState();
   syncGlobalPublicBounties(newBounty);
@@ -1319,8 +1197,8 @@ function finishPublishBounty(newBounty) {
   triggerConfetti();
 
   showToastNotification(
-    '🚀 ESCROW FUNDED & PUBLISHED!',
-    `"${newBounty.title}" is 100% Escrow Funded (${newBounty.reward * newBounty.slotsTotal} NIM) and live for workers!`,
+    '🚀 BOUNTY POOL PUBLISHED!',
+    `"${title}" (${reward} NIM per slot) is live for workers! You pay workers directly from your wallet when approving proof.`,
     false
   );
 
@@ -1371,7 +1249,7 @@ function renderPosterDashboard() {
           <div class="dashboard-item-meta">
             <span>Reward: <strong>${b.reward} NIM</strong> / worker</span>
             <span>Slots: <strong>${b.slotsRemaining} / ${b.slotsTotal} Open</strong></span>
-            <span>Escrow: <strong style="color:var(--emerald);">🔒 100% Funded</strong></span>
+            <span>Payment: <strong style="color:var(--emerald);">⚡ Direct Pay</strong></span>
             <span>Status: <strong style="color:${isPaidOut ? 'var(--emerald)' : isExpired ? 'var(--danger)' : 'var(--gold)'};">${timeStr}</strong></span>
           </div>
         </div>
@@ -1423,7 +1301,7 @@ function renderPosterDashboard() {
           </div>
 
           <div class="review-actions">
-            <button class="btn-approve" onclick="reviewProof('${sub.id}', 'approve')">Approve & Release ${sub.reward} NIM from Escrow &rarr;</button>
+            <button class="btn-approve" onclick="reviewProof('${sub.id}', 'approve')">Approve & Pay ${sub.reward} NIM &rarr;</button>
             <button class="btn-reject" onclick="reviewProof('${sub.id}', 'reject')">Reject</button>
           </div>
         </div>
@@ -1449,26 +1327,44 @@ async function reviewProof(submissionId, action) {
     const cleanWorkerAddr = targetWorkerAddr.replace(/\s+/g, '');
     const lunaValue = Math.round(sub.reward * 100000);
 
-    showToastNotification(
-      '⚡ Releasing Escrow Payout...',
-      `Calling Escrow Vault to send ${sub.reward} NIM to worker...`,
-      false
-    );
+    let payoutTxHash = `tx_payout_${Date.now()}`;
+    const provider = getNimiqProvider();
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // AUTOMATIC ESCROW PAYOUT
-    // The Vercel API uses ESCROW_MNEMONIC env var to sign & broadcast the
-    // transaction FROM the escrow vault — no poster wallet interaction needed.
-    // ─────────────────────────────────────────────────────────────────────────
-    // Record the approved payout in state & DB
+    // Trigger Nimiq Pay provider if in MiniApp SDK
+    if (provider) {
+      try {
+        let validityStartHeight = liveBlockHeight || 0;
+        if (typeof provider.getBlockNumber === 'function') {
+          try { validityStartHeight = await provider.getBlockNumber(); } catch (e) {}
+        }
+        if (typeof provider.sendBasicTransactionWithData === 'function') {
+          payoutTxHash = await provider.sendBasicTransactionWithData({
+            recipient: cleanWorkerAddr,
+            value: lunaValue,
+            data: `NIMBOUNTY_PAYOUT:${sub.bountyId.slice(0, 14)}`,
+            validityStartHeight: validityStartHeight
+          });
+        } else if (typeof provider.sendBasicTransaction === 'function') {
+          payoutTxHash = await provider.sendBasicTransaction({
+            recipient: cleanWorkerAddr,
+            value: lunaValue,
+            validityStartHeight: validityStartHeight
+          });
+        }
+      } catch (err) {
+        console.warn("Direct payout provider error:", err);
+      }
+    }
+
+    // Record the approved payout
     approvedPayoutsHistory.push({
       id: `pay-${Date.now()}`,
       bountyId: sub.bountyId,
       bountyTitle: sub.bountyTitle,
       workerAddress: cleanWorkerAddr,
-      posterAddress: sub.posterAddress,
+      posterAddress: userAccount,
       reward: sub.reward,
-      txHash: `tx_escrow_approved_${Date.now()}`,
+      txHash: payoutTxHash,
       paidAt: Date.now()
     });
 
@@ -1478,13 +1374,13 @@ async function reviewProof(submissionId, action) {
     playAudioFx('cash');
     triggerConfetti();
 
-    // Show Escrow Payout Modal with 1-tap Nimiq Pay transfer link
-    const nimiqPayDeeplink = `nimiq:${cleanWorkerAddr}?value=${lunaValue}&label=NimBounty%20Escrow%20Payout`;
-    showEscrowPayoutInstructions(cleanWorkerAddr, sub.reward, lunaValue, nimiqPayDeeplink);
+    // Show Direct Payout confirmation modal for poster
+    const nimiqPayDeeplink = `nimiq:${cleanWorkerAddr}?value=${lunaValue}&label=NimBounty%20Worker%20Payout`;
+    showDirectPayoutModal(cleanWorkerAddr, sub.reward, lunaValue, nimiqPayDeeplink);
 
     showToastNotification(
-      '✅ Proof Approved — Confirm Payout in Nimiq Pay',
-      `Proof approved! Tap "Open Nimiq Pay to Send" in the modal below to release ${sub.reward} NIM to worker.`,
+      '🎉 Proof Approved & Payout Triggered!',
+      `Approved! ${sub.reward} NIM payment triggered from your wallet to worker address:\n${cleanWorkerAddr}`,
       false
     );
   } else {
@@ -1509,10 +1405,9 @@ async function reviewProof(submissionId, action) {
 }
 
 // ==========================================
-// ESCROW PAYOUT INSTRUCTION MODAL
+// DIRECT POSTER WORKER PAYOUT MODAL
 // ==========================================
-function showEscrowPayoutInstructions(workerAddr, rewardNim, lunaValue, deeplink) {
-  // Remove any existing instruction modal
+function showDirectPayoutModal(workerAddr, rewardNim, lunaValue, deeplink) {
   const existing = document.getElementById('modal-escrow-payout');
   if (existing) existing.remove();
 
@@ -1521,23 +1416,39 @@ function showEscrowPayoutInstructions(workerAddr, rewardNim, lunaValue, deeplink
   modal.className = 'modal-overlay';
   modal.style.display = 'flex';
   modal.innerHTML = `
-    <div class="modal-paper paper-card rise-in" style="max-width:520px;">
+    <div class="modal-paper paper-card rise-in" style="max-width:500px;">
       <button class="modal-close" onclick="document.getElementById('modal-escrow-payout').remove()">&times;</button>
       <div class="modal-header">
-        <span class="news-category-tag" style="background:var(--emerald,#22c55e);color:#fff;">ESCROW PAYOUT READY</span>
-        <h2 style="font-size:1.3rem;margin-top:12px;">Send NIM from Your Escrow Vault</h2>
+        <span class="news-category-tag" style="background:var(--emerald,#22c55e);color:#fff;">DIRECT WORKER PAYOUT</span>
+        <h2 style="font-size:1.3rem;margin-top:12px;">Pay Worker from Your Wallet</h2>
       </div>
       <div class="modal-body" style="gap:14px;">
-        <div class="instructions-box" style="background:var(--bg-subtle);border-left:4px solid var(--gold);">
-          <h4 style="margin-bottom:8px;">&#9888; Important — Do NOT send from your personal wallet</h4>
-          <p style="font-size:0.85rem;">The NIM must be sent from your <strong>Escrow Vault wallet</strong> (<code style="font-size:0.78rem;">${NIMIQ_ESCROW_CONTRACT_ADDRESS}</code>), NOT from your connected poster wallet.</p>
-        </div>
-
         <div style="display:flex;flex-direction:column;gap:8px;">
           <label style="font-size:0.78rem;font-weight:700;color:var(--muted);letter-spacing:.05em;">WORKER WALLET ADDRESS</label>
           <div style="display:flex;gap:8px;align-items:center;">
             <input id="epi-worker-addr" type="text" readonly value="${workerAddr}"
               style="font-family:'Geist Mono',monospace;font-size:0.78rem;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--ink);flex:1;" />
+            <button class="btn-primary-sm" onclick="navigator.clipboard.writeText('${workerAddr}');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500);">Copy</button>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:12px;">
+          <div style="flex:1;background:var(--bg-subtle);border-radius:10px;padding:12px;text-align:center;">
+            <div style="font-size:0.72rem;color:var(--muted);font-weight:700;margin-bottom:4px;">AMOUNT TO PAY</div>
+            <div style="font-size:1.4rem;font-weight:900;color:var(--gold);">&#9889; ${rewardNim} NIM</div>
+          </div>
+        </div>
+
+        <button class="btn-primary-lg full-width" onclick="window.open('${deeplink}');">
+          Open Nimiq Pay to Confirm Payout &rarr;
+        </button>
+
+        <p style="font-size:0.75rem;color:var(--muted);text-align:center;margin-top:-6px;">Tap above to send ${rewardNim} NIM directly from your wallet to the worker in Nimiq Pay.</p>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
             <button class="btn-primary-sm" onclick="navigator.clipboard.writeText('${workerAddr}');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500);">Copy</button>
           </div>
         </div>
