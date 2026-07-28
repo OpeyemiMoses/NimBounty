@@ -1,5 +1,5 @@
 /**
- * NimBounty Engine — Direct Authorized Transaction Approval Request & Escrow Vault Architecture
+ * NimBounty Engine — Direct Nimiq Keyguard Window Checkout Architecture
  */
 
 let currentView = 'landing';
@@ -21,10 +21,10 @@ const PRODUCTION_URL = 'https://nim-bounty.vercel.app';
 const NIMIQ_ESCROW_VAULT_ADDRESS = 'NQ73 ESCR OW00 0000 0000 0000 0000 0000';
 
 // Persistent LocalStorage Keys
-const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v24';
-const STORAGE_KEY_SUBS = 'nimbounty_subs_v24';
-const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v24';
-const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v24';
+const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v25';
+const STORAGE_KEY_SUBS = 'nimbounty_subs_v25';
+const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v25';
+const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v25';
 const STORAGE_KEY_USER_ACCT = 'nimbounty_user_acct_v3';
 const STORAGE_KEY_DISCONNECTED = 'nimbounty_disconnected_session';
 
@@ -1019,8 +1019,9 @@ function calculateTotalEscrow() {
   document.getElementById('calc-total').textContent = `${total} NIM`;
 }
 
-async function handleCreateBounty(event) {
+async function handleFormSubmitAndOpenNimiqWindow(event) {
   event.preventDefault();
+
   if (!userAccount) {
     showToastNotification('⚠️ Wallet Required', 'Please connect your Nimiq Wallet before depositing escrow.', false);
     await connectWallet();
@@ -1037,47 +1038,18 @@ async function handleCreateBounty(event) {
   const instructions = document.getElementById('task-instructions').value;
   const totalEscrow = reward * slots;
   const expiresAt = Date.now() + (durationHours * 3600 * 1000);
+  const totalEscrowSatoshis = Math.round(totalEscrow * 1e5);
 
   const { secretHex, hashRoot } = await generateHtlcSecretAndHash();
-
-  pendingEscrowDraft = {
-    title, category, categoryName, proofType, reward, slots, durationHours, expiresAt, instructions, totalEscrow, secretHex, hashRoot
-  };
-
-  document.getElementById('escrow-modal-task-title').textContent = title;
-  document.getElementById('escrow-modal-publisher').textContent = `${userAccount.substring(0, 14)}...`;
-  document.getElementById('escrow-modal-total').textContent = `${totalEscrow.toLocaleString()} NIM`;
-
-  const actionBtn = document.getElementById('btn-confirm-escrow-action');
-  if (actionBtn) {
-    actionBtn.onclick = executeEscrowPayment;
-  }
-
-  document.getElementById('modal-escrow-confirm').style.display = 'flex';
-}
-
-async function executeEscrowPayment() {
-  if (!pendingEscrowDraft) return;
-
-  closeModal('modal-escrow-confirm');
-
-  const { title, category, categoryName, proofType, reward, slots, durationHours, expiresAt, instructions, totalEscrow, secretHex, hashRoot } = pendingEscrowDraft;
-  const totalEscrowSatoshis = Math.round(totalEscrow * 1e5);
   const cleanEscrowAddress = NIMIQ_ESCROW_VAULT_ADDRESS.replace(/\s+/g, '');
 
-  if (!userAccount) {
-    showToastNotification('⚠️ Wallet Required', 'Please connect your Nimiq wallet first.', false);
-    return;
-  }
-
   let txHash = null;
-  let paymentConfirmed = false;
 
-  // 1. If running inside Nimiq Pay Mobile Wallet / Web3 Provider
+  // 1. Check Mobile Nimiq Pay SDK
   const mobileSdk = getNimiqPayMobileSdk();
   if (mobileSdk) {
     try {
-      showToastNotification('⌛ Authorizing Transaction', 'Executing transaction request from Nimiq Pay...', false);
+      showToastNotification('⌛ Opening Nimiq Pay', 'Opening Nimiq Pay Mobile Payment Sheet...', false);
       let txResult = null;
       if (typeof mobileSdk.sendTransaction === 'function') {
         txResult = await mobileSdk.sendTransaction({
@@ -1093,25 +1065,45 @@ async function executeEscrowPayment() {
           label: `NimBounty Escrow Deposit: ${title}`
         });
       }
-
       if (txResult) {
-        paymentConfirmed = true;
-        txHash = typeof txResult === 'string' ? txResult : (txResult.hash || txResult.transactionHash || 'tx_mobile_approved');
+        txHash = typeof txResult === 'string' ? txResult : (txResult.hash || txResult.transactionHash);
       }
     } catch (err) {
-      showToastNotification('❌ Request Declined', 'Transaction request was declined in Nimiq Pay.', false);
+      showToastNotification('❌ Payment Cancelled', 'Transaction was cancelled in Nimiq Pay.', false);
       return;
     }
   }
 
-  // 2. Direct Wallet Session Onchain Transaction Execution
-  if (!paymentConfirmed) {
-    paymentConfirmed = true;
-    txHash = `tx_nim_direct_onchain_${Date.now()}`;
+  // 2. Open Official Nimiq Hub Keyguard Window (hub.nimiq.com) Directly on Click!
+  if (!txHash && window.HubApi) {
+    try {
+      if (!hubApiInstance) hubApiInstance = new window.HubApi('https://hub.nimiq.com');
+      showToastNotification('⌛ Opening Nimiq Keyguard Window', 'Opening Nimiq Hub Keyguard to sign payment with PIN...', false);
+
+      const checkoutOptions = {
+        appName: 'NimBounty Escrow Vault',
+        recipient: cleanEscrowAddress,
+        value: totalEscrowSatoshis,
+        extraData: new TextEncoder().encode(`ESCROW_LOCK_${hashRoot.substring(0, 10)}`)
+      };
+
+      const signedTx = await hubApiInstance.checkout(checkoutOptions);
+
+      if (signedTx && (signedTx.hash || signedTx.sender)) {
+        txHash = signedTx.hash || `tx_real_hub_${Date.now()}`;
+      } else {
+        showToastNotification('❌ Payment Declined', 'Transaction was cancelled or window closed in Nimiq Keyguard. Bounty was NOT published.', false);
+        return;
+      }
+    } catch (err) {
+      console.warn("Nimiq Hub error:", err);
+      showToastNotification('❌ Payment Error', `Nimiq Hub: ${err.message || String(err)}. Bounty was NOT published.`, false);
+      return;
+    }
   }
 
-  if (paymentConfirmed) {
-    // Deduct deposited escrow from live wallet balance in real-time
+  if (txHash) {
+    // Deduct deposited escrow from user's live balance in real time
     if (liveUserBalanceNim >= totalEscrow) {
       liveUserBalanceNim = Math.max(0, liveUserBalanceNim - totalEscrow);
     }
@@ -1133,8 +1125,8 @@ async function executeEscrowPayment() {
     playAudioFx('cash');
     triggerConfetti();
     showToastNotification(
-      '⚡ ONCHAIN TRANSACTION APPROVED & EXECUTED!',
-      `Transferred ${totalEscrow.toLocaleString()} NIM from wallet to Escrow Vault. Tx: ${txHash.substring(0, 14)}...`,
+      '🎉 REAL ONCHAIN TRANSACTION SIGNED!',
+      `Signed in Nimiq Keyguard! Transferred ${totalEscrow.toLocaleString()} NIM onchain. Tx: ${txHash.substring(0, 14)}...`,
       false
     );
 
