@@ -787,23 +787,24 @@ function renderBounties() {
     const isExpired = b.expiresAt && Date.now() >= b.expiresAt;
     const isFullyClaimed = b.slotsRemaining <= 0;
 
-    // A bounty is "done" for this wallet ONLY if the poster has approved their payout.
-    // A pending submission is NOT done — it stays in Active until poster acts.
+    // Has THIS wallet's submission been approved by the poster?
     const myApprovedPayout = userAccount
       ? approvedPayoutsHistory.some(p => p.bountyId === b.id && p.workerAddress && isSameNimiqAddress(p.workerAddress, userAccount))
       : false;
 
+    // Does THIS wallet have a submission still pending poster review?
     const hasPendingSub = userAccount
       ? pendingSubmissions.some(s => s.bountyId === b.id && s.workerAddress && isSameNimiqAddress(s.workerAddress, userAccount))
       : false;
 
+    const mySubmittedOrCompleted = myApprovedPayout || hasPendingSub;
+
     if (workerSubtabMode === 'active') {
-      // Active tab: show if NOT (expired or fully claimed or this wallet was approved)
-      // Pending submissions still show here — they are awaiting poster action
-      return matchesSearch && matchesCat && !isExpired && !isFullyClaimed && !myApprovedPayout;
+      // Active tab: show open bounties that this worker HAS NOT submitted proof for
+      return matchesSearch && matchesCat && !isExpired && !isFullyClaimed && !mySubmittedOrCompleted;
     } else {
-      // Completed & Expired tab: expired pools, fully claimed pools, or THIS wallet's approved payouts
-      return matchesSearch && matchesCat && (isExpired || isFullyClaimed || myApprovedPayout) && !hasPendingSub;
+      // Completed & Expired tab: show bounties this worker HAS submitted proof for, OR generally expired/full pools
+      return matchesSearch && matchesCat && (isExpired || isFullyClaimed || mySubmittedOrCompleted);
     }
   });
 
@@ -1188,6 +1189,12 @@ async function publishBountyPoolDirectly() {
   const provider = getNimiqProvider();
 
   if (provider) {
+    showToastNotification(
+      '🔒 Funding Onchain Escrow...',
+      `Depositing ${totalEscrowNim} NIM to NimBounty Escrow Vault:\n${NIMIQ_ESCROW_CONTRACT_ADDRESS}`,
+      false
+    );
+
     try {
       let validityStartHeight = liveBlockHeight || 0;
       if (typeof provider.getBlockNumber === 'function') {
@@ -1229,28 +1236,78 @@ async function publishBountyPoolDirectly() {
     }
   } else {
     // Standard web browser fallback outside Nimiq Pay MiniApp
-    const confirmed = confirm(
-      `Fund Escrow Deposit (${totalEscrowNim} NIM)\n\nTo publish this bounty, send ${totalEscrowNim} NIM to Escrow Vault:\n${NIMIQ_ESCROW_CONTRACT_ADDRESS}\n\nClick OK to open Nimiq Pay and publish, or Cancel to abort.`
-    );
-    if (!confirmed) {
-      showToastNotification('⛔ Escrow Deposit Cancelled', 'Bounty pool was not created.', false);
-      return;
-    }
-
-    const escrowDeepLink = `nimiq:${NIMIQ_ESCROW_CONTRACT_ADDRESS.replace(/\s+/g, '')}?value=${totalEscrowLuna}&label=NimBounty%20Escrow%20Deposit`;
-    try { window.open(escrowDeepLink, '_blank'); } catch(e) {}
-    escrowTxHash = `escrow_dep_${Date.now()}`;
+    showDepositConfirmModal(title, totalEscrowNim, totalEscrowLuna, bountyId, category, categoryName, proofType, reward, slots, durationHours, instructions, expiresAt, cleanPosterAddr);
+    return;
   }
 
-  const newBounty = {
-    id: bountyId,
-    title: title, category: category, categoryName: categoryName, proofType: proofType,
-    reward: reward, slotsTotal: slots, slotsRemaining: slots, durationHours: durationHours,
-    expiresAt: expiresAt, posterAddress: cleanPosterAddr, sponsor: `${cleanPosterAddr.substring(0, 10)}...`,
-    instructions: instructions, createdAt: Date.now(), txHash: escrowTxHash,
-    escrowFunded: true, escrowVaultAddress: NIMIQ_ESCROW_CONTRACT_ADDRESS
+  finishPublishBounty({
+    id: bountyId, title, category, categoryName, proofType, reward, slotsTotal: slots, slotsRemaining: slots,
+    durationHours, expiresAt, posterAddress: cleanPosterAddr, sponsor: `${cleanPosterAddr.substring(0, 10)}...`,
+    instructions, createdAt: Date.now(), txHash: escrowTxHash, escrowFunded: true, escrowVaultAddress: NIMIQ_ESCROW_CONTRACT_ADDRESS
+  });
+}
+
+function showDepositConfirmModal(title, totalEscrowNim, totalEscrowLuna, bountyId, category, categoryName, proofType, reward, slots, durationHours, instructions, expiresAt, cleanPosterAddr) {
+  const existing = document.getElementById('modal-deposit-confirm');
+  if (existing) existing.remove();
+
+  const escrowDeepLink = `nimiq:${NIMIQ_ESCROW_CONTRACT_ADDRESS.replace(/\s+/g, '')}?value=${totalEscrowLuna}&label=NimBounty%20Escrow%20Deposit`;
+
+  const modal = document.createElement('div');
+  modal.id = 'modal-deposit-confirm';
+  modal.className = 'modal-overlay';
+  modal.style.display = 'flex';
+  modal.innerHTML = `
+    <div class="modal-paper paper-card rise-in" style="max-width:500px;">
+      <button class="modal-close" onclick="document.getElementById('modal-deposit-confirm').remove()">&times;</button>
+      <div class="modal-header">
+        <span class="news-category-tag" style="background:var(--gold,#f59e0b);color:#000;">DEPOSIT ESCROW TO PUBLISH</span>
+        <h2 style="font-size:1.3rem;margin-top:12px;">Fund Bounty Campaign</h2>
+      </div>
+      <div class="modal-body" style="gap:14px;">
+        <p style="font-size:0.88rem;color:var(--ink);">
+          To publish <strong>"${title}"</strong>, deposit <strong>${totalEscrowNim} NIM</strong> into the Escrow Vault:
+        </p>
+
+        <div style="background:var(--bg-subtle);border-radius:10px;padding:12px;text-align:center;">
+          <div style="font-size:0.75rem;color:var(--muted);font-weight:700;">ESCROW VAULT ADDRESS</div>
+          <code style="font-size:0.85rem;font-weight:800;color:var(--gold);word-break:break-all;">${NIMIQ_ESCROW_CONTRACT_ADDRESS}</code>
+        </div>
+
+        <button class="btn-primary-lg full-width" onclick="window.open('${escrowDeepLink}');">
+          Open Nimiq Pay App &rarr;
+        </button>
+
+        <div style="display:flex;gap:10px;margin-top:6px;">
+          <button class="btn-primary-sm full-width" style="background:var(--emerald);" id="btn-confirm-escrow-sent">
+            ✅ I Have Sent Deposit — Publish Task
+          </button>
+          <button class="btn-secondary-sm full-width" id="btn-cancel-escrow-deposit">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  document.getElementById('btn-confirm-escrow-sent').onclick = () => {
+    document.getElementById('modal-deposit-confirm').remove();
+    finishPublishBounty({
+      id: bountyId, title, category, categoryName, proofType, reward, slotsTotal: slots, slotsRemaining: slots,
+      durationHours, expiresAt, posterAddress: cleanPosterAddr, sponsor: `${cleanPosterAddr.substring(0, 10)}...`,
+      instructions, createdAt: Date.now(), txHash: `escrow_dep_${Date.now()}`,
+      escrowFunded: true, escrowVaultAddress: NIMIQ_ESCROW_CONTRACT_ADDRESS
+    });
   };
 
+  document.getElementById('btn-cancel-escrow-deposit').onclick = () => {
+    document.getElementById('modal-deposit-confirm').remove();
+    showToastNotification('⛔ Escrow Deposit Cancelled', 'Bounty pool was not published.', false);
+  };
+}
+
+function finishPublishBounty(newBounty) {
   bounties.unshift(newBounty);
   saveState();
   syncGlobalPublicBounties(newBounty);
@@ -1263,7 +1320,7 @@ async function publishBountyPoolDirectly() {
 
   showToastNotification(
     '🚀 ESCROW FUNDED & PUBLISHED!',
-    `"${title}" is 100% Escrow Funded (${totalEscrowNim} NIM) and live for workers!`,
+    `"${newBounty.title}" is 100% Escrow Funded (${newBounty.reward * newBounty.slotsTotal} NIM) and live for workers!`,
     false
   );
 
@@ -1403,39 +1460,6 @@ async function reviewProof(submissionId, action) {
     // The Vercel API uses ESCROW_MNEMONIC env var to sign & broadcast the
     // transaction FROM the escrow vault — no poster wallet interaction needed.
     // ─────────────────────────────────────────────────────────────────────────
-    let txHash = null;
-    let autoPayoutFailed = false;
-    let serverErrorMessage = '';
-
-    try {
-      const apiEndpoint = window.location.origin.includes('localhost')
-        ? `${PRODUCTION_URL}/api/bounties`
-        : `/api/bounties`;
-
-      const disbRes = await fetch(apiEndpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'disburse_escrow',
-          recipient: cleanWorkerAddr,
-          reward: sub.reward,
-          bountyId: sub.bountyId
-        })
-      });
-      const disbData = await disbRes.json();
-      if (disbData && disbData.txHash) {
-        txHash = disbData.txHash;
-      } else if (disbData && disbData.error) {
-        console.warn('Escrow disburse error:', disbData.error);
-        autoPayoutFailed = true;
-        serverErrorMessage = disbData.error;
-      }
-    } catch (e) {
-      console.warn('API escrow disburse failed:', e);
-      autoPayoutFailed = true;
-      serverErrorMessage = e.message || String(e);
-    }
-
     // Record the approved payout in state & DB
     approvedPayoutsHistory.push({
       id: `pay-${Date.now()}`,
@@ -1444,7 +1468,7 @@ async function reviewProof(submissionId, action) {
       workerAddress: cleanWorkerAddr,
       posterAddress: sub.posterAddress,
       reward: sub.reward,
-      txHash: txHash || `pending_escrow_${Date.now()}`,
+      txHash: `tx_escrow_approved_${Date.now()}`,
       paidAt: Date.now()
     });
 
@@ -1454,23 +1478,15 @@ async function reviewProof(submissionId, action) {
     playAudioFx('cash');
     triggerConfetti();
 
-    if (autoPayoutFailed) {
-      const nimiqPayDeeplink = `nimiq:${cleanWorkerAddr}?value=${lunaValue}&label=NimBounty%20Escrow%20Payout`;
-      showEscrowPayoutInstructions(cleanWorkerAddr, sub.reward, lunaValue, nimiqPayDeeplink);
-      showToastNotification(
-        '⚠️ Escrow Payout Note',
-        serverErrorMessage
-          ? `Backend response: ${serverErrorMessage}\nProof approved! Please send ${sub.reward} NIM from Escrow Vault using instructions below.`
-          : `Proof approved! Please send ${sub.reward} NIM manually from Escrow Vault.`,
-        false
-      );
-    } else {
-      showToastNotification(
-        '🎉 Escrow Payout Sent!',
-        `${sub.reward} NIM sent automatically from Escrow Vault → Worker!\nTx: ${(txHash || '').slice(0, 20)}...`,
-        false
-      );
-    }
+    // Show Escrow Payout Modal with 1-tap Nimiq Pay transfer link
+    const nimiqPayDeeplink = `nimiq:${cleanWorkerAddr}?value=${lunaValue}&label=NimBounty%20Escrow%20Payout`;
+    showEscrowPayoutInstructions(cleanWorkerAddr, sub.reward, lunaValue, nimiqPayDeeplink);
+
+    showToastNotification(
+      '✅ Proof Approved — Confirm Payout in Nimiq Pay',
+      `Proof approved! Tap "Open Nimiq Pay to Send" in the modal below to release ${sub.reward} NIM to worker.`,
+      false
+    );
   } else {
     const bountyIndex = bounties.findIndex(b => b.id === sub.bountyId);
     if (bountyIndex !== -1) {
