@@ -1,7 +1,7 @@
 // Vercel Serverless API — NimBounty Global Store Sync Engine
 // Manages global real-time synchronization for bounties, worker submissions, and approved payouts.
 
-const JSONBLOB_ID = '019fa96a-4867-71b6-a7be-8899b024110a';
+const JSONBLOB_ID = '019fa9df-e75f-73a9-b63b-015401cd107c';
 const JSONBLOB_BASE = `https://jsonblob.com/api/jsonBlob/${JSONBLOB_ID}`;
 
 async function readStore() {
@@ -89,7 +89,6 @@ export default async function handler(req, res) {
       // 3. Sync Pending Submissions
       if (Array.isArray(body.pendingSubmissions)) {
         if (body.replacePendingSubmissions) {
-          // Explicit replacement by poster after approval/rejection
           pendingSubmissions = body.pendingSubmissions;
         } else {
           const existingSubIds = new Set(pendingSubmissions.map(s => s.id));
@@ -102,7 +101,7 @@ export default async function handler(req, res) {
         }
       }
 
-      // 4. ALWAYS purge pendingSubmissions that match an approved payout
+      // 4. Purge pendingSubmissions that match an approved payout
       const approvedKeys = new Set(
         approvedPayoutsHistory.map(p => p.bountyId + '_' + (p.workerAddress || '').toUpperCase().replace(/\s+/g,''))
       );

@@ -7,32 +7,24 @@ let currentRole = 'worker';
 let workerSubtabMode = 'active'; // 'active' | 'history'
 let posterSubtabMode = 'create'; // 'create' | 'pools' | 'subs'
 
-// Storage keys — v4 clears any old cached tasks from browsers for a fresh clean slate
-const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v4';
-const STORAGE_KEY_SUBS = 'nimbounty_subs_v4';
-const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v4';
-const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v4';
+// Storage keys — v5 clears any old cached tasks from browsers for a fresh clean slate
+const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v5';
+const STORAGE_KEY_SUBS = 'nimbounty_subs_v5';
+const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v5';
+const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v5';
 const STORAGE_KEY_USER_ACCT = 'nimbounty_user_acct_main'; // Keep wallet address across versions
-const STORAGE_KEY_SAVED_EARNED = 'nimbounty_worker_saved_earned_v4';
-const STORAGE_KEY_SAVED_COMPLETED = 'nimbounty_worker_saved_completed_v4';
-const STORAGE_KEY_SAVED_TOTAL_PAYOUTS = 'nimbounty_saved_total_rewards_paid_v4';
+const STORAGE_KEY_SAVED_EARNED = 'nimbounty_worker_saved_earned_v5';
+const STORAGE_KEY_SAVED_COMPLETED = 'nimbounty_worker_saved_completed_v5';
+const STORAGE_KEY_SAVED_TOTAL_PAYOUTS = 'nimbounty_saved_total_rewards_paid_v5';
 
-// One-time: purge all old v1, v2, v3 cache keys from any browser for a clean slate
-const LEGACY_KEYS = [
-  'nimbounty_pools_main', 'nimbounty_subs_main',
-  'nimbounty_user_completed_bounties_main', 'nimbounty_approved_payouts_history_main',
-  'nimbounty_worker_saved_earned_main', 'nimbounty_worker_saved_completed_main',
-  'nimbounty_saved_total_rewards_paid_main',
-  'nimbounty_pools_v2', 'nimbounty_subs_v2',
-  'nimbounty_user_completed_bounties_v2', 'nimbounty_approved_payouts_history_v2',
-  'nimbounty_worker_saved_earned_v2', 'nimbounty_worker_saved_completed_v2',
-  'nimbounty_saved_total_rewards_paid_v2',
-  'nimbounty_pools_v3', 'nimbounty_subs_v3',
-  'nimbounty_user_completed_bounties_v3', 'nimbounty_approved_payouts_history_v3',
-  'nimbounty_worker_saved_earned_v3', 'nimbounty_worker_saved_completed_v3',
-  'nimbounty_saved_total_rewards_paid_v3'
-];
-LEGACY_KEYS.forEach(k => localStorage.removeItem(k));
+// Purge ALL legacy cache keys from any browser for a 100% clean slate
+try {
+  Object.keys(localStorage).forEach(k => {
+    if (k.startsWith('nimbounty_') && k !== STORAGE_KEY_USER_ACCT && !k.endsWith('_v5')) {
+      localStorage.removeItem(k);
+    }
+  });
+} catch(e) {}
 
 let userAccount = localStorage.getItem(STORAGE_KEY_USER_ACCT) || null;
 let savedWorkerEarnedNim = parseFloat(localStorage.getItem(STORAGE_KEY_SAVED_EARNED)) || 0;
@@ -207,77 +199,49 @@ async function fetchGlobalPublicBounties() {
       const data = await res.json();
       let stateChanged = false;
 
-      // Smart Merge Bounties (Never overwrite/drop local bounties)
-      if (Array.isArray(data.bounties) && data.bounties.length > 0) {
-        const existingBountyIds = new Set(bounties.map(b => b.id));
-        data.bounties.forEach(serverBounty => {
-          if (!existingBountyIds.has(serverBounty.id)) {
-            bounties.unshift(serverBounty);
-            existingBountyIds.add(serverBounty.id);
-            stateChanged = true;
-          } else {
-            const idx = bounties.findIndex(b => b.id === serverBounty.id);
-            if (bounties[idx].slotsRemaining !== serverBounty.slotsRemaining) {
-              bounties[idx].slotsRemaining = serverBounty.slotsRemaining;
+      // Server is source of truth for global bounties
+      if (Array.isArray(data.bounties)) {
+        if (data.bounties.length === 0 && bounties.length > 0) {
+          bounties = [];
+          stateChanged = true;
+        } else if (data.bounties.length > 0) {
+          const existingIds = new Set(bounties.map(b => b.id));
+          data.bounties.forEach(sb => {
+            if (!existingIds.has(sb.id)) {
+              bounties.unshift(sb);
+              existingIds.add(sb.id);
               stateChanged = true;
+            } else {
+              const idx = bounties.findIndex(b => b.id === sb.id);
+              if (bounties[idx].slotsRemaining !== sb.slotsRemaining) {
+                bounties[idx].slotsRemaining = sb.slotsRemaining;
+                stateChanged = true;
+              }
             }
-          }
-        });
+          });
+          bounties = bounties.filter(b => data.bounties.some(sb => sb.id === b.id));
+        }
         localStorage.setItem(STORAGE_KEY_BOUNTIES, JSON.stringify(bounties));
       }
 
-      // Smart Merge Submissions (Always combine server and local submissions)
-      if (Array.isArray(data.pendingSubmissions)) {
-        const existingSubIds = new Set(pendingSubmissions.map(s => s.id));
-        data.pendingSubmissions.forEach(serverSub => {
-          if (!existingSubIds.has(serverSub.id)) {
-            pendingSubmissions.unshift(serverSub);
-            existingSubIds.add(serverSub.id);
-            stateChanged = true;
-          }
-        });
-        localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions));
-      }
-
-      // Smart Merge Approved Payouts History
+      // Sync Approved Payouts History
       if (Array.isArray(data.approvedPayoutsHistory)) {
-        const existingPayIds = new Set(approvedPayoutsHistory.map(p => p.id));
-        data.approvedPayoutsHistory.forEach(p => {
-          if (!existingPayIds.has(p.id)) {
-            approvedPayoutsHistory.unshift(p);
-            existingPayIds.add(p.id);
-            stateChanged = true;
-          }
-        });
+        approvedPayoutsHistory = data.approvedPayoutsHistory;
         localStorage.setItem(STORAGE_KEY_PAID_HISTORY, JSON.stringify(approvedPayoutsHistory));
       }
 
-      // Smart Merge Submissions & Purge Approved
+      // Sync Pending Submissions & Purge Approved
       const approvedBountySubKeys = new Set(
         approvedPayoutsHistory.map(p => p.bountyId + '_' + (p.workerAddress || '').toUpperCase().replace(/\s+/g,''))
       );
 
       if (Array.isArray(data.pendingSubmissions)) {
-        const existingSubIds = new Set(pendingSubmissions.map(s => s.id));
-        data.pendingSubmissions.forEach(serverSub => {
-          const subKey = serverSub.bountyId + '_' + (serverSub.workerAddress || '').toUpperCase().replace(/\s+/g,'');
-          if (!existingSubIds.has(serverSub.id) && !approvedBountySubKeys.has(subKey)) {
-            pendingSubmissions.unshift(serverSub);
-            existingSubIds.add(serverSub.id);
-            stateChanged = true;
-          }
+        pendingSubmissions = data.pendingSubmissions.filter(s => {
+          const key = s.bountyId + '_' + (s.workerAddress || '').toUpperCase().replace(/\s+/g,'');
+          return !approvedBountySubKeys.has(key);
         });
+        localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions));
       }
-
-      // ALWAYS filter pendingSubmissions to purge any submission with an approved payout
-      const initialCount = pendingSubmissions.length;
-      pendingSubmissions = pendingSubmissions.filter(s => {
-        const key = s.bountyId + '_' + (s.workerAddress || '').toUpperCase().replace(/\s+/g,'');
-        return !approvedBountySubKeys.has(key);
-      });
-      if (pendingSubmissions.length !== initialCount) stateChanged = true;
-
-      localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions));
 
       // Only re-render DOM if state actually changed to prevent UI flicker
       const newHash = `${bounties.length}-${pendingSubmissions.length}-${approvedPayoutsHistory.length}-${workerSubtabMode}-${posterSubtabMode}-${userAccount}`;
