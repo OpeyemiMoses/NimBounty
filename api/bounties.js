@@ -50,6 +50,7 @@ export default async function handler(req, res) {
       if (!Array.isArray(pendingSubmissions)) pendingSubmissions = [];
       if (!Array.isArray(approvedPayoutsHistory)) approvedPayoutsHistory = [];
 
+      // 1. Sync Bounties
       if (body.newBounty) {
         const existingIdx = bounties.findIndex(b => b.id === body.newBounty.id);
         if (existingIdx === -1) {
@@ -74,23 +75,7 @@ export default async function handler(req, res) {
         });
       }
 
-      if (Array.isArray(body.pendingSubmissions)) {
-        const existingSubIds = new Set(pendingSubmissions.map(s => s.id));
-        body.pendingSubmissions.forEach(incoming => {
-          if (!existingSubIds.has(incoming.id)) {
-            pendingSubmissions.unshift(incoming);
-            existingSubIds.add(incoming.id);
-          }
-        });
-        const approvedBountySubIds = new Set(
-          approvedPayoutsHistory.map(p => p.bountyId + '_' + (p.workerAddress || '').toUpperCase().replace(/\s+/g,''))
-        );
-        pendingSubmissions = pendingSubmissions.filter(s => {
-          const key = s.bountyId + '_' + (s.workerAddress || '').toUpperCase().replace(/\s+/g,'');
-          return !approvedBountySubIds.has(key);
-        });
-      }
-
+      // 2. Sync Approved Payouts History
       if (Array.isArray(body.approvedPayoutsHistory)) {
         const existingPayIds = new Set(approvedPayoutsHistory.map(p => p.id));
         body.approvedPayoutsHistory.forEach(incoming => {
@@ -100,6 +85,31 @@ export default async function handler(req, res) {
           }
         });
       }
+
+      // 3. Sync Pending Submissions
+      if (Array.isArray(body.pendingSubmissions)) {
+        if (body.replacePendingSubmissions) {
+          // Explicit replacement by poster after approval/rejection
+          pendingSubmissions = body.pendingSubmissions;
+        } else {
+          const existingSubIds = new Set(pendingSubmissions.map(s => s.id));
+          body.pendingSubmissions.forEach(incoming => {
+            if (!existingSubIds.has(incoming.id)) {
+              pendingSubmissions.unshift(incoming);
+              existingSubIds.add(incoming.id);
+            }
+          });
+        }
+      }
+
+      // 4. ALWAYS purge pendingSubmissions that match an approved payout
+      const approvedKeys = new Set(
+        approvedPayoutsHistory.map(p => p.bountyId + '_' + (p.workerAddress || '').toUpperCase().replace(/\s+/g,''))
+      );
+      pendingSubmissions = pendingSubmissions.filter(s => {
+        const key = s.bountyId + '_' + (s.workerAddress || '').toUpperCase().replace(/\s+/g,'');
+        return !approvedKeys.has(key);
+      });
 
       if (bounties.length > 200) bounties = bounties.slice(0, 200);
       if (pendingSubmissions.length > 500) pendingSubmissions = pendingSubmissions.slice(0, 500);

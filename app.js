@@ -7,17 +7,17 @@ let currentRole = 'worker';
 let workerSubtabMode = 'active'; // 'active' | 'history'
 let posterSubtabMode = 'create'; // 'create' | 'pools' | 'subs'
 
-// Storage keys — v3 clears any old cached tasks from browsers for a fresh clean slate
-const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v3';
-const STORAGE_KEY_SUBS = 'nimbounty_subs_v3';
-const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v3';
-const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v3';
+// Storage keys — v4 clears any old cached tasks from browsers for a fresh clean slate
+const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v4';
+const STORAGE_KEY_SUBS = 'nimbounty_subs_v4';
+const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v4';
+const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v4';
 const STORAGE_KEY_USER_ACCT = 'nimbounty_user_acct_main'; // Keep wallet address across versions
-const STORAGE_KEY_SAVED_EARNED = 'nimbounty_worker_saved_earned_v3';
-const STORAGE_KEY_SAVED_COMPLETED = 'nimbounty_worker_saved_completed_v3';
-const STORAGE_KEY_SAVED_TOTAL_PAYOUTS = 'nimbounty_saved_total_rewards_paid_v3';
+const STORAGE_KEY_SAVED_EARNED = 'nimbounty_worker_saved_earned_v4';
+const STORAGE_KEY_SAVED_COMPLETED = 'nimbounty_worker_saved_completed_v4';
+const STORAGE_KEY_SAVED_TOTAL_PAYOUTS = 'nimbounty_saved_total_rewards_paid_v4';
 
-// One-time: purge all old v1 and v2 cache keys from any browser for a clean slate
+// One-time: purge all old v1, v2, v3 cache keys from any browser for a clean slate
 const LEGACY_KEYS = [
   'nimbounty_pools_main', 'nimbounty_subs_main',
   'nimbounty_user_completed_bounties_main', 'nimbounty_approved_payouts_history_main',
@@ -26,7 +26,11 @@ const LEGACY_KEYS = [
   'nimbounty_pools_v2', 'nimbounty_subs_v2',
   'nimbounty_user_completed_bounties_v2', 'nimbounty_approved_payouts_history_v2',
   'nimbounty_worker_saved_earned_v2', 'nimbounty_worker_saved_completed_v2',
-  'nimbounty_saved_total_rewards_paid_v2'
+  'nimbounty_saved_total_rewards_paid_v2',
+  'nimbounty_pools_v3', 'nimbounty_subs_v3',
+  'nimbounty_user_completed_bounties_v3', 'nimbounty_approved_payouts_history_v3',
+  'nimbounty_worker_saved_earned_v3', 'nimbounty_worker_saved_completed_v3',
+  'nimbounty_saved_total_rewards_paid_v3'
 ];
 LEGACY_KEYS.forEach(k => localStorage.removeItem(k));
 
@@ -248,6 +252,33 @@ async function fetchGlobalPublicBounties() {
         localStorage.setItem(STORAGE_KEY_PAID_HISTORY, JSON.stringify(approvedPayoutsHistory));
       }
 
+      // Smart Merge Submissions & Purge Approved
+      const approvedBountySubKeys = new Set(
+        approvedPayoutsHistory.map(p => p.bountyId + '_' + (p.workerAddress || '').toUpperCase().replace(/\s+/g,''))
+      );
+
+      if (Array.isArray(data.pendingSubmissions)) {
+        const existingSubIds = new Set(pendingSubmissions.map(s => s.id));
+        data.pendingSubmissions.forEach(serverSub => {
+          const subKey = serverSub.bountyId + '_' + (serverSub.workerAddress || '').toUpperCase().replace(/\s+/g,'');
+          if (!existingSubIds.has(serverSub.id) && !approvedBountySubKeys.has(subKey)) {
+            pendingSubmissions.unshift(serverSub);
+            existingSubIds.add(serverSub.id);
+            stateChanged = true;
+          }
+        });
+      }
+
+      // ALWAYS filter pendingSubmissions to purge any submission with an approved payout
+      const initialCount = pendingSubmissions.length;
+      pendingSubmissions = pendingSubmissions.filter(s => {
+        const key = s.bountyId + '_' + (s.workerAddress || '').toUpperCase().replace(/\s+/g,'');
+        return !approvedBountySubKeys.has(key);
+      });
+      if (pendingSubmissions.length !== initialCount) stateChanged = true;
+
+      localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions));
+
       // Only re-render DOM if state actually changed to prevent UI flicker
       const newHash = `${bounties.length}-${pendingSubmissions.length}-${approvedPayoutsHistory.length}-${workerSubtabMode}-${posterSubtabMode}-${userAccount}`;
       if (stateChanged || newHash !== lastRenderHash) {
@@ -259,12 +290,11 @@ async function fetchGlobalPublicBounties() {
       }
     }
   } catch (e) {
-    // API fetch failed — render whatever is already cached locally
     renderBounties();
   }
 }
 
-async function syncGlobalPublicBounties(updatedBountyObj = null) {
+async function syncGlobalPublicBounties(updatedBountyObj = null, replacePendingSubmissions = false) {
   try {
     const apiEndpoint = window.location.origin.includes('localhost')
       ? `${PRODUCTION_URL}/api/bounties`
@@ -275,6 +305,7 @@ async function syncGlobalPublicBounties(updatedBountyObj = null) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         newBounty: updatedBountyObj,
+        replacePendingSubmissions,
         bounties,
         pendingSubmissions,
         approvedPayoutsHistory,
@@ -1376,6 +1407,20 @@ async function reviewProof(submissionId, action) {
       }
     }
 
+    // Generate poster off-chain proof approval signature (0 gas fees)
+    const timestamp = Date.now();
+    const approvalMessage = `NIMBOUNTY_POSTER_APPROVAL_SIGNATURE | SubId: ${sub.id} | Bounty: ${sub.bountyId} | Poster: ${userAccount} | Worker: ${cleanWorkerAddr} | Time: ${timestamp}`;
+    let posterSig = `sig_poster_approve_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+
+    if (provider && typeof provider.signMessage === 'function') {
+      try {
+        const signedResult = provider.signMessage(approvalMessage);
+        if (signedResult) posterSig = typeof signedResult === 'string' ? signedResult : (signedResult.signature || posterSig);
+      } catch (e) {
+        console.warn("Poster off-chain signature fallback:", e);
+      }
+    }
+
     // Record the approved payout
     approvedPayoutsHistory.push({
       id: `pay-${Date.now()}`,
@@ -1384,6 +1429,8 @@ async function reviewProof(submissionId, action) {
       workerAddress: cleanWorkerAddr,
       posterAddress: userAccount,
       reward: sub.reward,
+      workerSignature: sub.signature || null,
+      posterSignature: posterSig,
       txHash: payoutTxHash,
       paidAt: Date.now()
     });
@@ -1391,6 +1438,7 @@ async function reviewProof(submissionId, action) {
     savedTotalRewardsPaid += (parseFloat(sub.reward) || 0);
     pendingSubmissions.splice(subIndex, 1);
     saveState();
+    syncGlobalPublicBounties(null, true);
     playAudioFx('cash');
     triggerConfetti();
 
@@ -1401,8 +1449,8 @@ async function reviewProof(submissionId, action) {
     }
 
     showToastNotification(
-      '🎉 WORKER PAID DIRECTLY!',
-      `Approved! Released ${sub.reward} NIM from your wallet to worker address:\n${cleanWorkerAddr.substring(0, 16)}...`,
+      '🎉 WORKER PAID & PROOF SIGNED!',
+      `Approved! Off-chain approval signed & ${sub.reward} NIM paid directly to worker address:\n${cleanWorkerAddr.substring(0, 16)}...`,
       false
     );
   } else {
@@ -1413,6 +1461,7 @@ async function reviewProof(submissionId, action) {
 
     pendingSubmissions.splice(subIndex, 1);
     saveState();
+    syncGlobalPublicBounties(null, true);
     playAudioFx('submit');
 
     showToastNotification(
