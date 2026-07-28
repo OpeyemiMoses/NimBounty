@@ -11,8 +11,11 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&family=Work+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,600&display=swap" rel="stylesheet">
   
-  <!-- QRCode.js library for fast QR generation -->
+  <!-- QRCode.js library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  
+  <!-- Official Nimiq Hub API for Real Web Wallet Connection on Desktop -->
+  <script src="https://cdn.nimiq.com/v1.3.0/hub-api/HubApi.standalone.umd.js"></script>
   
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -44,7 +47,7 @@
       <div class="nav-right-actions">
         <button class="btn-ghost-sm" onclick="connectWallet()" id="btn-connect-wallet">
           <span class="wallet-dot"></span>
-          <span id="wallet-text">Connect Wallet</span>
+          <span id="wallet-text">Connect Nimiq Wallet</span>
         </button>
         <button class="btn-primary-sm" onclick="showView('app')">
           Launch App &rarr;
