@@ -20,10 +20,10 @@ let pendingEscrowDraft = null;
 const PRODUCTION_URL = 'https://nim-bounty.vercel.app';
 
 // Persistent LocalStorage Keys
-const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v15';
-const STORAGE_KEY_SUBS = 'nimbounty_subs_v15';
-const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v15';
-const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v15';
+const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v16';
+const STORAGE_KEY_SUBS = 'nimbounty_subs_v16';
+const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v16';
+const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v16';
 const STORAGE_KEY_USER_ACCT = 'nimbounty_user_acct_v3';
 const STORAGE_KEY_DISCONNECTED = 'nimbounty_disconnected_session';
 
@@ -528,8 +528,7 @@ function promptSetWalletBalanceModal() {
   const val = prompt("Enter or update your NIM Wallet Balance (e.g. 4120):", liveUserBalanceNim || 4120);
   if (val !== null && !isNaN(parseFloat(val))) {
     liveUserBalanceNim = parseFloat(val);
-    localStorage.setItem('nimbounty_user_balance_v1', liveUserBalanceNim);
-    renderWorkerStats();
+    saveState();
     playAudioFx('submit');
     showToastNotification('💰 Balance Updated!', `NIM Wallet Balance updated to ${liveUserBalanceNim.toLocaleString()} NIM.`, false);
   }
@@ -1168,6 +1167,11 @@ async function executeEscrowPayment() {
     return;
   }
 
+  // Deduct total escrow deposit from publisher's live wallet balance
+  if (liveUserBalanceNim >= totalEscrow) {
+    liveUserBalanceNim = Math.max(0, liveUserBalanceNim - totalEscrow);
+  }
+
   const newBounty = {
     id: `b-${Date.now()}`,
     title: title,
@@ -1198,7 +1202,7 @@ async function executeEscrowPayment() {
   triggerConfetti();
   showToastNotification(
     '🎉 Nimiq HTLC Smart Contract Deployed!',
-    `${totalEscrow} NIM locked for ${durationHours}h in Nimiq HTLC Contract! Pool "${title}" is published onchain.`,
+    `${totalEscrow.toLocaleString()} NIM locked into HTLC Escrow! New Balance: ${liveUserBalanceNim.toLocaleString()} NIM.`,
     false
   );
 
@@ -1307,6 +1311,11 @@ async function reviewProof(submissionId, action) {
       } catch(e) {
         console.log("Nimiq Hub payout window closed:", e);
       }
+    }
+
+    // If current connected wallet is the worker, credit their live balance
+    if (userAccount && sub.workerAddress && sub.workerAddress.toLowerCase() === userAccount.toLowerCase()) {
+      liveUserBalanceNim += parseFloat(sub.reward) || 0;
     }
 
     approvedPayoutsHistory.push({
