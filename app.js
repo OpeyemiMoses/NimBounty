@@ -1,5 +1,5 @@
 /**
- * NimBounty Engine — Strict 1-Task Per Wallet Guard, Anti-Self-Claim & Real-time Global Rewards Sync
+ * NimBounty Engine — Non-Custodial Peer-to-Peer Escrow Settlement on Nimiq Pay
  */
 
 let currentView = 'landing';
@@ -14,13 +14,12 @@ let uploadedImageDataUrl = null;
 let pendingEscrowDraft = null;
 
 const PRODUCTION_URL = 'https://nim-bounty.vercel.app';
-const NIMIQ_ESCROW_VAULT = 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000';
 
 // Persistent LocalStorage Keys
-const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v10';
-const STORAGE_KEY_SUBS = 'nimbounty_subs_v10';
-const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v10';
-const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v10';
+const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v11';
+const STORAGE_KEY_SUBS = 'nimbounty_subs_v11';
+const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v11';
+const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v11';
 const STORAGE_KEY_USER_ACCT = 'nimbounty_user_acct_v3';
 const STORAGE_KEY_DISCONNECTED = 'nimbounty_disconnected_session';
 
@@ -768,7 +767,7 @@ function copyQrLink() {
 }
 
 // ==========================================
-// 13. CLAIM & SUBMIT PROOF ENGINE (WITH ANTI-SELF-CLAIM & 1 TASK PER WALLET LIMIT)
+// 13. CLAIM & SUBMIT PROOF ENGINE
 // ==========================================
 function openClaimModal(bountyId) {
   const bounty = bounties.find(b => b.id === bountyId);
@@ -963,14 +962,18 @@ async function executeEscrowPayment() {
   let paymentConfirmed = false;
   let txHash = null;
 
+  // Non-Custodial Escrow Address: Use the Publisher's Connected Wallet Address
+  const escrowRecipientAddress = userAccount;
+
+  // 1. Mobile Nimiq Pay SDK Payment / Escrow Validation
   const mobileSdk = typeof getMobileNimiqProvider === 'function' ? getMobileNimiqProvider() : null;
   if (mobileSdk && typeof mobileSdk.sendTransaction === 'function') {
     try {
-      showToastNotification('⌛ Payment Prompt', 'Opening Nimiq Pay to confirm escrow transaction...', false);
+      showToastNotification('⌛ Payment Prompt', 'Opening Nimiq Pay to verify wallet escrow balance...', false);
       const txResult = await mobileSdk.sendTransaction({
-        recipient: NIMIQ_ESCROW_VAULT,
+        recipient: escrowRecipientAddress,
         value: totalEscrowSatoshis,
-        label: `NimBounty Escrow: ${title}`
+        label: `NimBounty Non-Custodial Escrow: ${title}`
       });
       if (txResult) {
         paymentConfirmed = true;
@@ -978,19 +981,20 @@ async function executeEscrowPayment() {
       }
     } catch (err) {
       console.warn("Mobile escrow payment error / cancelled:", err);
-      showToastNotification('❌ Payment Cancelled', 'Escrow transaction was cancelled or failed due to insufficient funds. Bounty was NOT published.', false);
+      showToastNotification('❌ Escrow Verification Failed', 'Escrow verification was cancelled or failed due to insufficient funds. Bounty was NOT published.', false);
       return;
     }
   }
 
+  // 2. Desktop Real Nimiq Hub Checkout (https://hub.nimiq.com)
   if (!paymentConfirmed && window.HubApi) {
     try {
       if (!hubApiInstance) hubApiInstance = new window.HubApi('https://hub.nimiq.com');
-      showToastNotification('⌛ Opening Nimiq Hub', 'Confirming escrow deposit in Nimiq Hub...', false);
+      showToastNotification('⌛ Opening Nimiq Hub', 'Verifying escrow balance in Nimiq Hub...', false);
       
       const signedTx = await hubApiInstance.checkout({
-        appName: 'NimBounty Escrow Vault',
-        recipient: NIMIQ_ESCROW_VAULT,
+        appName: 'NimBounty Non-Custodial Escrow',
+        recipient: escrowRecipientAddress,
         value: totalEscrowSatoshis
       });
 
@@ -1011,7 +1015,7 @@ async function executeEscrowPayment() {
   if (!paymentConfirmed) {
     showToastNotification(
       '❌ Payment Failed',
-      `Insufficient NIM balance or escrow deposit cancelled. Bounty was NOT published.`,
+      `Insufficient NIM balance or escrow verification cancelled. Bounty was NOT published.`,
       false
     );
     return;
@@ -1042,8 +1046,8 @@ async function executeEscrowPayment() {
   playAudioFx('submit');
   triggerConfetti();
   showToastNotification(
-    '🎉 Onchain Escrow Locked & Published!',
-    `${totalEscrow} NIM locked in Nimiq Escrow Vault! Task "${title}" is now published and tied to your wallet (${userAccount.substring(0, 10)}...).`,
+    '🎉 Non-Custodial Escrow Verified & Published!',
+    `${totalEscrow} NIM verified in your Nimiq Wallet! Task "${title}" is now published onchain and bound to ${userAccount.substring(0, 10)}...`,
     false
   );
   renderPosterDashboard();
