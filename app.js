@@ -1,5 +1,5 @@
 /**
- * NimBounty Engine — Persistent Disconnect Session & Escrow Modal Confirmation
+ * NimBounty Engine — Strict 1-Task Per Wallet Guard, Anti-Self-Claim & Real-time Global Rewards Sync
  */
 
 let currentView = 'landing';
@@ -17,10 +17,10 @@ const PRODUCTION_URL = 'https://nim-bounty.vercel.app';
 const NIMIQ_ESCROW_VAULT = 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000';
 
 // Persistent LocalStorage Keys
-const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v9';
-const STORAGE_KEY_SUBS = 'nimbounty_subs_v9';
-const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v9';
-const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v9';
+const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v10';
+const STORAGE_KEY_SUBS = 'nimbounty_subs_v10';
+const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v10';
+const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v10';
 const STORAGE_KEY_USER_ACCT = 'nimbounty_user_acct_v3';
 const STORAGE_KEY_DISCONNECTED = 'nimbounty_disconnected_session';
 
@@ -48,6 +48,24 @@ function saveState() {
 let activeClaimTimer = null;
 let currentModalBountyId = null;
 const boltSvgIcon = `<svg class="bolt-icon-svg" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`;
+
+// Helper: Check if a wallet is the publisher of a specific bounty pool
+function isPublisherOfBounty(bounty, wallet) {
+  if (!bounty || !wallet) return false;
+  const w = wallet.toLowerCase();
+  const poster = (bounty.posterAddress || '').toLowerCase();
+  const sponsor = (bounty.sponsor || '').toLowerCase();
+  return (poster && w === poster) || (sponsor && w.includes(sponsor.substring(0, 8)));
+}
+
+// Helper: Check if a wallet has already claimed or completed a specific bounty ID (1 task limit per wallet per bounty)
+function hasWalletCompletedBounty(bountyId, wallet) {
+  if (!bountyId || !wallet) return false;
+  const w = wallet.toLowerCase();
+  const isPending = pendingSubmissions.some(s => s.bountyId === bountyId && s.workerAddress && s.workerAddress.toLowerCase() === w);
+  const isApproved = approvedPayoutsHistory.some(p => p.bountyId === bountyId && p.workerAddress && p.workerAddress.toLowerCase() === w);
+  return isPending || isApproved;
+}
 
 // ==========================================
 // 1. GLOBAL PUBLIC BOUNTY REGISTRY SYNC
@@ -171,7 +189,7 @@ function copyNimiqPayDeeplink() {
 }
 
 // ==========================================
-// 5. LIVE NIMIQ RPC NETWORK FETCH & PERSISTENT METRICS
+// 5. LIVE NIMIQ RPC NETWORK FETCH & REALTIME GLOBAL REWARDS TRACKER
 // ==========================================
 async function fetchNimiqLiveRPC() {
   const rpcTag = document.querySelector('.hero-tag');
@@ -204,7 +222,7 @@ function updateLandingStats() {
   const statBounties = document.getElementById('landing-stat-bounties');
   const statPayouts = document.getElementById('landing-stat-payouts');
 
-  const totalRewardsPaid = approvedPayoutsHistory.reduce((sum, item) => sum + (item.reward || 0), 0);
+  const totalRewardsPaid = approvedPayoutsHistory.reduce((sum, item) => sum + (parseFloat(item.reward) || 0), 0);
 
   if (statBounties) statBounties.textContent = bounties.length;
   if (statPayouts) statPayouts.textContent = `${totalRewardsPaid} NIM`;
@@ -229,7 +247,7 @@ function renderWorkerStats() {
   );
 
   const completedCount = myApprovedPayouts.length;
-  const earnedAmount = myApprovedPayouts.reduce((sum, p) => sum + (p.reward || 0), 0);
+  const earnedAmount = myApprovedPayouts.reduce((sum, p) => sum + (parseFloat(p.reward) || 0), 0);
 
   const myActiveClaims = pendingSubmissions.filter(s => 
     s.workerAddress && s.workerAddress.toLowerCase() === userAccount.toLowerCase()
@@ -346,7 +364,7 @@ function triggerConfetti() {
       animationFrame = requestAnimationFrame(animate);
     } else {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      cancelAnimationFrame(animationFrame);
+      cancelAnimationFrame(animate);
     }
   }
 
@@ -482,7 +500,6 @@ function confirmDisconnectWalletFromModal() {
 }
 
 async function tryConnectMobileSdkAllVariants() {
-  // PERSISTENT DISCONNECT GUARD: Do not auto-reconnect if user explicitly disconnected!
   if (localStorage.getItem(STORAGE_KEY_DISCONNECTED) === 'true') {
     return false;
   }
@@ -534,7 +551,6 @@ async function tryConnectMobileSdkAllVariants() {
 }
 
 async function connectWallet() {
-  // User explicitly tapped connect -> clear persistent disconnect flag
   localStorage.removeItem(STORAGE_KEY_DISCONNECTED);
 
   const isMobileConnected = await tryConnectMobileSdkAllVariants();
@@ -591,7 +607,7 @@ function disconnectWallet() {
   deviceId = null;
   localStorage.removeItem(STORAGE_KEY_USER_ACCT);
   localStorage.removeItem('nimbounty_device_id_v3');
-  localStorage.setItem(STORAGE_KEY_DISCONNECTED, 'true'); // PERSISTENT DISCONNECT
+  localStorage.setItem(STORAGE_KEY_DISCONNECTED, 'true');
   updateWalletUI();
   renderPosterDashboard();
   renderWorkerStats();
@@ -662,11 +678,8 @@ function renderBounties() {
   }
 
   grid.innerHTML = filtered.map(b => {
-    const isPublisher = userAccount && b.posterAddress && userAccount.toLowerCase() === b.posterAddress.toLowerCase();
-    const hasAlreadyClaimed = userAccount && (
-      pendingSubmissions.some(s => s.bountyId === b.id && s.workerAddress.toLowerCase() === userAccount.toLowerCase()) ||
-      completedBountyIds.includes(b.id)
-    );
+    const isPublisher = isPublisherOfBounty(b, userAccount);
+    const hasAlreadyClaimed = hasWalletCompletedBounty(b.id, userAccount);
 
     let btnLabel = 'Claim Task & Submit Proof &rarr;';
     let btnDisabled = false;
@@ -678,7 +691,7 @@ function renderBounties() {
       btnLabel = '⛔ Publisher Cannot Claim Own Task';
       btnDisabled = true;
     } else if (hasAlreadyClaimed) {
-      btnLabel = '✅ Task Already Claimed';
+      btnLabel = '✅ Task Already Claimed (1 per wallet)';
       btnDisabled = true;
     }
 
@@ -755,7 +768,7 @@ function copyQrLink() {
 }
 
 // ==========================================
-// 13. CLAIM & SUBMIT PROOF ENGINE
+// 13. CLAIM & SUBMIT PROOF ENGINE (WITH ANTI-SELF-CLAIM & 1 TASK PER WALLET LIMIT)
 // ==========================================
 function openClaimModal(bountyId) {
   const bounty = bounties.find(b => b.id === bountyId);
@@ -767,15 +780,13 @@ function openClaimModal(bountyId) {
     return;
   }
 
-  if (userAccount && bounty.posterAddress && userAccount.toLowerCase() === bounty.posterAddress.toLowerCase()) {
+  if (isPublisherOfBounty(bounty, userAccount)) {
     showToastNotification('⛔ Self-Claim Blocked', 'You are the publisher of this bounty pool! Publishers cannot claim or complete their own tasks.', false);
     return;
   }
 
-  const hasSubmitted = pendingSubmissions.some(s => s.bountyId === bountyId && s.workerAddress.toLowerCase() === userAccount.toLowerCase());
-  const hasCompleted = completedBountyIds.includes(bountyId);
-  if (hasSubmitted || hasCompleted) {
-    showToastNotification('⛔ Already Completed', 'Your wallet has already claimed and submitted proof for this task. Maximum 1 completion per wallet.', false);
+  if (hasWalletCompletedBounty(bountyId, userAccount)) {
+    showToastNotification('⛔ Already Claimed', 'Your wallet has already claimed and submitted proof for this task. Maximum 1 completion per wallet per bounty.', false);
     return;
   }
 
@@ -844,14 +855,13 @@ function handleSubmitProof(event) {
   const bounty = bounties.find(b => b.id === currentModalBountyId);
   if (!bounty) return;
 
-  if (userAccount && bounty.posterAddress && userAccount.toLowerCase() === bounty.posterAddress.toLowerCase()) {
+  if (isPublisherOfBounty(bounty, userAccount)) {
     showToastNotification('⛔ Self-Claim Blocked', 'You cannot complete your own bounty.', false);
     return;
   }
 
-  const hasSubmitted = pendingSubmissions.some(s => s.bountyId === bounty.id && s.workerAddress.toLowerCase() === userAccount.toLowerCase());
-  if (hasSubmitted || completedBountyIds.includes(bounty.id)) {
-    showToastNotification('⛔ Already Completed', 'Your wallet has already submitted proof for this task.', false);
+  if (hasWalletCompletedBounty(bounty.id, userAccount)) {
+    showToastNotification('⛔ Already Claimed', 'Your wallet has already submitted proof for this task.', false);
     return;
   }
 
@@ -872,8 +882,6 @@ function handleSubmitProof(event) {
   if (bounty.slotsRemaining > 0) {
     bounty.slotsRemaining -= 1;
   }
-
-  completedBountyIds.push(bounty.id);
 
   pendingSubmissions.unshift({
     id: `sub-${Date.now()}`,
@@ -933,7 +941,6 @@ async function handleCreateBounty(event) {
     title, category, categoryName, proofType, reward, slots, instructions, totalEscrow
   };
 
-  // Open custom modal styled identically to the disconnect wallet modal!
   document.getElementById('escrow-modal-task-title').textContent = title;
   document.getElementById('escrow-modal-publisher').textContent = `${userAccount.substring(0, 14)}...`;
   document.getElementById('escrow-modal-total').textContent = `${totalEscrow} NIM`;
@@ -956,7 +963,6 @@ async function executeEscrowPayment() {
   let paymentConfirmed = false;
   let txHash = null;
 
-  // 1. Mobile Nimiq Pay SDK Payment
   const mobileSdk = typeof getMobileNimiqProvider === 'function' ? getMobileNimiqProvider() : null;
   if (mobileSdk && typeof mobileSdk.sendTransaction === 'function') {
     try {
@@ -977,7 +983,6 @@ async function executeEscrowPayment() {
     }
   }
 
-  // 2. Desktop Real Nimiq Hub Checkout (https://hub.nimiq.com)
   if (!paymentConfirmed && window.HubApi) {
     try {
       if (!hubApiInstance) hubApiInstance = new window.HubApi('https://hub.nimiq.com');
@@ -1003,7 +1008,6 @@ async function executeEscrowPayment() {
     }
   }
 
-  // STRICT ZERO-MOCK ABORT IF PAYMENT FAILED
   if (!paymentConfirmed) {
     showToastNotification(
       '❌ Payment Failed',
@@ -1047,7 +1051,7 @@ async function executeEscrowPayment() {
 }
 
 // ==========================================
-// 15. PUBLISHER REVIEW SCREENSHOT RENDERER
+// 15. PUBLISHER REVIEW & REALTIME PAYOUT RECORDING
 // ==========================================
 function renderPosterDashboard() {
   const poolsList = document.getElementById('published-pools-list');
