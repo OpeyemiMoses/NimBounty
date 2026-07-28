@@ -1,5 +1,5 @@
 /**
- * NimBounty Engine — Worker Sub-Tabs & Poster Tabbed Sub-Views Navigation System
+ * NimBounty Engine — Strict Onchain Nimiq Hub & Nimiq Pay Transaction Enforcement
  */
 
 let currentView = 'landing';
@@ -12,7 +12,7 @@ let deviceId = localStorage.getItem('nimbounty_device_id_v3') || null;
 let currentTheme = localStorage.getItem('nimbounty_theme') || 'light';
 let isAudioEnabled = true;
 let liveBlockHeight = 0;
-let liveUserBalanceNim = parseFloat(localStorage.getItem('nimbounty_user_balance_v1')) || 4120;
+let liveUserBalanceNim = parseFloat(localStorage.getItem('nimbounty_user_balance_v1')) || 0;
 let hubApiInstance = null;
 let uploadedImageDataUrl = null;
 let pendingEscrowDraft = null;
@@ -20,10 +20,10 @@ let pendingEscrowDraft = null;
 const PRODUCTION_URL = 'https://nim-bounty.vercel.app';
 
 // Persistent LocalStorage Keys
-const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v16';
-const STORAGE_KEY_SUBS = 'nimbounty_subs_v16';
-const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v16';
-const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v16';
+const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v17';
+const STORAGE_KEY_SUBS = 'nimbounty_subs_v17';
+const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v17';
+const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v17';
 const STORAGE_KEY_USER_ACCT = 'nimbounty_user_acct_v3';
 const STORAGE_KEY_DISCONNECTED = 'nimbounty_disconnected_session';
 
@@ -295,7 +295,7 @@ function renderWorkerStats() {
 
   if (completedEl) completedEl.textContent = `${completedCount} Tasks`;
   if (earnedEl) earnedEl.textContent = `${earnedAmount.toLocaleString()} NIM`;
-  if (liveBalEl) liveBalEl.textContent = `${liveUserBalanceNim.toLocaleString()} NIM`;
+  if (liveBalEl) liveBalEl.textContent = `${liveUserBalanceNim > 0 ? liveUserBalanceNim.toLocaleString() : 'Connected'} NIM`;
   if (repTextEl) repTextEl.textContent = `Verified Worker (${userAccount.substring(0, 10)}...)`;
 }
 
@@ -519,7 +519,7 @@ function openWalletModal() {
   const displayEl = document.getElementById('modal-wallet-address-display');
   const balEl = document.getElementById('modal-wallet-balance-display');
   if (displayEl) displayEl.textContent = userAccount || 'No wallet connected';
-  if (balEl) balEl.textContent = `${liveUserBalanceNim.toLocaleString()} NIM`;
+  if (balEl) balEl.textContent = liveUserBalanceNim > 0 ? `${liveUserBalanceNim.toLocaleString()} NIM` : 'Connected (Hub Synced)';
   document.getElementById('modal-wallet').style.display = 'flex';
 }
 
@@ -1073,12 +1073,7 @@ async function handleCreateBounty(event) {
   
   const balEl = document.getElementById('escrow-modal-wallet-balance');
   if (balEl) {
-    balEl.textContent = `${liveUserBalanceNim.toLocaleString()} NIM`;
-    if (liveUserBalanceNim < totalEscrow) {
-      balEl.style.color = 'var(--danger, #e63946)';
-    } else {
-      balEl.style.color = 'var(--gold)';
-    }
+    balEl.textContent = liveUserBalanceNim > 0 ? `${liveUserBalanceNim.toLocaleString()} NIM` : 'Connected Wallet';
   }
 
   const actionBtn = document.getElementById('btn-confirm-escrow-action');
@@ -1095,15 +1090,16 @@ async function executeEscrowPayment() {
 
   const { title, category, categoryName, proofType, reward, slots, durationHours, expiresAt, instructions, totalEscrow, secretHex, hashRoot } = pendingEscrowDraft;
   const totalEscrowSatoshis = Math.round(totalEscrow * 1e5);
-  const cleanAddress = userAccount.replace(/\s+/g, '');
+  const cleanAddress = (userAccount || '').replace(/\s+/g, '');
 
   let paymentConfirmed = false;
   let txHash = null;
 
+  // 1. Mobile Nimiq Pay SDK Transaction Trigger
   const mobileSdk = getNimiqPayMobileSdk();
   if (mobileSdk) {
     try {
-      showToastNotification('⌛ Deploying HTLC Contract', 'Opening Nimiq Pay to sign HTLC Smart Contract Escrow...', false);
+      showToastNotification('⌛ Opening Nimiq Pay', 'Launching Nimiq Pay Mobile to sign HTLC Smart Escrow transaction...', false);
       let txResult = null;
       if (typeof mobileSdk.sendTransaction === 'function') {
         txResult = await mobileSdk.sendTransaction({
@@ -1125,13 +1121,16 @@ async function executeEscrowPayment() {
       }
     } catch (err) {
       console.warn("Mobile HTLC contract creation error / cancelled:", err);
+      showToastNotification('❌ Payment Cancelled', 'Escrow transaction was cancelled in Nimiq Pay. Bounty was NOT published.', false);
+      return;
     }
   }
 
+  // 2. Desktop Nimiq Hub Checkout (https://hub.nimiq.com)
   if (!paymentConfirmed && window.HubApi) {
     try {
       if (!hubApiInstance) hubApiInstance = new window.HubApi('https://hub.nimiq.com');
-      showToastNotification('⌛ Opening Nimiq Hub', 'Signing HTLC Escrow Smart Contract in Nimiq Hub...', false);
+      showToastNotification('⌛ Opening Nimiq Hub', 'Opening Nimiq Hub Keyguard to sign escrow payment...', false);
       
       const checkoutOptions = {
         appName: 'NimBounty HTLC Smart Escrow',
@@ -1145,25 +1144,20 @@ async function executeEscrowPayment() {
       if (signedTx && (signedTx.hash || signedTx.sender)) {
         paymentConfirmed = true;
         txHash = signedTx.hash || 'tx_htlc_hub_confirmed';
+      } else {
+        showToastNotification('❌ Escrow Sign Cancelled', 'Nimiq Hub payment window was cancelled or closed without signing. Bounty was NOT published.', false);
+        return;
       }
     } catch(e) {
-      console.warn("Nimiq Hub HTLC checkout note:", e);
+      console.warn("Nimiq Hub checkout error / cancelled:", e);
+      const errMsg = e && e.message ? e.message : String(e);
+      showToastNotification('❌ Escrow Sign Failed', `Nimiq Hub: ${errMsg}. Bounty was NOT published.`, false);
+      return;
     }
   }
 
-  // Fallback: Verified Balance Check (if user balance >= totalEscrow, deploy pool!)
-  if (!paymentConfirmed && liveUserBalanceNim >= totalEscrow) {
-    paymentConfirmed = true;
-    txHash = `tx_htlc_verified_${hashRoot.substring(0, 12)}`;
-    showToastNotification('✅ Escrow Verified', `Verified ${liveUserBalanceNim.toLocaleString()} NIM in connected wallet! Escrow locked.`, false);
-  }
-
   if (!paymentConfirmed) {
-    showToastNotification(
-      '❌ Escrow Deposit Note',
-      `Your balance (${liveUserBalanceNim.toLocaleString()} NIM) is less than required deposit (${totalEscrow.toLocaleString()} NIM). Update balance or lower total slots!`,
-      false
-    );
+    showToastNotification('❌ Escrow Sign Failed', 'Could not open Nimiq Pay or Nimiq Hub Keyguard window. Bounty was NOT published.', false);
     return;
   }
 
@@ -1202,7 +1196,7 @@ async function executeEscrowPayment() {
   triggerConfetti();
   showToastNotification(
     '🎉 Nimiq HTLC Smart Contract Deployed!',
-    `${totalEscrow.toLocaleString()} NIM locked into HTLC Escrow! New Balance: ${liveUserBalanceNim.toLocaleString()} NIM.`,
+    `${totalEscrow.toLocaleString()} NIM locked into HTLC Escrow! Transaction Hash: ${txHash.substring(0, 14)}...`,
     false
   );
 
@@ -1313,7 +1307,6 @@ async function reviewProof(submissionId, action) {
       }
     }
 
-    // If current connected wallet is the worker, credit their live balance
     if (userAccount && sub.workerAddress && sub.workerAddress.toLowerCase() === userAccount.toLowerCase()) {
       liveUserBalanceNim += parseFloat(sub.reward) || 0;
     }
