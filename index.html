@@ -49,7 +49,7 @@
 
       <!-- Right Actions & Hamburger Button -->
       <div class="nav-right-actions">
-        <button class="btn-ghost-sm desktop-wallet-btn" onclick="connectWallet()" id="btn-connect-wallet">
+        <button class="btn-ghost-sm desktop-wallet-btn" onclick="handleWalletButtonClick()" id="btn-connect-wallet">
           <span class="wallet-dot"></span>
           <span id="wallet-text">Connect Nimiq Wallet</span>
         </button>
@@ -74,7 +74,7 @@
       <button class="mobile-nav-link" onclick="scrollToSection('faq'); toggleMobileMenu();">FAQ</button>
       <button class="mobile-nav-link" onclick="showView('app'); toggleMobileMenu();">Console App</button>
       <div class="mobile-drawer-divider"></div>
-      <button class="btn-ghost-sm full-width" onclick="connectWallet(); toggleMobileMenu();">
+      <button class="btn-ghost-sm full-width" onclick="handleWalletButtonClick(); toggleMobileMenu();">
         <span class="wallet-dot"></span>
         <span id="wallet-text-mobile">Connect Nimiq Wallet</span>
       </button>
@@ -514,6 +514,37 @@
 
     </main>
 
+  </div>
+
+  <!-- Custom Wallet Details & Disconnect Modal -->
+  <div class="modal-overlay" id="modal-wallet" style="display: none;">
+    <div class="modal-paper paper-card rise-in" style="max-width: 460px; text-align: center;">
+      <button class="modal-close" onclick="closeModal('modal-wallet')">&times;</button>
+      
+      <div style="width: 52px; height: 52px; background: var(--gold-tint); color: var(--gold-dark); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+      </div>
+
+      <h3 style="font-size: 1.4rem; font-weight: 800; margin-bottom: 6px;">Nimiq Wallet Connected</h3>
+      <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 20px;">Active Nimiq Pay Protocol Session</p>
+
+      <div style="background: var(--bg-subtle); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 20px; font-family: 'Geist Mono', monospace; font-size: 0.85rem; word-break: break-all; color: var(--ink);" id="modal-wallet-address-display">
+        NQ00 0000 0000 0000 0000
+      </div>
+
+      <!-- Action Buttons -->
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <button class="btn-primary-sm full-width" onclick="copyWalletAddressFromModal()" style="padding: 12px;">
+          Copy Full Address 📋
+        </button>
+        <button class="btn-ghost-sm full-width" onclick="promptCustomAddressFromModal()" style="padding: 12px; justify-content: center;">
+          Switch / Enter Nimiq Address ✏️
+        </button>
+        <button class="btn-danger-outline full-width" onclick="confirmDisconnectWalletFromModal()" style="padding: 12px;">
+          Disconnect Wallet 🔌
+        </button>
+      </div>
+    </div>
   </div>
 
   <!-- Modal for Claim & Proof Submission -->

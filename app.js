@@ -1,5 +1,5 @@
 /**
- * NimBounty Engine — Comprehensive Mobile Nimiq Pay SDK & Hub Integration
+ * NimBounty Engine — Custom Wallet Modal & Mobile Nimiq Pay Connector
  */
 
 let currentView = 'landing';
@@ -327,7 +327,7 @@ function toggleFaq(buttonEl) {
 }
 
 // ==========================================
-// 8. ALL-METHOD NIMIQ PAY MOBILE SDK & HUB CONNECTOR
+// 8. CUSTOM WALLET MODAL & CONNECT ENGINE
 // ==========================================
 function updateWalletUI() {
   const walletTextDesktop = document.getElementById('wallet-text');
@@ -337,6 +337,38 @@ function updateWalletUI() {
 
   if (walletTextDesktop) walletTextDesktop.textContent = displayVal;
   if (walletTextMobile) walletTextMobile.textContent = displayVal;
+}
+
+function handleWalletButtonClick() {
+  if (userAccount) {
+    openWalletModal();
+  } else {
+    connectWallet();
+  }
+}
+
+function openWalletModal() {
+  const displayEl = document.getElementById('modal-wallet-address-display');
+  if (displayEl) displayEl.textContent = userAccount || 'No wallet connected';
+  document.getElementById('modal-wallet').style.display = 'flex';
+}
+
+function copyWalletAddressFromModal() {
+  if (userAccount) {
+    navigator.clipboard.writeText(userAccount);
+    playAudioFx('submit');
+    showToastNotification('📋 Address Copied!', `Nimiq Address copied to clipboard:\n${userAccount}`, false);
+  }
+}
+
+function promptCustomAddressFromModal() {
+  closeModal('modal-wallet');
+  openWalletAddressModal();
+}
+
+function confirmDisconnectWalletFromModal() {
+  closeModal('modal-wallet');
+  disconnectWallet();
 }
 
 // Comprehensive helper to inspect and query all potential Nimiq Pay Mobile SDK API variations
@@ -355,7 +387,6 @@ async function tryConnectMobileSdkAllVariants() {
     try {
       let addr = null;
 
-      // Try method variants
       if (typeof sdk.getAddress === 'function') addr = await sdk.getAddress();
       else if (typeof sdk.getAccount === 'function') addr = await sdk.getAccount();
       else if (typeof sdk.getAddresses === 'function') {
@@ -388,14 +419,6 @@ async function tryConnectMobileSdkAllVariants() {
 }
 
 async function connectWallet() {
-  if (userAccount) {
-    const choice = confirm(`Connected Nimiq Wallet Address:\n${userAccount}\n\nDo you want to disconnect this wallet?`);
-    if (choice) {
-      disconnectWallet();
-    }
-    return;
-  }
-
   // 1. Try native Nimiq Pay Mobile SDK variants
   const isMobileConnected = await tryConnectMobileSdkAllVariants();
   if (isMobileConnected) {
@@ -426,7 +449,7 @@ async function connectWallet() {
     }
   }
 
-  // 3. Fallback: Prompt user to paste their exact Nimiq address (e.g. NQ...)
+  // 3. Prompt user to paste their Nimiq address
   openWalletAddressModal();
 }
 
@@ -447,7 +470,7 @@ function disconnectWallet() {
   localStorage.removeItem(STORAGE_KEY_USER_ACCT);
   localStorage.removeItem('nimbounty_device_id_v3');
   updateWalletUI();
-  showToastNotification('Disconnected', 'Nimiq Wallet disconnected successfully.', false);
+  showToastNotification('Disconnected 🔌', 'Nimiq Wallet disconnected successfully.', false);
 }
 
 function renderWorkerStats() {

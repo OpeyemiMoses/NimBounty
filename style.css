@@ -319,6 +319,24 @@ body {
   border-color: var(--ink);
 }
 
+.btn-danger-outline {
+  font-family: 'Work Sans', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 10px 20px;
+  background: transparent;
+  color: #d93838;
+  border: 1.5px solid #d93838;
+  border-radius: var(--r-btn);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-danger-outline:hover {
+  background: #d93838;
+  color: #fff;
+}
+
 .wallet-dot {
   width: 7px;
   height: 7px;
