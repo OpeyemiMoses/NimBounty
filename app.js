@@ -1,5 +1,5 @@
 /**
- * NimBounty Engine — Mobile Nimiq Pay WebView SDK & Web Wallet Provider Engine
+ * NimBounty Engine — Comprehensive Mobile Nimiq Pay SDK & Hub Integration
  */
 
 let currentView = 'landing';
@@ -327,7 +327,7 @@ function toggleFaq(buttonEl) {
 }
 
 // ==========================================
-// 8. MOBILE & DESKTOP WALLET CONNECT ENGINE
+// 8. ALL-METHOD NIMIQ PAY MOBILE SDK & HUB CONNECTOR
 // ==========================================
 function updateWalletUI() {
   const walletTextDesktop = document.getElementById('wallet-text');
@@ -339,26 +339,39 @@ function updateWalletUI() {
   if (walletTextMobile) walletTextMobile.textContent = displayVal;
 }
 
-// Helper to inspect all injected Nimiq Pay Mobile WebView SDK providers
-function getMobileNimiqProvider() {
-  return window.nimiqPay || window.NimiqPay || window.MiniAppSdk || window.MiniApp || (window.Nimiq && window.Nimiq.MiniApp) || window.nimiq;
-}
+// Comprehensive helper to inspect and query all potential Nimiq Pay Mobile SDK API variations
+async function tryConnectMobileSdkAllVariants() {
+  const providers = [
+    window.nimiqPay,
+    window.NimiqPay,
+    window.MiniApp,
+    (window.Nimiq && window.Nimiq.MiniApp),
+    window.MiniAppSdk,
+    window.nimiq
+  ];
 
-async function tryAutoConnectMobileSdk() {
-  const sdk = getMobileNimiqProvider();
-  if (sdk) {
+  for (const sdk of providers) {
+    if (!sdk) continue;
     try {
-      let accounts = [];
-      if (typeof sdk.listAccounts === 'function') {
-        accounts = await sdk.listAccounts();
-      } else if (typeof sdk.getAccounts === 'function') {
-        accounts = await sdk.getAccounts();
-      } else if (sdk.account || sdk.address) {
-        accounts = [sdk.account || sdk.address];
+      let addr = null;
+
+      // Try method variants
+      if (typeof sdk.getAddress === 'function') addr = await sdk.getAddress();
+      else if (typeof sdk.getAccount === 'function') addr = await sdk.getAccount();
+      else if (typeof sdk.getAddresses === 'function') {
+        const addrs = await sdk.getAddresses();
+        if (addrs && addrs.length > 0) addr = addrs[0];
+      }
+      else if (typeof sdk.listAccounts === 'function') {
+        const accs = await sdk.listAccounts();
+        if (accs && accs.length > 0) addr = accs[0].address || accs[0];
+      }
+      else if (sdk.address || sdk.account || sdk.userAddress) {
+        addr = sdk.address || sdk.account || sdk.userAddress;
       }
 
-      if (accounts && accounts.length > 0) {
-        userAccount = accounts[0].address || accounts[0];
+      if (addr) {
+        userAccount = typeof addr === 'string' ? addr : (addr.address || addr.userAddress || String(addr));
         if (typeof sdk.requestDeviceIdentifier === 'function') {
           deviceId = await sdk.requestDeviceIdentifier({ reason: 'NimBounty worker verification' });
         }
@@ -366,10 +379,11 @@ async function tryAutoConnectMobileSdk() {
         updateWalletUI();
         return true;
       }
-    } catch(e) {
-      console.warn("Mobile SDK auto-connect error:", e);
+    } catch (err) {
+      console.warn("Nimiq Pay SDK variant query note:", err);
     }
   }
+
   return false;
 }
 
@@ -382,15 +396,15 @@ async function connectWallet() {
     return;
   }
 
-  // 1. Check Native Mobile Nimiq Pay App SDK
-  const isMobileConnected = await tryAutoConnectMobileSdk();
+  // 1. Try native Nimiq Pay Mobile SDK variants
+  const isMobileConnected = await tryConnectMobileSdkAllVariants();
   if (isMobileConnected) {
     playAudioFx('cash');
     showToastNotification('Connected!', `Nimiq Pay Mobile Wallet connected:\n${userAccount}`, false);
     return;
   }
 
-  // 2. Desktop Nimiq Hub Web Wallet (https://hub.nimiq.com)
+  // 2. Try Desktop Nimiq Hub Web Wallet (https://hub.nimiq.com)
   if (window.HubApi) {
     try {
       if (!hubApiInstance) hubApiInstance = new window.HubApi('https://hub.nimiq.com');
@@ -412,20 +426,18 @@ async function connectWallet() {
     }
   }
 
-  // 3. Mobile Web Browser Fallback (Auto-generate clean session wallet so mobile users are never stuck!)
-  const isMobileBrowser = /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent);
-  if (isMobileBrowser || !userAccount) {
-    userAccount = "NQ" + Math.floor(10 + Math.random() * 89) + " NIMIQ PAY " + Math.floor(1000 + Math.random() * 8999);
-    deviceId = "mobile_dev_" + Math.random().toString(36).substring(2, 10);
+  // 3. Fallback: Prompt user to paste their exact Nimiq address (e.g. NQ...)
+  openWalletAddressModal();
+}
+
+function openWalletAddressModal() {
+  const customAddress = prompt("Enter or paste your Nimiq Wallet Address (starts with NQ...):");
+  if (customAddress && customAddress.trim().length >= 10) {
+    userAccount = customAddress.trim();
     saveState();
     updateWalletUI();
     playAudioFx('submit');
-    showToastNotification(
-      '📱 Mobile Session Active',
-      `Mobile Wallet address set: ${userAccount}.\nOpen in native Nimiq Pay app for hardware-bound anti-sybil signing.`,
-      true
-    );
-    return;
+    showToastNotification('Wallet Connected!', `Address set: ${userAccount}`, false);
   }
 }
 
@@ -849,7 +861,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   runTypewriter();
   fetchNimiqLiveRPC();
   initNimiqHub();
-  await tryAutoConnectMobileSdk();
+  await tryConnectMobileSdkAllVariants();
   updateWalletUI();
   calculateTotalEscrow();
   updateLandingStats();
