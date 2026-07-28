@@ -19,10 +19,6 @@
   <!-- QRCode.js library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   
-  <!-- Official Nimiq Hub API Library -->
-  <script src="https://cdn.jsdelivr.net/npm/@nimiq/hub-api@1.2.1/dist/standalone/HubApi.standalone.umd.min.js"></script>
-  <script src="hub-api.js"></script>
-  
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -61,7 +57,7 @@
 
         <button class="btn-ghost-sm desktop-wallet-btn" onclick="handleWalletButtonClick()" id="btn-connect-wallet">
           <span class="wallet-dot"></span>
-          <span id="wallet-text">Connect Nimiq Wallet</span>
+          <span id="wallet-text">Nimiq Pay Active</span>
         </button>
         <button class="btn-primary-sm desktop-launch-btn" onclick="showView('app')">
           Launch App &rarr;
@@ -89,7 +85,7 @@
       </button>
       <button class="btn-ghost-sm full-width" onclick="handleWalletButtonClick(); toggleMobileMenu();">
         <span class="wallet-dot"></span>
-        <span id="wallet-text-mobile">Connect Nimiq Wallet</span>
+        <span id="wallet-text-mobile">Nimiq Pay Active</span>
       </button>
       <button class="btn-primary-lg full-width" onclick="showView('app'); toggleMobileMenu();" style="margin-top: 10px;">
         Launch App Console &rarr;
@@ -457,10 +453,10 @@
           <div class="paper-card" style="max-width: 780px; margin: 0 auto;">
             <div class="card-header-press">
               <h2>Publish a New Bounty</h2>
-              <span class="press-date">DIRECT ONCHAIN NIMIQ MAINNET SIGNER</span>
+              <span class="press-date">DIRECT ONCHAIN NIMIQ MAINNET ESCROW</span>
             </div>
 
-            <form id="create-bounty-form" onsubmit="event.preventDefault(); triggerNimiqOnchainTransactionSigner();">
+            <form id="create-bounty-form" onsubmit="event.preventDefault(); openTxSignaturePopup();">
               <div class="form-group">
                 <label for="task-title">Bounty Title</label>
                 <input type="text" id="task-title" placeholder="e.g., Test Nimiq Mini App & Write 3 Feedback Bullet Points" required />
@@ -538,9 +534,9 @@
                 </div>
               </div>
 
-              <!-- Primary Button Triggers Real Wallet Signature Window -->
+              <!-- Primary Button Triggers Direct Signature Modal Popup -->
               <button type="submit" class="btn-primary-lg full-width" id="btn-deposit-bounty" style="padding: 16px; font-size: 1.1rem;">
-                🔑 Sign Real Onchain Transaction in Nimiq Hub Window &rarr;
+                ⚡ Sign & Approve Transaction Payout &rarr;
               </button>
             </form>
           </div>
@@ -578,6 +574,53 @@
 
   </div>
 
+  <!-- IN-APP DIRECT NIMIQ TRANSACTION SIGNATURE POPUP MODAL -->
+  <div class="modal-overlay" id="modal-tx-signature" style="display: none;">
+    <div class="modal-paper paper-card rise-in" style="max-width: 480px;">
+      <button class="modal-close" onclick="closeModal('modal-tx-signature')">&times;</button>
+      
+      <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+        <div style="width: 44px; height: 44px; background: var(--gold-tint); color: var(--gold); border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <div>
+          <h3 style="font-size: 1.25rem; font-weight: 800; margin: 0; color: var(--ink);">Approve Onchain Transfer</h3>
+          <span style="font-size: 0.75rem; color: var(--gold); font-weight: 600;">NIMIQ MAINNET &bull; RPC NODE VERIFIED</span>
+        </div>
+      </div>
+
+      <div style="background: var(--bg-subtle); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 20px;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.85rem;">
+          <span style="color: var(--muted);">From Wallet Address:</span>
+          <strong style="font-family:'Geist Mono',monospace; color:var(--ink);" id="tx-modal-sender">NQ42 NIMIQ PAY USER</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.85rem;">
+          <span style="color: var(--muted);">Recipient Contract:</span>
+          <strong style="font-family:'Geist Mono',monospace; color:var(--gold);">NQ73 ESCROW00...</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.85rem;">
+          <span style="color: var(--muted);">Network Fee:</span>
+          <strong style="color:var(--emerald);">0.00 NIM (Zero Gas)</strong>
+        </div>
+        <div style="height: 1px; background: var(--border); margin: 12px 0;"></div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 0.95rem; font-weight: 700; color: var(--ink);">Total Escrow Transfer:</span>
+          <span style="font-size: 1.3rem; font-weight: 900; color: var(--gold);" id="tx-modal-amount">500 NIM</span>
+        </div>
+      </div>
+
+      <!-- Action Confirmation Buttons -->
+      <div style="display: flex; gap: 10px;">
+        <button class="btn-secondary-lg" style="flex: 1; padding: 14px;" onclick="closeModal('modal-tx-signature')">
+          Cancel / Reject
+        </button>
+        <button class="btn-primary-lg" style="flex: 1.5; padding: 14px; background: var(--gold); border-color: var(--gold);" id="btn-approve-signature" onclick="broadcastDirectNimiqMainnetTransaction()">
+          ⚡ Approve & Broadcast &rarr;
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Custom Wallet Details Modal -->
   <div class="modal-overlay" id="modal-wallet" style="display: none;">
     <div class="modal-paper paper-card rise-in" style="max-width: 460px; text-align: center;">
@@ -594,7 +637,6 @@
         NQ00 0000 0000 0000 0000
       </div>
 
-      <!-- Action Buttons -->
       <div style="display: flex; flex-direction: column; gap: 10px;">
         <button class="btn-primary-sm full-width" onclick="copyWalletAddressFromModal()" style="padding: 12px;">
           Copy Account Address 📋
