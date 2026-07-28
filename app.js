@@ -1,5 +1,5 @@
 /**
- * NimBounty Engine — Screenshot Proof Processing & Publisher Review UI
+ * NimBounty Engine — Strict Payment Enforcement, Anti-Self-Claim & Anti-Sybil Duplicate Protections
  */
 
 let currentView = 'landing';
@@ -16,13 +16,15 @@ const PRODUCTION_URL = 'https://nim-bounty.vercel.app';
 const NIMIQ_ESCROW_VAULT = 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000';
 
 // Persistent LocalStorage Keys
-const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v6';
-const STORAGE_KEY_SUBS = 'nimbounty_subs_v6';
-const STORAGE_KEY_STATS = 'nimbounty_stats_v6';
+const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v7';
+const STORAGE_KEY_SUBS = 'nimbounty_subs_v7';
+const STORAGE_KEY_STATS = 'nimbounty_stats_v7';
+const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v7';
 const STORAGE_KEY_USER_ACCT = 'nimbounty_user_acct_v3';
 
 let bounties = JSON.parse(localStorage.getItem(STORAGE_KEY_BOUNTIES)) || [];
 let pendingSubmissions = JSON.parse(localStorage.getItem(STORAGE_KEY_SUBS)) || [];
+let completedBountyIds = JSON.parse(localStorage.getItem(STORAGE_KEY_COMPLETED)) || [];
 
 let workerStats = JSON.parse(localStorage.getItem(STORAGE_KEY_STATS)) || {
   completed: 0,
@@ -35,6 +37,7 @@ function saveState() {
   localStorage.setItem(STORAGE_KEY_BOUNTIES, JSON.stringify(bounties));
   localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions));
   localStorage.setItem(STORAGE_KEY_STATS, JSON.stringify(workerStats));
+  localStorage.setItem(STORAGE_KEY_COMPLETED, JSON.stringify(completedBountyIds));
   if (userAccount) {
     localStorage.setItem(STORAGE_KEY_USER_ACCT, userAccount);
   } else {
@@ -306,7 +309,7 @@ function triggerConfetti() {
       animationFrame = requestAnimationFrame(animate);
     } else {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      cancelAnimationFrame(animate);
+      cancelAnimationFrame(animationFrame);
     }
   }
 
@@ -609,35 +612,57 @@ function renderBounties() {
     return;
   }
 
-  grid.innerHTML = filtered.map(b => `
-    <div class="newspaper-card rise-in">
-      <div>
-        <div class="card-top-bar">
-          <span class="news-cat-stamp">${b.categoryName}</span>
-          <div class="card-top-right">
-            <button class="btn-share-qr" title="Share QR Code" onclick="openQrModal('${b.id}')">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-            </button>
-            <span class="reward-stamp">${boltSvgIcon} ${b.reward} NIM</span>
+  grid.innerHTML = filtered.map(b => {
+    const isPublisher = userAccount && b.posterAddress && userAccount.toLowerCase() === b.posterAddress.toLowerCase();
+    const hasAlreadyClaimed = userAccount && (
+      pendingSubmissions.some(s => s.bountyId === b.id && s.workerAddress.toLowerCase() === userAccount.toLowerCase()) ||
+      completedBountyIds.includes(b.id)
+    );
+
+    let btnLabel = 'Claim Task & Submit Proof &rarr;';
+    let btnDisabled = false;
+
+    if (b.slotsRemaining <= 0) {
+      btnLabel = 'Pool Fully Claimed';
+      btnDisabled = true;
+    } else if (isPublisher) {
+      btnLabel = '⛔ Publisher Cannot Claim Own Task';
+      btnDisabled = true;
+    } else if (hasAlreadyClaimed) {
+      btnLabel = '✅ Task Already Claimed';
+      btnDisabled = true;
+    }
+
+    return `
+      <div class="newspaper-card rise-in">
+        <div>
+          <div class="card-top-bar">
+            <span class="news-cat-stamp">${b.categoryName}</span>
+            <div class="card-top-right">
+              <button class="btn-share-qr" title="Share QR Code" onclick="openQrModal('${b.id}')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+              </button>
+              <span class="reward-stamp">${boltSvgIcon} ${b.reward} NIM</span>
+            </div>
           </div>
+
+          <h3 class="card-title">${b.title}</h3>
+          <p class="card-desc">${b.instructions}</p>
         </div>
 
-        <h3 class="card-title">${b.title}</h3>
-        <p class="card-desc">${b.instructions}</p>
-      </div>
+        <div>
+          <div class="card-meta-bar">
+            <span>${boltSvgIcon} ${b.slotsRemaining} / ${b.slotsTotal} Slots Left</span>
+            <span>Sponsor: <strong>${b.sponsor}</strong></span>
+          </div>
 
-      <div>
-        <div class="card-meta-bar">
-          <span>${boltSvgIcon} ${b.slotsRemaining} / ${b.slotsTotal} Slots Left</span>
-          <span>Sponsor: <strong>${b.sponsor}</strong></span>
+          <button class="btn-primary-lg full-width" onclick="openClaimModal('${b.id}')" ${btnDisabled ? 'disabled' : ''}>
+            ${btnLabel}
+          </button>
         </div>
-
-        <button class="btn-primary-lg full-width" onclick="openClaimModal('${b.id}')" ${b.slotsRemaining <= 0 ? 'disabled' : ''}>
-          ${b.slotsRemaining > 0 ? 'Claim Task & Submit Proof &rarr;' : 'Pool Fully Claimed'}
-        </button>
       </div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 
   updateLandingStats();
 }
@@ -681,7 +706,7 @@ function copyQrLink() {
 }
 
 // ==========================================
-// 13. CLAIM & SUBMIT PROOF ENGINE
+// 13. CLAIM & SUBMIT PROOF ENGINE (WITH ANTI-SELF-CLAIM & ANTI-DUPLICATE GUARDS)
 // ==========================================
 function openClaimModal(bountyId) {
   const bounty = bounties.find(b => b.id === bountyId);
@@ -690,6 +715,21 @@ function openClaimModal(bountyId) {
   if (!userAccount) {
     showToastNotification('⚠️ Wallet Required', 'Connecting wallet for task claim...', false);
     connectWallet();
+    return;
+  }
+
+  // 1. Publisher Self-Claim Protection
+  if (userAccount && bounty.posterAddress && userAccount.toLowerCase() === bounty.posterAddress.toLowerCase()) {
+    showToastNotification('⛔ Self-Claim Blocked', 'You are the publisher of this bounty pool! Publishers cannot claim or complete their own tasks.', false);
+    return;
+  }
+
+  // 2. Duplicate Claim Protection (1 completion per wallet)
+  const hasSubmitted = pendingSubmissions.some(s => s.bountyId === bountyId && s.workerAddress.toLowerCase() === userAccount.toLowerCase());
+  const hasCompleted = completedBountyIds.includes(bountyId);
+  if (hasSubmitted || hasCompleted) {
+    showToastNotification('⛔ Already Completed', 'Your wallet has already claimed and submitted proof for this task. Maximum 1 completion per wallet.', false);
+    return;
   }
 
   currentModalBountyId = bountyId;
@@ -757,6 +797,18 @@ function handleSubmitProof(event) {
   const bounty = bounties.find(b => b.id === currentModalBountyId);
   if (!bounty) return;
 
+  // Double Check Self-Claim & Duplicate Protections
+  if (userAccount && bounty.posterAddress && userAccount.toLowerCase() === bounty.posterAddress.toLowerCase()) {
+    showToastNotification('⛔ Self-Claim Blocked', 'You cannot complete your own bounty.', false);
+    return;
+  }
+
+  const hasSubmitted = pendingSubmissions.some(s => s.bountyId === bounty.id && s.workerAddress.toLowerCase() === userAccount.toLowerCase());
+  if (hasSubmitted || completedBountyIds.includes(bounty.id)) {
+    showToastNotification('⛔ Already Completed', 'Your wallet has already submitted proof for this task.', false);
+    return;
+  }
+
   let proofContent = '';
   if (bounty.proofType === 'text') {
     proofContent = document.getElementById('proof-text-input').value;
@@ -776,6 +828,7 @@ function handleSubmitProof(event) {
   }
 
   workerStats.completed += 1;
+  completedBountyIds.push(bounty.id);
   renderWorkerStats();
 
   pendingSubmissions.unshift({
@@ -803,7 +856,7 @@ function handleSubmitProof(event) {
 }
 
 // ==========================================
-// 14. STRICT ONCHAIN ESCROW PAYMENT & BOUNTY PUBLISH
+// 14. STRICT ONCHAIN ESCROW PAYMENT & BOUNTY PUBLISH (ZERO-MOCK ABORT)
 // ==========================================
 function calculateTotalEscrow() {
   const reward = parseFloat(document.getElementById('task-reward')?.value || 0);
@@ -853,7 +906,7 @@ async function handleCreateBounty(event) {
     } catch (err) {
       console.warn("Mobile escrow payment error / cancelled:", err);
       showToastNotification('❌ Payment Failed / Cancelled', 'Escrow transaction was cancelled or failed due to insufficient funds. Bounty was NOT published.', false);
-      return;
+      return; // STRICT ABORT
     }
   }
 
@@ -874,25 +927,26 @@ async function handleCreateBounty(event) {
         txHash = signedTx.hash || 'tx_hub_confirmed';
       } else {
         showToastNotification('❌ Payment Cancelled', 'Escrow deposit was not signed. Bounty was NOT published.', false);
-        return;
+        return; // STRICT ABORT
       }
     } catch(e) {
       console.log("Nimiq Hub checkout cancelled or failed:", e);
       showToastNotification('❌ Payment Failed / Cancelled', 'Escrow deposit transaction was cancelled or failed due to insufficient funds. Bounty was NOT published.', false);
-      return;
+      return; // STRICT ABORT
     }
   }
 
-  // Fallback for manual session wallet testing
+  // STRICT RULE: IF PAYMENT WAS NOT CONFIRMED ONCHAIN / HUB / SDK -> DO NOT PUBLISH BOUNTY!
   if (!paymentConfirmed) {
-    const proceedMock = confirm(`[Direct Session Mode]\nConfirm locking ${totalEscrow} NIM from ${userAccount} into Nimiq Escrow Vault?`);
-    if (!proceedMock) {
-      showToastNotification('❌ Cancelled', 'Escrow payment cancelled. Bounty was not published.', false);
-      return;
-    }
-    txHash = 'tx_session_' + Date.now();
+    showToastNotification(
+      '❌ Payment Required',
+      `Insufficient NIM balance or escrow deposit cancelled. Bounty was NOT published.`,
+      false
+    );
+    return; // STRICT ABORT — NO MOCK CREATION ALLOWED
   }
 
+  // PUBLISH BOUNTY ONLY WHEN ESCROW TRANSACTION IS VALIDATED & CONFIRMED
   const newBounty = {
     id: `b-${Date.now()}`,
     title: title,
