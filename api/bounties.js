@@ -1,8 +1,31 @@
-// Vercel Serverless API Function for NimBounty Global Public Sync
+// Vercel Serverless API — NimBounty Global Persistent Store via JSONBlob
+// JSONBlob is free, no-auth, and persists data permanently across all sessions & devices.
 
-let globalBounties = [];
-let globalSubmissions = [];
-let globalPayouts = [];
+const JSONBLOB_ID = '019fa96a-4867-71b6-a7be-8899b024110a';
+const JSONBLOB_BASE = `https://jsonblob.com/api/jsonBlob/${JSONBLOB_ID}`;
+
+async function readStore() {
+  try {
+    const res = await fetch(JSONBLOB_BASE, {
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }
+    });
+    if (!res.ok) throw new Error(`JSONBlob read failed: ${res.status}`);
+    return await res.json();
+  } catch (e) {
+    console.error('readStore error:', e);
+    return { bounties: [], pendingSubmissions: [], approvedPayoutsHistory: [] };
+  }
+}
+
+async function writeStore(data) {
+  const res = await fetch(JSONBLOB_BASE, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) throw new Error(`JSONBlob write failed: ${res.status}`);
+  return await res.json();
+}
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -13,53 +36,92 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
+  // --- GET: Return the full global store ---
+  if (req.method === 'GET') {
+    const store = await readStore();
+    return res.status(200).json(store);
+  }
+
+  // --- POST: Merge new data into the global store ---
   if (req.method === 'POST') {
     try {
       const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
       
-      // Update bounties pool if provided
+      // Read current persistent state
+      const store = await readStore();
+      let { bounties, pendingSubmissions, approvedPayoutsHistory } = store;
+
+      // --- Merge: New single bounty published ---
       if (body.newBounty) {
-        const exists = globalBounties.some(b => b.id === body.newBounty.id);
-        if (!exists) {
-          globalBounties.unshift(body.newBounty);
+        const existingIdx = bounties.findIndex(b => b.id === body.newBounty.id);
+        if (existingIdx === -1) {
+          bounties.unshift(body.newBounty);
         } else {
-          const idx = globalBounties.findIndex(b => b.id === body.newBounty.id);
-          globalBounties[idx] = body.newBounty;
+          // Update slots or other fields on an existing bounty
+          bounties[existingIdx] = { ...bounties[existingIdx], ...body.newBounty };
         }
-      } else if (Array.isArray(body.bounties)) {
-        globalBounties = body.bounties;
       }
 
-      // STRICT SYNC FOR SUBMISSIONS: Overwrite globalSubmissions so approved/rejected items are permanently removed!
-      if (Array.isArray(body.pendingSubmissions)) {
-        globalSubmissions = body.pendingSubmissions;
-      }
-
-      // ACCUMULATE AND PERSIST APPROVED PAYOUTS PERMANENTLY
-      if (Array.isArray(body.approvedPayoutsHistory)) {
-        const existingPayIds = new Set(globalPayouts.map(p => p.id));
-        body.approvedPayoutsHistory.forEach(p => {
-          if (!existingPayIds.has(p.id)) {
-            globalPayouts.unshift(p);
-            existingPayIds.add(p.id);
+      // --- Merge: Full bounties array sync (slot updates etc) ---
+      if (Array.isArray(body.bounties) && body.bounties.length > 0) {
+        const existingIds = new Set(bounties.map(b => b.id));
+        body.bounties.forEach(incoming => {
+          if (!existingIds.has(incoming.id)) {
+            bounties.push(incoming);
+            existingIds.add(incoming.id);
+          } else {
+            // Sync slotsRemaining (always take the minimum = most up-to-date claimed state)
+            const idx = bounties.findIndex(b => b.id === incoming.id);
+            if (idx !== -1 && incoming.slotsRemaining < bounties[idx].slotsRemaining) {
+              bounties[idx].slotsRemaining = incoming.slotsRemaining;
+            }
           }
         });
       }
 
-      return res.status(200).json({
-        success: true,
-        bounties: globalBounties,
-        pendingSubmissions: globalSubmissions,
-        approvedPayoutsHistory: globalPayouts
-      });
+      // --- Merge: New worker submissions ---
+      if (Array.isArray(body.pendingSubmissions)) {
+        const existingSubIds = new Set(pendingSubmissions.map(s => s.id));
+        body.pendingSubmissions.forEach(incoming => {
+          if (!existingSubIds.has(incoming.id)) {
+            pendingSubmissions.unshift(incoming);
+            existingSubIds.add(incoming.id);
+          }
+        });
+        // Remove approved/rejected subs that the poster has already actioned
+        // (keep only those still pending across all workers)
+        const approvedBountySubIds = new Set(approvedPayoutsHistory.map(p => p.bountyId + '_' + p.workerAddress));
+        pendingSubmissions = pendingSubmissions.filter(s => {
+          const key = s.bountyId + '_' + (s.workerAddress || '').toUpperCase().replace(/\s+/g,'');
+          return !approvedBountySubIds.has(key);
+        });
+      }
+
+      // --- Merge: Approved payouts (never overwrite existing, only add new) ---
+      if (Array.isArray(body.approvedPayoutsHistory)) {
+        const existingPayIds = new Set(approvedPayoutsHistory.map(p => p.id));
+        body.approvedPayoutsHistory.forEach(incoming => {
+          if (!existingPayIds.has(incoming.id)) {
+            approvedPayoutsHistory.unshift(incoming);
+            existingPayIds.add(incoming.id);
+          }
+        });
+      }
+
+      // Cap array sizes to prevent blob from getting too large
+      if (bounties.length > 200) bounties = bounties.slice(0, 200);
+      if (pendingSubmissions.length > 500) pendingSubmissions = pendingSubmissions.slice(0, 500);
+      if (approvedPayoutsHistory.length > 1000) approvedPayoutsHistory = approvedPayoutsHistory.slice(0, 1000);
+
+      const newStore = { bounties, pendingSubmissions, approvedPayoutsHistory, updatedAt: Date.now() };
+      await writeStore(newStore);
+
+      return res.status(200).json({ success: true, ...newStore });
     } catch (e) {
-      return res.status(400).json({ error: e.message });
+      console.error('POST handler error:', e);
+      return res.status(500).json({ error: e.message });
     }
   }
 
-  return res.status(200).json({
-    bounties: globalBounties,
-    pendingSubmissions: globalSubmissions,
-    approvedPayoutsHistory: globalPayouts
-  });
+  return res.status(405).json({ error: 'Method not allowed' });
 }

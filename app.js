@@ -32,69 +32,9 @@ const PRODUCTION_URL = 'https://nim-bounty.vercel.app';
 // OFFICIAL USER REAL NIMIQ MAINNET ESCROW VAULT ADDRESS
 const NIMIQ_ESCROW_CONTRACT_ADDRESS = 'NQ65 R26Y VNQL H5H9 F19S U3PB FY7N EJ7H PGNN';
 
-// INITIAL SEED BOUNTIES FOR NEW WALLETS AND NEW DEVICES
-const INITIAL_SEED_BOUNTIES = [
-  {
-    id: "b-seed-1",
-    title: "Test NimBounty Mini App & Submit 3 UI/UX Feedback Points",
-    category: "feedback",
-    categoryName: "UI/UX FEEDBACK",
-    proofType: "image_text",
-    reward: 50,
-    slotsTotal: 20,
-    slotsRemaining: 18,
-    durationHours: 336,
-    expiresAt: Date.now() + (14 * 24 * 3600 * 1000),
-    posterAddress: NIMIQ_ESCROW_CONTRACT_ADDRESS,
-    sponsor: "Nimiq Community Fund",
-    instructions: "Open NimBounty inside Nimiq Pay, test switching themes & claiming bounties. Upload a screenshot of the app and write 3 feedback bullet points.",
-    createdAt: Date.now() - 3600000,
-    escrowFunded: true,
-    escrowVaultAddress: NIMIQ_ESCROW_CONTRACT_ADDRESS
-  },
-  {
-    id: "b-seed-2",
-    title: "Share NimBounty Announcement on X (Twitter)",
-    category: "social",
-    categoryName: "SOCIAL SHARE",
-    proofType: "url",
-    reward: 25,
-    slotsTotal: 50,
-    slotsRemaining: 44,
-    durationHours: 168,
-    expiresAt: Date.now() + (7 * 24 * 3600 * 1000),
-    posterAddress: NIMIQ_ESCROW_CONTRACT_ADDRESS,
-    sponsor: "NimBounty Protocol",
-    instructions: "Post a tweet introducing NimBounty on Nimiq Pay with link https://nim-bounty.vercel.app. Submit tweet URL and your X handle as proof.",
-    createdAt: Date.now() - 7200000,
-    escrowFunded: true,
-    escrowVaultAddress: NIMIQ_ESCROW_CONTRACT_ADDRESS
-  },
-  {
-    id: "b-seed-3",
-    title: "Bug Hunt: Test Wallet Reconnection & Subtabs",
-    category: "bug",
-    categoryName: "BUG HUNT",
-    proofType: "text",
-    reward: 100,
-    slotsTotal: 10,
-    slotsRemaining: 9,
-    durationHours: 336,
-    expiresAt: Date.now() + (14 * 24 * 3600 * 1000),
-    posterAddress: NIMIQ_ESCROW_CONTRACT_ADDRESS,
-    sponsor: "Nimiq Dev Team",
-    instructions: "Connect your Nimiq Wallet, switch between Worker & Poster modes, check Active vs Completed tabs, and report any visual or connection issues.",
-    createdAt: Date.now() - 10800000,
-    escrowFunded: true,
-    escrowVaultAddress: NIMIQ_ESCROW_CONTRACT_ADDRESS
-  }
-];
-
+// Bounties are loaded exclusively from the real global persistent server (JSONBlob via Vercel API).
+// No dummy/seed tasks — every wallet sees the same live real bounties.
 let bounties = JSON.parse(localStorage.getItem(STORAGE_KEY_BOUNTIES)) || [];
-if (!Array.isArray(bounties) || bounties.length === 0) {
-  bounties = [...INITIAL_SEED_BOUNTIES];
-  localStorage.setItem(STORAGE_KEY_BOUNTIES, JSON.stringify(bounties));
-}
 
 let pendingSubmissions = JSON.parse(localStorage.getItem(STORAGE_KEY_SUBS)) || [];
 let completedBountyIds = JSON.parse(localStorage.getItem(STORAGE_KEY_COMPLETED)) || [];
@@ -295,13 +235,6 @@ async function fetchGlobalPublicBounties() {
         localStorage.setItem(STORAGE_KEY_PAID_HISTORY, JSON.stringify(approvedPayoutsHistory));
       }
 
-      // Ensure seed bounties exist if array is empty
-      if (bounties.length === 0) {
-        bounties = [...INITIAL_SEED_BOUNTIES];
-        localStorage.setItem(STORAGE_KEY_BOUNTIES, JSON.stringify(bounties));
-        stateChanged = true;
-      }
-
       // Only re-render DOM if state actually changed to prevent UI flicker
       const newHash = `${bounties.length}-${pendingSubmissions.length}-${approvedPayoutsHistory.length}-${workerSubtabMode}-${posterSubtabMode}-${userAccount}`;
       if (stateChanged || newHash !== lastRenderHash) {
@@ -313,11 +246,8 @@ async function fetchGlobalPublicBounties() {
       }
     }
   } catch (e) {
-    if (bounties.length === 0) {
-      bounties = [...INITIAL_SEED_BOUNTIES];
-      localStorage.setItem(STORAGE_KEY_BOUNTIES, JSON.stringify(bounties));
-      renderBounties();
-    }
+    // API fetch failed — render whatever is already cached locally
+    renderBounties();
   }
 }
 
