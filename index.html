@@ -453,10 +453,10 @@
           <div class="paper-card" style="max-width: 780px; margin: 0 auto;">
             <div class="card-header-press">
               <h2>Publish a New Bounty</h2>
-              <span class="press-date">DIRECT NIMIQ WALLET CHECKOUT PAYOUT</span>
+              <span class="press-date">DIRECT NIMIQ PAY MOBILE TRANSFER</span>
             </div>
 
-            <form id="create-bounty-form" onsubmit="event.preventDefault(); launchNimiqWalletCheckoutPayment();">
+            <form id="create-bounty-form" onsubmit="event.preventDefault(); executePureNimiqPayMobileTransfer();">
               <div class="form-group">
                 <label for="task-title">Bounty Title</label>
                 <input type="text" id="task-title" placeholder="e.g., Test Nimiq Mini App & Write 3 Feedback Bullet Points" required />
@@ -534,9 +534,9 @@
                 </div>
               </div>
 
-              <!-- Primary Button Triggers Official Nimiq Wallet Payment Page -->
+              <!-- Pure Direct Mobile Transfer Trigger -->
               <button type="submit" class="btn-primary-lg full-width" id="btn-deposit-bounty" style="padding: 16px; font-size: 1.1rem;">
-                ⚡ Pay & Sign Transaction in Nimiq Wallet &rarr;
+                ⚡ Send NIM Transfer in Nimiq Pay App &rarr;
               </button>
             </form>
           </div>

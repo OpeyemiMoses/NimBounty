@@ -1,5 +1,5 @@
 /**
- * NimBounty Engine — Official Nimiq Wallet Checkout Payment Signer Engine
+ * NimBounty Engine — Pure Native Nimiq Pay Mobile Transfer Engine
  */
 
 let currentView = 'landing';
@@ -18,10 +18,10 @@ const PRODUCTION_URL = 'https://nim-bounty.vercel.app';
 const NIMIQ_ESCROW_CONTRACT_ADDRESS = 'NQ73 ESCR OW00 0000 0000 0000 0000 0000';
 
 // Persistent LocalStorage Keys
-const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v35';
-const STORAGE_KEY_SUBS = 'nimbounty_subs_v35';
-const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v35';
-const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v35';
+const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v36';
+const STORAGE_KEY_SUBS = 'nimbounty_subs_v36';
+const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v36';
+const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v36';
 const STORAGE_KEY_USER_ACCT = 'nimbounty_user_acct_v3';
 const STORAGE_KEY_DISCONNECTED = 'nimbounty_disconnected_session';
 
@@ -870,7 +870,7 @@ function handleSubmitProof(event) {
 }
 
 // ==========================================
-// 14. OFFICIAL NIMIQ WALLET CHECKOUT PAYMENT SIGNER
+// 14. PURE NATIVE NIMIQ PAY MOBILE TRANSFER ENGINE
 // ==========================================
 function calculateTotalEscrow() {
   const reward = parseFloat(document.getElementById('task-reward')?.value || 0);
@@ -882,7 +882,7 @@ function calculateTotalEscrow() {
   document.getElementById('calc-total').textContent = `${total} NIM`;
 }
 
-function launchNimiqWalletCheckoutPayment() {
+function executePureNimiqPayMobileTransfer() {
   const titleInput = document.getElementById('task-title');
   const instructionsInput = document.getElementById('task-instructions');
   const rewardInput = document.getElementById('task-reward');
@@ -906,7 +906,7 @@ function launchNimiqWalletCheckoutPayment() {
   const valueLuna = Math.round(totalEscrow * 1e5);
   const cleanEscrowAddress = NIMIQ_ESCROW_CONTRACT_ADDRESS.replace(/\s+/g, '');
 
-  const txHash = `tx_nim_onchain_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+  const txHash = `NQ73ESCROW0000000000000000000000000000`;
 
   // Save bounty pool
   const newBounty = {
@@ -925,15 +925,15 @@ function launchNimiqWalletCheckoutPayment() {
   playAudioFx('cash');
   triggerConfetti();
 
-  const nimiqCheckoutUrl = `https://wallet.nimiq.com/checkout/${cleanEscrowAddress}/${valueLuna}`;
+  const nimiqDeepLink = `nimiq:${cleanEscrowAddress}?value=${valueLuna}&label=NimBounty%20Escrow`;
 
   showToastNotification(
-    '⚡ Opening Nimiq Wallet Payment Page',
-    `Launching Nimiq Wallet for ${totalEscrow.toLocaleString()} NIM transfer...`,
+    '⚡ Opening Nimiq Pay Mobile Transfer',
+    `Launching Nimiq Pay native transfer sheet for ${totalEscrow.toLocaleString()} NIM...`,
     false
   );
 
-  // 1. Check Mobile SDK inside Nimiq Pay container
+  // 1. Try Mobile SDK method if present
   const mobileSdk = getNimiqPayMobileSdk();
   if (mobileSdk) {
     try {
@@ -947,10 +947,10 @@ function launchNimiqWalletCheckoutPayment() {
     }
   }
 
-  // 2. Open Official Nimiq Wallet Payment Checkout Page
+  // 2. Trigger native mobile app deep link transfer sheet directly in Nimiq Pay!
   setTimeout(() => {
-    window.location.href = nimiqCheckoutUrl;
-  }, 150);
+    window.location.href = nimiqDeepLink;
+  }, 100);
 
   switchPosterSubtab('pools');
 }
@@ -988,6 +988,7 @@ function renderPosterDashboard() {
     poolsList.innerHTML = myBounties.map(b => {
       const isExpired = b.expiresAt && Date.now() >= b.expiresAt;
       const timeStr = formatTimeRemaining(b.expiresAt);
+      const cleanAddr = NIMIQ_ESCROW_CONTRACT_ADDRESS.replace(/\s+/g, '');
 
       return `
         <div class="dashboard-item">
@@ -997,7 +998,9 @@ function renderPosterDashboard() {
             <span>Slots: <strong>${b.slotsRemaining} / ${b.slotsTotal} Open</strong></span>
             <span>Duration: <strong style="color:${isExpired ? 'var(--danger, #e63946)' : 'var(--gold)'};">${timeStr}</strong></span>
           </div>
-          ${b.txHash ? `<div style="font-size:0.68rem; color:var(--gold); margin-top:4px; font-family:'Geist Mono',monospace;">&bull; Onchain Mainnet Escrow Tx: <a href="https://nimiq.watch/#/tx/${b.txHash}" target="_blank" style="color:var(--gold); font-weight:700;">${b.txHash.substring(0, 16)}... ↗</a></div>` : ''}
+          <div style="font-size:0.68rem; color:var(--gold); margin-top:4px; font-family:'Geist Mono',monospace;">
+            &bull; Onchain Contract Vault: <a href="https://nimiq.watch/account/${cleanAddr}" target="_blank" style="color:var(--gold); font-weight:700;">${cleanAddr.substring(0, 16)}... ↗</a>
+          </div>
         </div>
       `;
     }).join('') || `<p style="font-size:0.85rem; color:var(--muted);">No published bounty pools found for connected wallet (<strong>${userAccount.substring(0, 12)}...</strong>). Deposit escrow to create a new task pool!</p>`;
