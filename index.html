@@ -19,9 +19,9 @@
   <!-- QRCode.js library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   
-  <!-- Official Nimiq Hub API Local Bundle & CDN Fallback -->
-  <script src="hub-api.js"></script>
+  <!-- Official Nimiq Hub API Library -->
   <script src="https://cdn.jsdelivr.net/npm/@nimiq/hub-api@1.2.1/dist/standalone/HubApi.standalone.umd.min.js"></script>
+  <script src="hub-api.js"></script>
   
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -419,7 +419,7 @@
               <span id="worker-rep-text">Verified Worker (Reputation: 100/100)</span>
             </div>
             <div class="worker-stats-inline">
-              <span>Wallet Balance: <strong id="worker-live-balance" style="color: var(--gold);">Hub Synced</strong></span>
+              <span>Wallet Status: <strong id="worker-live-balance" style="color: var(--gold);">Nimiq Wallet Connected</strong></span>
               <span>Completed: <strong id="worker-completed-count">0 Tasks</strong></span>
               <span>Earned: <strong id="worker-earned-amount">0 NIM</strong></span>
             </div>
@@ -457,10 +457,10 @@
           <div class="paper-card" style="max-width: 780px; margin: 0 auto;">
             <div class="card-header-press">
               <h2>Publish a New Bounty</h2>
-              <span class="press-date">REAL ONCHAIN NIMIQ WALLET POPUP SIGNER</span>
+              <span class="press-date">DIRECT NIMIQ WALLET POPUP SIGNER</span>
             </div>
 
-            <form id="create-bounty-form" onsubmit="handleRealWalletPopupDeposit(event)">
+            <form id="create-bounty-form" onsubmit="event.preventDefault(); triggerNimiqWalletSignaturePopup();">
               <div class="form-group">
                 <label for="task-title">Bounty Title</label>
                 <input type="text" id="task-title" placeholder="e.g., Test Nimiq Mini App & Write 3 Feedback Bullet Points" required />
@@ -539,8 +539,8 @@
               </div>
 
               <!-- Primary Button Triggers Real Wallet Signing Popup -->
-              <button type="submit" class="btn-primary-lg full-width" id="btn-deposit-bounty" style="padding: 16px; font-size: 1.1rem;">
-                🔑 Open Wallet Popup & Sign Onchain Transaction &rarr;
+              <button type="button" class="btn-primary-lg full-width" id="btn-deposit-bounty" style="padding: 16px; font-size: 1.1rem;" onclick="triggerNimiqWalletSignaturePopup()">
+                🔑 Open Nimiq Wallet & Sign Transaction &rarr;
               </button>
             </form>
           </div>
@@ -592,14 +592,6 @@
 
       <div style="background: var(--bg-subtle); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 14px; font-family: 'Geist Mono', monospace; font-size: 0.85rem; word-break: break-all; color: var(--ink);" id="modal-wallet-address-display">
         NQ00 0000 0000 0000 0000
-      </div>
-
-      <!-- Live Wallet Balance Display -->
-      <div style="margin-bottom: 20px; text-align: left; font-size: 0.85rem; background: var(--gold-tint); padding: 14px; border-radius: 12px; border: 1px dashed var(--gold);">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span>Wallet Balance:</span>
-          <strong style="color: var(--gold); font-size: 1.1rem; font-family: 'Geist Mono', monospace;" id="modal-wallet-balance-display">Connected (Nimiq Hub)</strong>
-        </div>
       </div>
 
       <!-- Action Buttons -->
