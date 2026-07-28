@@ -1370,19 +1370,48 @@ async function reviewProof(submissionId, action) {
     const cleanWorkerAddr = targetWorkerAddr.replace(/\s+/g, '');
     const lunaValue = Math.round(sub.reward * 100000);
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // IMPORTANT: Do NOT trigger any wallet payment here.
-    // The payout must come FROM the Escrow Vault wallet (NQ65 R26Y VNQL...),
-    // NOT from the poster's connected wallet.
-    //
-    // Triggering provider.sendBasicTransaction() or a nimiq: deeplink here
-    // would charge the POSTER's personal wallet, not the escrow vault.
-    //
-    // Instead: Record the approval in the database, then show the poster
-    // the exact details to send manually from the Escrow Vault in Nimiq Pay.
-    // ─────────────────────────────────────────────────────────────────────────
+    showToastNotification(
+      '⚡ Releasing Escrow Payout...',
+      `Calling Escrow Vault to send ${sub.reward} NIM to worker...`,
+      false
+    );
 
-    // Record the approved payout in the global persistent database
+    // ─────────────────────────────────────────────────────────────────────────
+    // AUTOMATIC ESCROW PAYOUT
+    // The Vercel API uses ESCROW_MNEMONIC env var to sign & broadcast the
+    // transaction FROM the escrow vault — no poster wallet interaction needed.
+    // ─────────────────────────────────────────────────────────────────────────
+    let txHash = null;
+    let autoPayoutFailed = false;
+
+    try {
+      const apiEndpoint = window.location.origin.includes('localhost')
+        ? `${PRODUCTION_URL}/api/bounties`
+        : `/api/bounties`;
+
+      const disbRes = await fetch(apiEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'disburse_escrow',
+          recipient: cleanWorkerAddr,
+          reward: sub.reward,
+          bountyId: sub.bountyId
+        })
+      });
+      const disbData = await disbRes.json();
+      if (disbData && disbData.txHash) {
+        txHash = disbData.txHash;
+      } else if (disbData && disbData.error) {
+        console.warn('Escrow disburse error:', disbData.error);
+        autoPayoutFailed = true;
+      }
+    } catch (e) {
+      console.warn('API escrow disburse failed:', e);
+      autoPayoutFailed = true;
+    }
+
+    // Record the approved payout in state & DB
     approvedPayoutsHistory.push({
       id: `pay-${Date.now()}`,
       bountyId: sub.bountyId,
@@ -1390,7 +1419,7 @@ async function reviewProof(submissionId, action) {
       workerAddress: cleanWorkerAddr,
       posterAddress: sub.posterAddress,
       reward: sub.reward,
-      txHash: `pending_manual_escrow_send_${Date.now()}`,
+      txHash: txHash || `pending_escrow_${Date.now()}`,
       paidAt: Date.now()
     });
 
@@ -1400,17 +1429,22 @@ async function reviewProof(submissionId, action) {
     playAudioFx('cash');
     triggerConfetti();
 
-    // Show poster the manual payout instruction — they must send from the Escrow Vault wallet
-    const nimiqPayDeeplink = `nimiq:${cleanWorkerAddr}?value=${lunaValue}&label=NimBounty%20Escrow%20Payout`;
-    showEscrowPayoutInstructions(cleanWorkerAddr, sub.reward, lunaValue, nimiqPayDeeplink);
-
-
-
-    showToastNotification(
-      '✅ Proof Approved — Send NIM from Escrow Vault',
-      `Approval recorded! Now open Nimiq Pay, switch to your Escrow Vault account, and send ${sub.reward} NIM to the worker.`,
-      false
-    );
+    if (autoPayoutFailed) {
+      // ESCROW_MNEMONIC not configured in Vercel yet — show manual fallback
+      const nimiqPayDeeplink = `nimiq:${cleanWorkerAddr}?value=${lunaValue}&label=NimBounty%20Escrow%20Payout`;
+      showEscrowPayoutInstructions(cleanWorkerAddr, sub.reward, lunaValue, nimiqPayDeeplink);
+      showToastNotification(
+        '⚠️ Manual Send Required',
+        `ESCROW_MNEMONIC not yet set in Vercel. Please send ${sub.reward} NIM from your Escrow Vault manually.`,
+        false
+      );
+    } else {
+      showToastNotification(
+        '🎉 Escrow Payout Sent!',
+        `${sub.reward} NIM sent automatically from Escrow Vault → Worker!\nTx: ${(txHash || '').slice(0, 20)}...`,
+        false
+      );
+    }
   } else {
     const bountyIndex = bounties.findIndex(b => b.id === sub.bountyId);
     if (bountyIndex !== -1) {
