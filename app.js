@@ -1,5 +1,5 @@
 /**
- * NimBounty Engine — Pure Native Nimiq Pay Mobile Transfer Engine
+ * NimBounty Engine — Instant Public Bounty Publisher & Direct Worker Payout Engine
  */
 
 let currentView = 'landing';
@@ -18,10 +18,10 @@ const PRODUCTION_URL = 'https://nim-bounty.vercel.app';
 const NIMIQ_ESCROW_CONTRACT_ADDRESS = 'NQ73 ESCR OW00 0000 0000 0000 0000 0000';
 
 // Persistent LocalStorage Keys
-const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v36';
-const STORAGE_KEY_SUBS = 'nimbounty_subs_v36';
-const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v36';
-const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v36';
+const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v37';
+const STORAGE_KEY_SUBS = 'nimbounty_subs_v37';
+const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v37';
+const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v37';
 const STORAGE_KEY_USER_ACCT = 'nimbounty_user_acct_v3';
 const STORAGE_KEY_DISCONNECTED = 'nimbounty_disconnected_session';
 
@@ -654,7 +654,7 @@ function renderBounties() {
           <div class="card-top-bar">
             <span class="news-cat-stamp">${b.categoryName}</span>
             <div class="card-top-right">
-              <span class="time-left-pill" title="Escrow Pool Expiration">⏳ ${timeRemainingStr}</span>
+              <span class="time-left-pill" title="Campaign Expiration">⏳ ${timeRemainingStr}</span>
               <button class="btn-share-qr" title="Share QR Code" onclick="openQrModal('${b.id}')">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
               </button>
@@ -870,7 +870,7 @@ function handleSubmitProof(event) {
 }
 
 // ==========================================
-// 14. PURE NATIVE NIMIQ PAY MOBILE TRANSFER ENGINE
+// 14. INSTANT PUBLIC BOUNTY PUBLISHER ENGINE
 // ==========================================
 function calculateTotalEscrow() {
   const reward = parseFloat(document.getElementById('task-reward')?.value || 0);
@@ -882,7 +882,7 @@ function calculateTotalEscrow() {
   document.getElementById('calc-total').textContent = `${total} NIM`;
 }
 
-function executePureNimiqPayMobileTransfer() {
+function publishBountyPoolDirectly() {
   const titleInput = document.getElementById('task-title');
   const instructionsInput = document.getElementById('task-instructions');
   const rewardInput = document.getElementById('task-reward');
@@ -903,17 +903,15 @@ function executePureNimiqPayMobileTransfer() {
   const instructions = instructionsInput.value;
   const totalEscrow = reward * slots;
   const expiresAt = Date.now() + (durationHours * 3600 * 1000);
-  const valueLuna = Math.round(totalEscrow * 1e5);
-  const cleanEscrowAddress = NIMIQ_ESCROW_CONTRACT_ADDRESS.replace(/\s+/g, '');
 
-  const txHash = `NQ73ESCROW0000000000000000000000000000`;
+  const txHash = `bounty_pool_${Date.now()}`;
 
-  // Save bounty pool
+  // Save & Publish Bounty Pool Instantly
   const newBounty = {
     id: `b-${Date.now()}`,
     title: title, category: category, categoryName: categoryName, proofType: proofType,
     reward: reward, slotsTotal: slots, slotsRemaining: slots, durationHours: durationHours,
-    expiresAt: expiresAt, posterAddress: userAccount || 'NQ42 NIMIQ PAY USER', sponsor: `${(userAccount || 'NQ42 NIMIQ PAY USER').substring(0, 10)}...`,
+    expiresAt: expiresAt, posterAddress: userAccount || 'NQ42 PUBLISHER USER', sponsor: `${(userAccount || 'NQ42 PUBLISHER USER').substring(0, 10)}...`,
     instructions: instructions, createdAt: Date.now(), txHash: txHash
   };
 
@@ -925,38 +923,17 @@ function executePureNimiqPayMobileTransfer() {
   playAudioFx('cash');
   triggerConfetti();
 
-  const nimiqDeepLink = `nimiq:${cleanEscrowAddress}?value=${valueLuna}&label=NimBounty%20Escrow`;
-
   showToastNotification(
-    '⚡ Opening Nimiq Pay Mobile Transfer',
-    `Launching Nimiq Pay native transfer sheet for ${totalEscrow.toLocaleString()} NIM...`,
+    '🚀 BOUNTY PUBLISHED LIVE!',
+    `"${title}" is now active for all workers to see and participate!`,
     false
   );
-
-  // 1. Try Mobile SDK method if present
-  const mobileSdk = getNimiqPayMobileSdk();
-  if (mobileSdk) {
-    try {
-      if (typeof mobileSdk.sendTransaction === 'function') {
-        mobileSdk.sendTransaction({ recipient: cleanEscrowAddress, value: valueLuna });
-      } else if (typeof mobileSdk.requestPayment === 'function') {
-        mobileSdk.requestPayment({ recipient: cleanEscrowAddress, value: valueLuna });
-      }
-    } catch (e) {
-      console.warn("Mobile SDK note:", e);
-    }
-  }
-
-  // 2. Trigger native mobile app deep link transfer sheet directly in Nimiq Pay!
-  setTimeout(() => {
-    window.location.href = nimiqDeepLink;
-  }, 100);
 
   switchPosterSubtab('pools');
 }
 
 // ==========================================
-// 15. PUBLISHER REVIEW & AUTOMATED ESCROW PAYOUT RELEASE
+// 15. PUBLISHER REVIEW & DIRECT WORKER PAYOUT RELEASE
 // ==========================================
 function renderPosterDashboard() {
   const poolsList = document.getElementById('published-pools-list');
@@ -988,7 +965,6 @@ function renderPosterDashboard() {
     poolsList.innerHTML = myBounties.map(b => {
       const isExpired = b.expiresAt && Date.now() >= b.expiresAt;
       const timeStr = formatTimeRemaining(b.expiresAt);
-      const cleanAddr = NIMIQ_ESCROW_CONTRACT_ADDRESS.replace(/\s+/g, '');
 
       return `
         <div class="dashboard-item">
@@ -998,12 +974,9 @@ function renderPosterDashboard() {
             <span>Slots: <strong>${b.slotsRemaining} / ${b.slotsTotal} Open</strong></span>
             <span>Duration: <strong style="color:${isExpired ? 'var(--danger, #e63946)' : 'var(--gold)'};">${timeStr}</strong></span>
           </div>
-          <div style="font-size:0.68rem; color:var(--gold); margin-top:4px; font-family:'Geist Mono',monospace;">
-            &bull; Onchain Contract Vault: <a href="https://nimiq.watch/account/${cleanAddr}" target="_blank" style="color:var(--gold); font-weight:700;">${cleanAddr.substring(0, 16)}... ↗</a>
-          </div>
         </div>
       `;
-    }).join('') || `<p style="font-size:0.85rem; color:var(--muted);">No published bounty pools found for connected wallet (<strong>${userAccount.substring(0, 12)}...</strong>). Deposit escrow to create a new task pool!</p>`;
+    }).join('') || `<p style="font-size:0.85rem; color:var(--muted);">No published bounty pools found for connected wallet (<strong>${userAccount.substring(0, 12)}...</strong>). Create a new task pool!</p>`;
   }
 
   if (subsList) {
@@ -1016,8 +989,8 @@ function renderPosterDashboard() {
       <div class="dashboard-item">
         <div class="dashboard-item-title">${sub.bountyTitle}</div>
         <div class="dashboard-item-meta">
-          <span>Worker: <strong>${sub.workerAddress.substring(0, 15)}...</strong></span>
-          <span>Time: ${sub.submittedAt}</span>
+          <span>Worker Wallet: <strong style="font-family:'Geist Mono',monospace; color:var(--gold);">${sub.workerAddress}</strong></span>
+          <span>Submitted: ${sub.submittedAt}</span>
         </div>
 
         <div class="proof-card-review">
@@ -1031,7 +1004,7 @@ function renderPosterDashboard() {
         </div>
 
         <div class="review-actions">
-          <button class="btn-approve" onclick="reviewProof('${sub.id}', 'approve')">Approve & Release ${sub.reward} NIM from Vault</button>
+          <button class="btn-approve" onclick="reviewProof('${sub.id}', 'approve')">Approve & Pay Worker ${sub.reward} NIM &rarr;</button>
           <button class="btn-reject" onclick="reviewProof('${sub.id}', 'reject')">Reject</button>
         </div>
       </div>
@@ -1043,11 +1016,6 @@ async function reviewProof(submissionId, action) {
   const subIndex = pendingSubmissions.findIndex(s => s.id === submissionId);
   if (subIndex === -1) return;
   const sub = pendingSubmissions[subIndex];
-
-  if (sub.posterAddress && userAccount && !userAccount.toLowerCase().includes(sub.posterAddress.substring(0, 8).toLowerCase()) && !sub.posterAddress.toLowerCase().includes(userAccount.substring(0, 8).toLowerCase())) {
-    showToastNotification('⛔ Access Denied', 'Only the publisher wallet that funded this escrow pool can review and approve worker payouts!', false);
-    return;
-  }
 
   if (action === 'approve') {
     approvedPayoutsHistory.push({
@@ -1062,11 +1030,23 @@ async function reviewProof(submissionId, action) {
     saveState();
     playAudioFx('cash');
     triggerConfetti();
+
+    const cleanWorkerAddr = (sub.workerAddress || '').replace(/\s+/g, '');
+    const rewardLuna = Math.round(sub.reward * 1e5);
+    const workerPaymentDeepLink = `nimiq:${cleanWorkerAddr}?value=${rewardLuna}&label=NimBounty%20Reward%20Payout`;
+
     showToastNotification(
-      '🎉 Escrow Vault Payout Released!',
-      `Transferred ${sub.reward} NIM from Escrow Vault to worker ${sub.workerAddress.substring(0, 14)}...`,
+      '🎉 Payout Approved!',
+      `Paying out ${sub.reward} NIM to worker ${sub.workerAddress.substring(0, 14)}...`,
       false
     );
+
+    // Trigger direct Nimiq Pay mobile transfer to send reward tokens directly to worker wallet address!
+    if (cleanWorkerAddr && cleanWorkerAddr.startsWith('NQ')) {
+      setTimeout(() => {
+        window.location.href = workerPaymentDeepLink;
+      }, 300);
+    }
   } else {
     showToastNotification('❌ Submission Rejected', `Rejected submission from ${sub.workerAddress.substring(0, 14)}...`, false);
   }
