@@ -1,5 +1,5 @@
 /**
- * NimBounty Engine — Permanent Worker Earnings & Persistent Task Stats Engine
+ * NimBounty Engine — Accurate Active Bounty Counting Engine
  */
 
 let currentView = 'landing';
@@ -365,11 +365,18 @@ function updateLandingStats() {
   const statPayouts = document.getElementById('landing-stat-payouts');
 
   const totalRewardsPaid = approvedPayoutsHistory.reduce((sum, item) => sum + (parseFloat(item.reward) || 0), 0);
-  const activeCount = bounties.filter(b => (b.slotsRemaining > 0) && (!b.expiresAt || Date.now() < b.expiresAt)).length;
-  const totalCount = bounties.length;
+  
+  // Count only truly open, active bounties that have NOT been completed by user or paid out!
+  const activeCount = bounties.filter(b => {
+    const isExpired = b.expiresAt && Date.now() >= b.expiresAt;
+    const isFullyClaimed = b.slotsRemaining <= 0;
+    const hasClaimed = hasWalletCompletedBounty(b.id, userAccount);
+    const isPaidOut = approvedPayoutsHistory.some(p => p.bountyId === b.id);
+    return !isExpired && !isFullyClaimed && !hasClaimed && !isPaidOut;
+  }).length;
 
   if (statBounties) {
-    statBounties.textContent = activeCount > 0 ? `${activeCount} Active` : `${totalCount} Total`;
+    statBounties.textContent = `${activeCount}`;
   }
   if (statPayouts) {
     statPayouts.textContent = `${totalRewardsPaid.toLocaleString()} NIM`;
