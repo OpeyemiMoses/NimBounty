@@ -1,5 +1,5 @@
 /**
- * NimBounty Engine — Instant Global Public Bounty Registry & Real-Time Sync
+ * NimBounty Engine — Clean Real Bounty Engine (Zero Dummy Bounties)
  */
 
 let currentView = 'landing';
@@ -18,70 +18,14 @@ const PRODUCTION_URL = 'https://nim-bounty.vercel.app';
 const NIMIQ_ESCROW_CONTRACT_ADDRESS = 'NQ73 ESCR OW00 0000 0000 0000 0000 0000';
 
 // Persistent LocalStorage Keys
-const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v40';
-const STORAGE_KEY_SUBS = 'nimbounty_subs_v40';
-const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v40';
-const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v40';
+const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v41';
+const STORAGE_KEY_SUBS = 'nimbounty_subs_v41';
+const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v41';
+const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v41';
 const STORAGE_KEY_USER_ACCT = 'nimbounty_user_acct_v3';
 
-// Default Public Seed Bounties visible to ALL users globally
-const defaultSeedBounties = [
-  {
-    id: 'b-seed-1',
-    title: 'Test Nimiq Pay MiniApp & Submit 3 Feedback Bullet Points',
-    category: 'app-test',
-    categoryName: 'APP TESTING',
-    proofType: 'text',
-    reward: 50,
-    slotsTotal: 20,
-    slotsRemaining: 17,
-    durationHours: 336,
-    expiresAt: Date.now() + (14 * 24 * 3600 * 1000),
-    posterAddress: 'NQ42 NIMIQ COMMUNITY SPONSOR',
-    sponsor: 'Nimiq Pay Ecosystem',
-    instructions: 'Open the Nimiq Pay MiniApp console, test the UI responsiveness on your mobile device, and submit 3 detailed feedback bullet points about your experience.',
-    createdAt: Date.now() - 3600000,
-    txHash: 'bounty_pool_seed_1'
-  },
-  {
-    id: 'b-seed-2',
-    title: 'Share NimBounty Announcement on X / Twitter & Upload Link',
-    category: 'social',
-    categoryName: 'SOCIAL SHARE',
-    proofType: 'url',
-    reward: 25,
-    slotsTotal: 50,
-    slotsRemaining: 42,
-    durationHours: 168,
-    expiresAt: Date.now() + (7 * 24 * 3600 * 1000),
-    posterAddress: 'NQ88 SOCIAL CAMPAIGN',
-    sponsor: 'Community Growth Fund',
-    instructions: 'Post a tweet mentioning @Nimiq and #NimBounty with a link to https://nim-bounty.vercel.app, then paste your tweet URL as proof.',
-    createdAt: Date.now() - 7200000,
-    txHash: 'bounty_pool_seed_2'
-  },
-  {
-    id: 'b-seed-3',
-    title: 'Mobile UI/UX Screenshot Verification & Bug Hunt',
-    category: 'bug',
-    categoryName: 'BUG HUNT',
-    proofType: 'image',
-    reward: 100,
-    slotsTotal: 10,
-    slotsRemaining: 8,
-    durationHours: 336,
-    expiresAt: Date.now() + (14 * 24 * 3600 * 1000),
-    posterAddress: 'NQ19 QA TEAM SPONSOR',
-    sponsor: 'NimBounty QA',
-    instructions: 'Take a screenshot of the NimBounty Console running inside your mobile wallet container and upload the screenshot proof.',
-    createdAt: Date.now() - 10800000,
-    txHash: 'bounty_pool_seed_3'
-  }
-];
-
-let loadedLocal = JSON.parse(localStorage.getItem(STORAGE_KEY_BOUNTIES));
-let bounties = (Array.isArray(loadedLocal) && loadedLocal.length > 0) ? loadedLocal : defaultSeedBounties;
-
+// Clean array — Zero dummy bounties!
+let bounties = JSON.parse(localStorage.getItem(STORAGE_KEY_BOUNTIES)) || [];
 let pendingSubmissions = JSON.parse(localStorage.getItem(STORAGE_KEY_SUBS)) || [];
 let completedBountyIds = JSON.parse(localStorage.getItem(STORAGE_KEY_COMPLETED)) || [];
 let approvedPayoutsHistory = JSON.parse(localStorage.getItem(STORAGE_KEY_PAID_HISTORY)) || [];
@@ -139,8 +83,7 @@ async function fetchGlobalPublicBounties() {
     const res = await fetch('https://api.npoint.io/46869bce5432nimbounty', { cache: 'no-cache' });
     if (res.ok) {
       const data = await res.json();
-      if (Array.isArray(data.bounties) && data.bounties.length > 0) {
-        // Merge remote bounties into local array keeping newest unique items
+      if (Array.isArray(data.bounties)) {
         const existingIds = new Set(bounties.map(b => b.id));
         data.bounties.forEach(rb => {
           if (!existingIds.has(rb.id)) {
@@ -156,7 +99,7 @@ async function fetchGlobalPublicBounties() {
       renderWorkerStats();
     }
   } catch (e) {
-    // Fall back gracefully to local bounties
+    // Fall back gracefully
   }
 }
 
@@ -656,7 +599,7 @@ function renderBounties() {
         <h3 style="font-size: 1.3rem; font-weight: 800; color: var(--ink);">No ${workerSubtabMode === 'active' ? 'Active' : 'Completed / Expired'} Bounties Found</h3>
         <p style="font-size: 0.9rem; color: var(--muted); margin-top: 6px; max-width: 460px; margin-left: auto; margin-right: auto;">
           ${workerSubtabMode === 'active' 
-            ? 'There are currently no open active bounties matching your filters. Check the Completed & Expired tab or create a new pool in Poster Mode!' 
+            ? 'There are currently no open active bounties matching your filters. Publish your first task pool in Poster Mode!' 
             : 'No completed or expired bounties found in history.'}
         </p>
         ${workerSubtabMode === 'active' ? `<button class="btn-primary-sm" style="margin-top: 18px;" onclick="switchRole('poster')">Switch to Poster Mode &rarr;</button>` : ''}
