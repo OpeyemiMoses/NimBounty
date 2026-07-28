@@ -174,29 +174,43 @@
     <section class="section-padded" id="how-it-works">
       <div class="section-header">
         <h2 class="section-title">How it works</h2>
-        <p class="section-sub">From upfront escrow deposit to wallet release in three simple steps</p>
+        <p class="section-sub">From bounty creation to instant worker payout in five steps</p>
       </div>
 
       <div class="steps-grid">
         <div class="step-card">
           <div class="step-badge">1</div>
-          <div class="step-tag">ESCROW</div>
-          <h3 class="step-title">1. Upfront Escrow Deposit</h3>
-          <p class="step-desc">Requester deposits total bounty campaign value into NimBounty Onchain Escrow Vault via Nimiq Pay.</p>
+          <div class="step-tag">DEPOSIT</div>
+          <h3 class="step-title">Create &amp; Seed Escrow</h3>
+          <p class="step-desc">Poster creates a task, sets reward per completion, and deposits total NIM into smart escrow in one transaction.</p>
         </div>
 
         <div class="step-card">
           <div class="step-badge">2</div>
-          <div class="step-tag">PROOF</div>
-          <h3 class="step-title">2. Submit Proof Package</h3>
-          <p class="step-desc">Worker claims an open slot and submits proof (written feedback, screenshot, link, or X handle).</p>
+          <div class="step-tag">PROTECT</div>
+          <h3 class="step-title">Device Lock &amp; Claim</h3>
+          <p class="step-desc">Workers claim tasks bound by Nimiq device ID to eliminate multi-accounting and bot farming.</p>
         </div>
 
         <div class="step-card">
           <div class="step-badge">3</div>
-          <div class="step-tag">RELEASE</div>
-          <h3 class="step-title">3. Escrow Reward Release</h3>
-          <p class="step-desc">Requester approves proof and releases NIM reward directly from Escrow Vault to worker's wallet.</p>
+          <div class="step-tag">EXECUTE</div>
+          <h3 class="step-title">Complete &amp; Submit</h3>
+          <p class="step-desc">Worker performs feedback, testing, or social action and uploads proof directly through Nimiq Pay.</p>
+        </div>
+
+        <div class="step-card">
+          <div class="step-badge">4</div>
+          <div class="step-tag">VERIFY</div>
+          <h3 class="step-title">Review &amp; Auto-Timer</h3>
+          <p class="step-desc">Poster reviews proof with 1-click approval or 24h auto-approval safeguard for worker protection.</p>
+        </div>
+
+        <div class="step-card">
+          <div class="step-badge">5</div>
+          <div class="step-tag">SETTLE</div>
+          <h3 class="step-title">Instant Payout</h3>
+          <p class="step-desc">NIM reward releases immediately from escrow to the worker's wallet with zero middleman cuts.</p>
         </div>
       </div>
     </section>
@@ -204,8 +218,8 @@
     <!-- Built-in Protections Grid -->
     <section class="section-padded bg-subtle" id="features">
       <div class="section-header">
-        <h2 class="section-title">Nimiq Pay Architecture</h2>
-        <p class="section-sub">Built around official Nimiq Mini App SDK judging criteria</p>
+        <h2 class="section-title">Built-in Protections</h2>
+        <p class="section-sub">Every task pool ships with these onchain safeguards</p>
       </div>
 
       <div class="protections-grid">
@@ -213,32 +227,32 @@
           <div class="icon-box icon-emerald">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
           </div>
-          <h3 class="prot-title">Native Mini App SDK</h3>
-          <p class="prot-desc">Uses <code>init()</code>, <code>listAccounts()</code>, and <code>sendBasicTransactionWithData()</code> via Nimiq Pay injected provider.</p>
+          <h3 class="prot-title">Anti-Sybil Device Caps</h3>
+          <p class="prot-desc">Hardware-bound 64-hex device signatures via Nimiq SDK ensure 1 physical device cannot farm multiple bounty slots.</p>
         </div>
 
         <div class="protection-card">
           <div class="icon-box icon-emerald">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 16 14"/></svg>
           </div>
-          <h3 class="prot-title">Onchain Escrow Vault</h3>
-          <p class="prot-desc">Reward pools are 100% deposited into onchain escrow vault address before tasks go live.</p>
+          <h3 class="prot-title">Auto-Approve Safeguards</h3>
+          <p class="prot-desc">If a poster is inactive for &gt;24 hours after proof submission, funds automatically release to protect worker labor.</p>
         </div>
 
         <div class="protection-card">
           <div class="icon-box icon-purple">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
           </div>
-          <h3 class="prot-title">Block-Height Validation</h3>
-          <p class="prot-desc">Fetches live validity start height via Nimiq RPC / SDK for exact transaction validity timing.</p>
+          <h3 class="prot-title">Zero Worker Gas Costs</h3>
+          <p class="prot-desc">Workers sign proof messages off-chain; reward disbursements are covered entirely out of the poster's initial deposit.</p>
         </div>
 
         <div class="protection-card">
           <div class="icon-box icon-gold">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           </div>
-          <h3 class="prot-title">Anti-Self-Claim Guard</h3>
-          <p class="prot-desc">Publishers cannot claim or complete their own bounty tasks; exhausted pools auto-transition to history.</p>
+          <h3 class="prot-title">Locked Non-Custodial Escrow</h3>
+          <p class="prot-desc">Funds are locked securely in smart contract vaults. Posters can reclaim unused slots anytime after pool expiry.</p>
         </div>
       </div>
     </section>
@@ -257,27 +271,47 @@
             <span class="faq-toggle">+</span>
           </button>
           <div class="faq-answer">
-            <p>NimBounty is a micro-task and crowd-testing platform built on the Nimiq Pay Mini Apps Framework. It allows builders to post bounties for user feedback, app testing, and social campaigns while workers earn instant NIM payouts.</p>
+            <p>NimBounty is a micro-task and crowd-testing platform built on the Nimiq Pay Mini Apps Framework. It allows builders to post bounties for user feedback, app testing, and social campaigns while workers earn instant NIM payouts with zero transaction fees.</p>
           </div>
         </div>
 
         <div class="faq-item">
           <button class="faq-question" onclick="toggleFaq(this)">
-            <span>How does the Onchain Escrow Vault work?</span>
+            <span>Do workers pay gas fees to submit proof?</span>
             <span class="faq-toggle">+</span>
           </button>
           <div class="faq-answer">
-            <p>When a publisher creates a bounty pool, Nimiq Pay prompts them to send the total campaign NIM amount into the NimBounty Escrow Vault (`NQ65 R26Y VNQL H5H9 F19S U3PB FY7N EJ7H PGNN`). Once approved by the publisher, the reward is released directly to the worker's address.</p>
+            <p>No! Workers do not pay any gas or transaction fees. They sign their submission off-chain via Nimiq Pay, and payouts are automatically disbursed directly from the poster's escrow vault.</p>
           </div>
         </div>
 
         <div class="faq-item">
           <button class="faq-question" onclick="toggleFaq(this)">
-            <span>What if I open NimBounty outside Nimiq Pay?</span>
+            <span>How does anti-sybil and multi-account protection work?</span>
             <span class="faq-toggle">+</span>
           </button>
           <div class="faq-answer">
-            <p>Outside Nimiq Pay, the interface remains explorable and explains how to open inside Nimiq Pay Mobile App to connect your wallet.</p>
+            <p>NimBounty uses Nimiq Pay's hardware-bound <code>requestDeviceIdentifier</code> API. Each physical device generates a unique 64-character SHA-256 identifier, preventing a single user from creating multiple fake accounts to farm task slots.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question" onclick="toggleFaq(this)">
+            <span>What happens if a poster ignores my submitted proof?</span>
+            <span class="faq-toggle">+</span>
+          </button>
+          <div class="faq-answer">
+            <p>Every bounty includes an automatic 24-hour verification window. If the task poster does not manually review or reject your submission within 24 hours, the smart escrow contract auto-approves your submission and transfers the NIM reward to your wallet.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question" onclick="toggleFaq(this)">
+            <span>Which tokens and networks are supported?</span>
+            <span class="faq-toggle">+</span>
+          </button>
+          <div class="faq-answer">
+            <p>NimBounty supports native Nimiq (NIM) payments as well as EVM tokens (USDT on Polygon, Mainnet, Base, Arbitrum) through Nimiq Pay's dual-provider engine.</p>
           </div>
         </div>
       </div>
