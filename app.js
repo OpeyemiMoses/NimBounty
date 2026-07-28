@@ -1,5 +1,5 @@
 /**
- * NimBounty Engine — Permanent Total Rewards & Persistent Metrics Engine
+ * NimBounty Engine — Worldwide Completed & Expired Bounties Visibility Engine
  */
 
 let currentView = 'landing';
@@ -730,6 +730,7 @@ function switchPosterSubtab(mode) {
   renderPosterDashboard();
 }
 
+// WORLDWIDE BOUNTIES RENDERING ENGINE
 function renderBounties() {
   const grid = document.getElementById('bounties-grid');
   if (!grid) return;
@@ -743,14 +744,18 @@ function renderBounties() {
     const matchesCat = categoryFilter === 'all' || b.category === categoryFilter;
     
     const isExpired = b.expiresAt && Date.now() >= b.expiresAt;
-    const hasAlreadyClaimed = hasWalletCompletedBounty(b.id, userAccount);
     const isFullyClaimed = b.slotsRemaining <= 0;
     const isPaidOut = approvedPayoutsHistory.some(p => p.bountyId === b.id);
+    const hasAlreadyClaimed = hasWalletCompletedBounty(b.id, userAccount);
+
+    const isFinishedOrClaimed = isExpired || isFullyClaimed || isPaidOut || hasAlreadyClaimed;
 
     if (workerSubtabMode === 'active') {
-      return matchesSearch && matchesCat && !isExpired && !isFullyClaimed && !hasAlreadyClaimed && !isPaidOut;
+      // Active tab: Open bounties that are NOT finished and NOT claimed by this wallet
+      return matchesSearch && matchesCat && !isFinishedOrClaimed;
     } else {
-      return matchesSearch && matchesCat && (isExpired || isFullyClaimed || hasAlreadyClaimed || isPaidOut);
+      // Completed & Expired tab: ALL finished or claimed bounties worldwide!
+      return matchesSearch && matchesCat && isFinishedOrClaimed;
     }
   });
 
