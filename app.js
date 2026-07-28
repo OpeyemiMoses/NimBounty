@@ -1,5 +1,5 @@
 /**
- * NimBounty Engine — Real Onchain Nimiq Hub & Nimiq Pay Transaction Signing
+ * NimBounty Engine — Direct Nimiq Hub & Nimiq Pay Mobile Integration
  */
 
 let currentView = 'landing';
@@ -12,7 +12,7 @@ let deviceId = localStorage.getItem('nimbounty_device_id_v3') || null;
 let currentTheme = localStorage.getItem('nimbounty_theme') || 'light';
 let isAudioEnabled = true;
 let liveBlockHeight = 0;
-let liveUserBalanceNim = 0;
+let liveUserBalanceNim = parseFloat(localStorage.getItem('nimbounty_user_balance_v1')) || 0;
 let hubApiInstance = null;
 let uploadedImageDataUrl = null;
 let pendingEscrowDraft = null;
@@ -20,10 +20,10 @@ let pendingEscrowDraft = null;
 const PRODUCTION_URL = 'https://nim-bounty.vercel.app';
 
 // Persistent LocalStorage Keys
-const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v19';
-const STORAGE_KEY_SUBS = 'nimbounty_subs_v19';
-const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v19';
-const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v19';
+const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v20';
+const STORAGE_KEY_SUBS = 'nimbounty_subs_v20';
+const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v20';
+const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v20';
 const STORAGE_KEY_USER_ACCT = 'nimbounty_user_acct_v3';
 const STORAGE_KEY_DISCONNECTED = 'nimbounty_disconnected_session';
 
@@ -37,6 +37,7 @@ function saveState() {
   localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions));
   localStorage.setItem(STORAGE_KEY_COMPLETED, JSON.stringify(completedBountyIds));
   localStorage.setItem(STORAGE_KEY_PAID_HISTORY, JSON.stringify(approvedPayoutsHistory));
+  localStorage.setItem('nimbounty_user_balance_v1', liveUserBalanceNim);
   if (userAccount) {
     localStorage.setItem(STORAGE_KEY_USER_ACCT, userAccount);
     localStorage.removeItem(STORAGE_KEY_DISCONNECTED);
@@ -619,38 +620,25 @@ async function connectWallet() {
         saveState();
         updateWalletUI();
         playAudioFx('cash');
-        showToastNotification('Connected!', `Nimiq Web Wallet connected:\n${userAccount}`, false);
+        showToastNotification('Connected!', `Nimiq Web Wallet connected: ${userAccount}\nLive Balance: ${liveUserBalanceNim.toLocaleString()} NIM`, false);
         renderPosterDashboard();
         renderWorkerStats();
         return;
       }
     } catch (err) {
       console.log("Nimiq Hub window cancelled or pop-up blocked:", err);
+      showToastNotification('⚠️ Wallet Connect Note', 'Please allow pop-ups or choose an account in Nimiq Hub.', false);
     }
-  }
-
-  openWalletAddressModal();
-}
-
-function openWalletAddressModal() {
-  localStorage.removeItem(STORAGE_KEY_DISCONNECTED);
-  const customAddress = prompt("Enter or paste your Nimiq Wallet Address (starts with NQ...):");
-  if (customAddress && customAddress.trim().length >= 10) {
-    userAccount = customAddress.trim();
-    saveState();
-    updateWalletUI();
-    playAudioFx('submit');
-    showToastNotification('Wallet Connected!', `Address set: ${userAccount}`, false);
-    renderPosterDashboard();
-    renderWorkerStats();
   }
 }
 
 function disconnectWallet() {
   userAccount = null;
   deviceId = null;
+  liveUserBalanceNim = 0;
   localStorage.removeItem(STORAGE_KEY_USER_ACCT);
   localStorage.removeItem('nimbounty_device_id_v3');
+  localStorage.removeItem('nimbounty_user_balance_v1');
   localStorage.setItem(STORAGE_KEY_DISCONNECTED, 'true');
   updateWalletUI();
   renderPosterDashboard();
@@ -1275,7 +1263,6 @@ async function reviewProof(submissionId, action) {
   }
 
   if (action === 'approve') {
-    // Launch real Nimiq Hub checkout to disburse payout to worker!
     if (window.HubApi && sub.workerAddress.startsWith('NQ')) {
       try {
         if (!hubApiInstance) hubApiInstance = new window.HubApi('https://hub.nimiq.com');
