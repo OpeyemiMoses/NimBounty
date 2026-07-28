@@ -1,5 +1,5 @@
 /**
- * NimBounty Engine — Stable Worldwide Sync, Pending Review Status, & Strict Worker Stats
+ * NimBounty Engine — Stable Worldwide Sync, Pending Review Status, & Combined Proof Engine
  */
 
 let currentView = 'landing';
@@ -959,9 +959,10 @@ function openClaimModal(bountyId) {
   const groupUrl = document.getElementById('group-proof-url');
   const groupImage = document.getElementById('group-proof-image');
 
-  groupText.style.display = (bounty.proofType === 'text') ? 'flex' : 'none';
+  // DISPLAY MODAL INPUT GROUPS ACCORDING TO PROOF TYPE
+  groupText.style.display = (bounty.proofType === 'text' || bounty.proofType === 'image_text') ? 'flex' : 'none';
   groupUrl.style.display = (bounty.proofType === 'url') ? 'flex' : 'none';
-  groupImage.style.display = (bounty.proofType === 'image') ? 'flex' : 'none';
+  groupImage.style.display = (bounty.proofType === 'image' || bounty.proofType === 'image_text') ? 'flex' : 'none';
 
   document.getElementById('image-preview-box').style.display = 'none';
 
@@ -1038,12 +1039,18 @@ function handleSubmitProof(event) {
   if (bounty.proofType === 'text') {
     proofContent = document.getElementById('proof-text-input').value;
   } else if (bounty.proofType === 'url') {
-    proofContent = document.getElementById('proof-url-input').value;
-  } else {
+    const mainUrl = document.getElementById('proof-url-input').value;
+    const xUsername = document.getElementById('proof-username-input')?.value.trim();
+    proofContent = xUsername ? `Link: ${mainUrl} | Handle: ${xUsername}` : mainUrl;
+  } else if (bounty.proofType === 'image') {
     proofContent = uploadedImageDataUrl || 'https://placehold.co/600x400?text=Screenshot+Proof';
+  } else if (bounty.proofType === 'image_text') {
+    const feedbackText = document.getElementById('proof-text-input').value.trim();
+    const screenshotUrl = uploadedImageDataUrl || 'https://placehold.co/600x400?text=Screenshot+Proof';
+    proofContent = JSON.stringify({ image: screenshotUrl, text: feedbackText });
   }
 
-  if (!proofContent || !proofContent.trim()) {
+  if (!proofContent || (typeof proofContent === 'string' && !proofContent.trim())) {
     showToastNotification('⚠️ Proof Required', 'Please provide your proof screenshot or feedback before submitting.', false);
     return;
   }
@@ -1206,35 +1213,50 @@ function renderPosterDashboard() {
       return;
     }
 
-    subsList.innerHTML = mySubmissions.map((sub, index) => `
-      <div class="dashboard-item">
-        <div class="dashboard-item-title">${sub.bountyTitle}</div>
-        
-        <div class="dashboard-item-meta" style="flex-direction: column; align-items: flex-start; gap: 8px;">
-          <div style="display: flex; align-items: center; gap: 8px; width: 100%;">
-            <span style="font-size: 0.85rem;">Worker Nimiq Address:</span>
-            <input type="text" id="worker-addr-input-${sub.id}" value="${sub.workerAddress}" 
-              style="font-family:'Geist Mono',monospace; font-size:0.85rem; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-subtle); color: var(--gold); flex: 1;" />
+    subsList.innerHTML = mySubmissions.map((sub, index) => {
+      let proofHtml = '';
+
+      if (sub.proofType === 'image_text') {
+        let parsed = { image: '', text: '' };
+        try { parsed = JSON.parse(sub.content); } catch (e) { parsed = { image: sub.content, text: '' }; }
+        proofHtml = `
+          <div class="proof-content-text" style="margin-bottom: 8px;"><strong>Written Feedback:</strong> ${parsed.text || 'N/A'}</div>
+          ${parsed.image ? `<img src="${parsed.image}" class="proof-image-review" alt="Uploaded Proof Screenshot" onclick="window.open('${parsed.image}')" title="Click to view full image" />` : ''}
+        `;
+      } else if (sub.proofType === 'image') {
+        proofHtml = `
+          <img src="${sub.content}" class="proof-image-review" alt="Uploaded Proof Screenshot" onclick="window.open('${sub.content}')" title="Click to view full image in new window" />
+          <span style="font-size:0.68rem; color:var(--muted); font-family:'Geist Mono',monospace;">💡 Click screenshot to open full size</span>
+        `;
+      } else {
+        proofHtml = `<div class="proof-content-text">${sub.content}</div>`;
+      }
+
+      return `
+        <div class="dashboard-item">
+          <div class="dashboard-item-title">${sub.bountyTitle}</div>
+          
+          <div class="dashboard-item-meta" style="flex-direction: column; align-items: flex-start; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px; width: 100%;">
+              <span style="font-size: 0.85rem;">Worker Nimiq Address:</span>
+              <input type="text" id="worker-addr-input-${sub.id}" value="${sub.workerAddress}" 
+                style="font-family:'Geist Mono',monospace; font-size:0.85rem; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-subtle); color: var(--gold); flex: 1;" />
+            </div>
+            <span style="font-size: 0.75rem; color: var(--muted);">Submitted: ${sub.submittedAt}</span>
           </div>
-          <span style="font-size: 0.75rem; color: var(--muted);">Submitted: ${sub.submittedAt}</span>
-        </div>
 
-        <div class="proof-card-review">
-          <strong>Submitted Proof (${sub.proofType}):</strong>
-          ${sub.proofType === 'image' ? `
-            <img src="${sub.content}" class="proof-image-review" alt="Uploaded Proof Screenshot" onclick="window.open('${sub.content}')" title="Click to view full image in new window" />
-            <span style="font-size:0.68rem; color:var(--muted); font-family:'Geist Mono',monospace;">💡 Click screenshot to open full size</span>
-          ` : `
-            <div class="proof-content-text">${sub.content}</div>
-          `}
-        </div>
+          <div class="proof-card-review">
+            <strong>Submitted Proof (${sub.proofType}):</strong>
+            ${proofHtml}
+          </div>
 
-        <div class="review-actions">
-          <button class="btn-approve" onclick="reviewProof('${sub.id}', 'approve')">Approve & Pay Worker ${sub.reward} NIM &rarr;</button>
-          <button class="btn-reject" onclick="reviewProof('${sub.id}', 'reject')">Reject</button>
+          <div class="review-actions">
+            <button class="btn-approve" onclick="reviewProof('${sub.id}', 'approve')">Approve & Pay Worker ${sub.reward} NIM &rarr;</button>
+            <button class="btn-reject" onclick="reviewProof('${sub.id}', 'reject')">Reject</button>
+          </div>
         </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
   }
 }
 

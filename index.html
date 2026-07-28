@@ -446,6 +446,7 @@
                     <option value="text">Text Review / Feedback</option>
                     <option value="url">Web Link / URL Proof</option>
                     <option value="image">Screenshot Upload</option>
+                    <option value="image_text">Screenshot + Written Feedback</option>
                   </select>
                 </div>
               </div>
@@ -597,7 +598,12 @@
 
           <div class="form-group" id="group-proof-url" style="display: none;">
             <label for="proof-url-input">Proof Link / URL</label>
-            <input type="url" id="proof-url-input" placeholder="https://x.com/yourhandle/status/12345 or GitHub URL" />
+            <input type="url" id="proof-url-input" placeholder="https://x.com/yourhandle/status/12345 or website link" />
+            
+            <label for="proof-username-input" style="margin-top: 10px; font-size: 0.8rem; color: var(--muted); font-weight: 600;">
+              X (Twitter) Username / Handle <span style="font-weight: normal; opacity: 0.7;">(Optional — if submitting X post proof)</span>
+            </label>
+            <input type="text" id="proof-username-input" placeholder="@yourhandle" />
           </div>
 
           <div class="form-group" id="group-proof-image" style="display: none;">
