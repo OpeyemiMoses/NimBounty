@@ -1,11 +1,12 @@
 /**
- * NimBounty Engine — Custom Wallet Modal & Mobile Nimiq Pay Connector
+ * NimBounty Engine — Theme Switcher, Golden Glow & Protocol Engine
  */
 
 let currentView = 'landing';
 let currentRole = 'worker';
 let userAccount = localStorage.getItem('nimbounty_user_acct_v3') || null;
 let deviceId = localStorage.getItem('nimbounty_device_id_v3') || null;
+let currentTheme = localStorage.getItem('nimbounty_theme') || 'light';
 let isAudioEnabled = true;
 let liveBlockHeight = 0;
 let hubApiInstance = null;
@@ -45,7 +46,38 @@ let currentModalBountyId = null;
 const boltSvgIcon = `<svg class="bolt-icon-svg" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`;
 
 // ==========================================
-// 1. MOBILE HAMBURGER MENU ENGINE
+// 1. LIGHT / DARK THEME SWITCHER ENGINE
+// ==========================================
+function initTheme() {
+  document.documentElement.setAttribute('data-theme', currentTheme);
+  updateThemeUI();
+}
+
+function toggleTheme() {
+  currentTheme = currentTheme === 'light' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', currentTheme);
+  localStorage.setItem('nimbounty_theme', currentTheme);
+  updateThemeUI();
+  playAudioFx('submit');
+}
+
+function updateThemeUI() {
+  const btn = document.getElementById('theme-toggle-btn');
+  const mobileText = document.getElementById('theme-text-mobile');
+  
+  if (btn) {
+    btn.innerHTML = currentTheme === 'dark'
+      ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`
+      : `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`;
+  }
+
+  if (mobileText) {
+    mobileText.textContent = currentTheme === 'dark' ? '☀️ Switch to Light Mode' : '🌙 Switch to Dark Mode';
+  }
+}
+
+// ==========================================
+// 2. MOBILE HAMBURGER MENU ENGINE
 // ==========================================
 function toggleMobileMenu() {
   const btn = document.getElementById('hamburger-btn');
@@ -57,7 +89,7 @@ function toggleMobileMenu() {
 }
 
 // ==========================================
-// 2. FLOATING TOAST NOTIFICATION SYSTEM
+// 3. FLOATING TOAST NOTIFICATION SYSTEM
 // ==========================================
 function showToastNotification(title, message, showActionBtn = true) {
   const container = document.getElementById('toast-container');
@@ -97,7 +129,7 @@ function copyNimiqPayDeeplink() {
 }
 
 // ==========================================
-// 3. LIVE NIMIQ RPC NETWORK FETCH & STATS
+// 4. LIVE NIMIQ RPC NETWORK FETCH & STATS
 // ==========================================
 async function fetchNimiqLiveRPC() {
   const rpcTag = document.querySelector('.hero-tag');
@@ -135,7 +167,7 @@ function updateLandingStats() {
 }
 
 // ==========================================
-// 4. WEB AUDIO SYNTHESIZER
+// 5. WEB AUDIO SYNTHESIZER
 // ==========================================
 function playAudioFx(type) {
   if (!isAudioEnabled) return;
@@ -184,7 +216,7 @@ function toggleAudioFx() {
 }
 
 // ==========================================
-// 5. CANVAS CONFETTI PARTICLE EXPLOSION
+// 6. CANVAS CONFETTI PARTICLE EXPLOSION
 // ==========================================
 function triggerConfetti() {
   const canvas = document.getElementById('confetti-canvas');
@@ -247,7 +279,7 @@ function triggerConfetti() {
 }
 
 // ==========================================
-// 6. TYPEWRITER ANIMATION ENGINE
+// 7. TYPEWRITER ANIMATION ENGINE
 // ==========================================
 const typewriterPhrases = ["fast", "safe", "direct", "onchain", "instant"];
 let phraseIndex = 0;
@@ -281,7 +313,7 @@ function runTypewriter() {
 }
 
 // ==========================================
-// 7. VIEW ROUTER & SECTION SCROLLING
+// 8. VIEW ROUTER & SECTION SCROLLING
 // ==========================================
 function showView(viewName) {
   currentView = viewName;
@@ -327,7 +359,7 @@ function toggleFaq(buttonEl) {
 }
 
 // ==========================================
-// 8. CUSTOM WALLET MODAL & CONNECT ENGINE
+// 9. CUSTOM WALLET MODAL & CONNECT ENGINE
 // ==========================================
 function updateWalletUI() {
   const walletTextDesktop = document.getElementById('wallet-text');
@@ -419,7 +451,6 @@ async function tryConnectMobileSdkAllVariants() {
 }
 
 async function connectWallet() {
-  // 1. Try native Nimiq Pay Mobile SDK variants
   const isMobileConnected = await tryConnectMobileSdkAllVariants();
   if (isMobileConnected) {
     playAudioFx('cash');
@@ -427,7 +458,6 @@ async function connectWallet() {
     return;
   }
 
-  // 2. Try Desktop Nimiq Hub Web Wallet (https://hub.nimiq.com)
   if (window.HubApi) {
     try {
       if (!hubApiInstance) hubApiInstance = new window.HubApi('https://hub.nimiq.com');
@@ -449,7 +479,6 @@ async function connectWallet() {
     }
   }
 
-  // 3. Prompt user to paste their Nimiq address
   openWalletAddressModal();
 }
 
@@ -481,7 +510,7 @@ function renderWorkerStats() {
 }
 
 // ==========================================
-// 9. ROLE SWITCHER & TASK GRID
+// 10. ROLE SWITCHER & TASK GRID
 // ==========================================
 function switchRole(role) {
   currentRole = role;
@@ -530,7 +559,7 @@ function renderBounties() {
   if (filtered.length === 0) {
     grid.innerHTML = `
       <div style="grid-column: 1 / -1; text-align: center; padding: 60px 24px; background: var(--card); border: 1px dashed var(--border); border-radius: 20px;">
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--gold-dark)" stroke-width="1.8" style="margin-bottom: 12px;"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.8" style="margin-bottom: 12px;"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
         <h3 style="font-size: 1.3rem; font-weight: 800; color: var(--ink);">No Active Bounty Pools</h3>
         <p style="font-size: 0.9rem; color: var(--muted); margin-top: 6px; max-width: 460px; margin-left: auto; margin-right: auto;">
           There are no active bounties published yet. Switch to <strong>Poster Mode</strong> to create and deposit the first smart escrow task pool!
@@ -576,7 +605,7 @@ function renderBounties() {
 }
 
 // ==========================================
-// 10. QR CODE GENERATOR & SHARE MODAL
+// 11. QR CODE GENERATOR & SHARE MODAL
 // ==========================================
 function openQrModal(bountyId) {
   const bounty = bounties.find(b => b.id === bountyId);
@@ -614,7 +643,7 @@ function copyQrLink() {
 }
 
 // ==========================================
-// 11. CLAIM & SUBMIT PROOF ENGINE
+// 12. CLAIM & SUBMIT PROOF ENGINE
 // ==========================================
 function openClaimModal(bountyId) {
   const bounty = bounties.find(b => b.id === bountyId);
@@ -731,7 +760,7 @@ function handleSubmitProof(event) {
 }
 
 // ==========================================
-// 12. POSTER ESCROW CREATION & PAYOUT ENGINE
+// 13. POSTER ESCROW CREATION & PAYOUT ENGINE
 // ==========================================
 function calculateTotalEscrow() {
   const reward = parseFloat(document.getElementById('task-reward')?.value || 0);
@@ -881,6 +910,7 @@ async function reviewProof(index, action) {
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
+  initTheme();
   runTypewriter();
   fetchNimiqLiveRPC();
   initNimiqHub();
