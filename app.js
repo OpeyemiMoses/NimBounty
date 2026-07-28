@@ -786,19 +786,27 @@ function renderBounties() {
     
     const isExpired = b.expiresAt && Date.now() >= b.expiresAt;
     const isFullyClaimed = b.slotsRemaining <= 0;
-    const isPaidOut = approvedPayoutsHistory.some(p => p.bountyId === b.id);
-    const hasAlreadyClaimed = hasWalletCompletedBounty(b.id, userAccount);
 
-    const isFinishedOrClaimed = isExpired || isFullyClaimed || isPaidOut || hasAlreadyClaimed;
+    // A bounty is "done" for this wallet ONLY if the poster has approved their payout.
+    // A pending submission is NOT done — it stays in Active until poster acts.
+    const myApprovedPayout = userAccount
+      ? approvedPayoutsHistory.some(p => p.bountyId === b.id && p.workerAddress && isSameNimiqAddress(p.workerAddress, userAccount))
+      : false;
+
+    const hasPendingSub = userAccount
+      ? pendingSubmissions.some(s => s.bountyId === b.id && s.workerAddress && isSameNimiqAddress(s.workerAddress, userAccount))
+      : false;
 
     if (workerSubtabMode === 'active') {
-      // Active tab: Open bounties that are NOT finished and NOT claimed by this wallet
-      return matchesSearch && matchesCat && !isFinishedOrClaimed;
+      // Active tab: show if NOT (expired or fully claimed or this wallet was approved)
+      // Pending submissions still show here — they are awaiting poster action
+      return matchesSearch && matchesCat && !isExpired && !isFullyClaimed && !myApprovedPayout;
     } else {
-      // Completed & Expired tab: ALL finished or claimed bounties worldwide!
-      return matchesSearch && matchesCat && isFinishedOrClaimed;
+      // Completed & Expired tab: expired pools, fully claimed pools, or THIS wallet's approved payouts
+      return matchesSearch && matchesCat && (isExpired || isFullyClaimed || myApprovedPayout) && !hasPendingSub;
     }
   });
+
 
   if (sortBy === 'highest') {
     filtered.sort((a, b) => b.reward - a.reward);
@@ -830,23 +838,35 @@ function renderBounties() {
     const hasAlreadyClaimed = hasWalletCompletedBounty(b.id, userAccount);
     const isExpired = b.expiresAt && Date.now() >= b.expiresAt;
     const isFullyClaimed = b.slotsRemaining <= 0;
-    const isPaidOut = approvedPayoutsHistory.some(p => p.bountyId === b.id);
-    const hasPendingSub = pendingSubmissions.some(s => s.bountyId === b.id && s.workerAddress && isSameNimiqAddress(s.workerAddress, userAccount));
     const timeRemainingStr = formatTimeRemaining(b.expiresAt);
+
+    // Has THIS wallet's submission been approved by the poster?
+    const myApprovedPayout = userAccount
+      ? approvedPayoutsHistory.some(p => p.bountyId === b.id && p.workerAddress && isSameNimiqAddress(p.workerAddress, userAccount))
+      : false;
+
+    // Does THIS wallet have a submission still pending poster review?
+    const hasPendingSub = userAccount
+      ? pendingSubmissions.some(s => s.bountyId === b.id && s.workerAddress && isSameNimiqAddress(s.workerAddress, userAccount))
+      : false;
 
     let btnLabel = 'Claim Task & Submit Proof &rarr;';
     let btnDisabled = false;
-    let isCardGreyed = isExpired || isFullyClaimed || isPaidOut;
+    let isCardGreyed = isExpired || isFullyClaimed;
     let badgeText = '🔒 Escrow Funded • ' + timeRemainingStr;
 
-    if (isPaidOut) {
-      btnLabel = '✅ Paid Out from Escrow';
-      btnDisabled = true;
-      badgeText = '✅ Paid Out';
-    } else if (hasPendingSub) {
-      btnLabel = '⏳ Proof Pending Review';
+    // Priority order: pending review > approved payout > fully claimed > expired > publisher > already claimed
+    if (hasPendingSub) {
+      // Poster has NOT yet acted — always show Pending, never Paid Out
+      btnLabel = '⏳ Proof Pending Poster Review';
       btnDisabled = true;
       badgeText = '⏳ Pending Review';
+    } else if (myApprovedPayout) {
+      // Poster approved THIS wallet's submission
+      btnLabel = '✅ Payout Released — Task Complete!';
+      btnDisabled = true;
+      badgeText = '✅ Paid Out';
+      isCardGreyed = true;
     } else if (isFullyClaimed) {
       btnLabel = '🔒 All Slots Claimed (Pending Review)';
       btnDisabled = true;
