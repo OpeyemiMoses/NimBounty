@@ -9,33 +9,39 @@
 
 import * as bip39 from 'bip39';
 import nacl from 'tweetnacl';
+import { blake2b } from '@noble/hashes/blake2b';
 
 const JSONBLOB_ID = '019fa96a-4867-71b6-a7be-8899b024110a';
 const JSONBLOB_BASE = `https://jsonblob.com/api/jsonBlob/${JSONBLOB_ID}`;
-const NIMIQ_RPC = 'https://rpc.nimiq.network';
+const NIMIQ_RPC = 'https://rpc.nimiqwatch.com';
 
 // ── Nimiq Address & Transaction Helpers ──────────────────────────────────────
 
-// Nimiq uses Ed25519. Key derivation: BIP39 mnemonic → seed → first 32 bytes = private key
+// Convert BIP39 mnemonic to Ed25519 keypair for Nimiq
 function deriveNimiqKeypairFromMnemonic(mnemonic) {
-  const seed = bip39.mnemonicToSeedSync(mnemonic.trim()); // 64 bytes
-  const secretKey = seed.slice(0, 32);
-  const keypair = nacl.sign.keyPair.fromSeed(secretKey);
-  return keypair; // { publicKey: Uint8Array(32), secretKey: Uint8Array(64) }
+  const cleanMnemonic = mnemonic.trim();
+  let seedBytes;
+  if (bip39.validateMnemonic(cleanMnemonic)) {
+    const entropyHex = bip39.mnemonicToEntropy(cleanMnemonic);
+    const entropy = Buffer.from(entropyHex, 'hex');
+    // If 16 bytes (12 words), duplicate to 32 bytes for Ed25519 seed
+    seedBytes = entropy.length === 16 ? Buffer.concat([entropy, entropy]) : entropy.slice(0, 32);
+  } else {
+    // Direct seed or hex fallback
+    const seed = bip39.mnemonicToSeedSync(cleanMnemonic);
+    seedBytes = seed.slice(0, 32);
+  }
+  return nacl.sign.keyPair.fromSeed(seedBytes);
 }
 
-// Convert Ed25519 public key to Nimiq address bytes (Blake2b hash → first 20 bytes)
-// Nimiq uses SHA256 of publicKey as address hash
+// Convert 32-byte Ed25519 public key to 20-byte Nimiq address via Blake2b (20 bytes)
 function publicKeyToAddressBytes(publicKey) {
-  const crypto = require('crypto');
-  const hash = crypto.createHash('sha256').update(publicKey).digest();
-  return hash.slice(0, 20); // 20-byte address
+  return blake2b(publicKey, { dkLen: 20 });
 }
 
 // Encode Nimiq address bytes to NQ... base32 string
 const NIMIQ_ALPHABET = '0123456789ABCDEFGHJKLMNPQRSTUVXY';
 function bytesToNimiqAddress(addrBytes) {
-  // Convert 20 bytes to base32
   let bits = 0, value = 0, output = '';
   for (let i = 0; i < addrBytes.length; i++) {
     value = (value << 8) | addrBytes[i];
@@ -48,7 +54,6 @@ function bytesToNimiqAddress(addrBytes) {
   if (bits > 0) {
     output += NIMIQ_ALPHABET[(value << (5 - bits)) & 31];
   }
-  // Add NQ prefix + checksum (Luhn mod 97)
   const grouped = output.match(/.{1,4}/g).join(' ');
   const forCheck = grouped.replace(/\s/g, '') + 'NQ00';
   const checkNum = 98 - (forCheck.split('').reduce((acc, c) => {
@@ -80,11 +85,17 @@ async function getNimiqBlockNumber() {
     const res = await fetch(NIMIQ_RPC, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ jsonrpc:'2.0', method:'eth_blockNumber', params:[], id:1 })
+      body: JSON.stringify({ jsonrpc:'2.0', method:'getBlockNumber', params:[], id:1 })
     });
     const data = await res.json();
-    return parseInt(data.result, 16) || 0;
+    if (data && data.result) {
+      if (typeof data.result === 'number') return data.result;
+      if (typeof data.result === 'object' && typeof data.result.data === 'number') return data.result.data;
+      if (typeof data.result === 'string') return parseInt(data.result.replace('0x',''), data.result.startsWith('0x') ? 16 : 10);
+    }
+    return 0;
   } catch(e) {
+    console.warn("getBlockNumber RPC fetch error:", e);
     return 0;
   }
 }
@@ -163,8 +174,11 @@ async function broadcastNimiqTransaction(hexTx) {
     })
   });
   const data = await res.json();
-  if (data.error) throw new Error(data.error.message || 'RPC broadcast failed');
-  return data.result; // tx hash
+  if (data.error) {
+    const errMsg = typeof data.error === 'object' ? (data.error.message || JSON.stringify(data.error)) : String(data.error);
+    throw new Error(`RPC error: ${errMsg}`);
+  }
+  return typeof data.result === 'string' ? data.result : (data.result?.hash || `tx_${Date.now()}`);
 }
 
 // ── JSONBlob Persistent Store ─────────────────────────────────────────────────
@@ -212,20 +226,17 @@ export default async function handler(req, res) {
       const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
 
       // ─── AUTOMATIC ESCROW PAYOUT ───────────────────────────────────────────
-      // When poster approves, frontend calls this with action:'disburse_escrow'
-      // The escrow vault signs & broadcasts the transaction automatically.
       if (body.action === 'disburse_escrow') {
         const mnemonic = process.env.ESCROW_MNEMONIC;
-        if (!mnemonic) {
-          return res.status(500).json({
-            error: 'ESCROW_MNEMONIC not configured in Vercel environment variables.',
-            hint: 'Go to Vercel Dashboard → Settings → Environment Variables → add ESCROW_MNEMONIC'
+        if (!mnemonic || !mnemonic.trim()) {
+          return res.status(400).json({
+            error: 'ESCROW_MNEMONIC environment variable is not configured in Vercel settings.'
           });
         }
 
         const { recipient, reward, bountyId } = body;
         if (!recipient || !reward) {
-          return res.status(400).json({ error: 'recipient and reward are required' });
+          return res.status(400).json({ error: 'recipient and reward parameters are required.' });
         }
 
         const lunaValue = Math.round(parseFloat(reward) * 100000);
@@ -233,6 +244,7 @@ export default async function handler(req, res) {
 
         // Derive escrow vault keypair from mnemonic
         const keypair = deriveNimiqKeypairFromMnemonic(mnemonic);
+        const derivedAddr = bytesToNimiqAddress(publicKeyToAddressBytes(keypair.publicKey));
         const recipientBytes = nimiqAddressToBytes(recipient);
 
         // Build and sign the transaction
@@ -249,7 +261,7 @@ export default async function handler(req, res) {
         // Broadcast to Nimiq network
         const txHash = await broadcastNimiqTransaction(hexTx);
 
-        return res.status(200).json({ success: true, txHash, lunaValue, recipient });
+        return res.status(200).json({ success: true, txHash, lunaValue, recipient, senderAddress: derivedAddr });
       }
 
       // ─── STORE SYNC (bounties, submissions, payouts) ───────────────────────
@@ -317,7 +329,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, ...newStore });
     } catch(e) {
       console.error('POST handler error:', e);
-      return res.status(500).json({ error: e.message });
+      return res.status(500).json({ error: e.message || String(e) });
     }
   }
 

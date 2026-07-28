@@ -1184,7 +1184,7 @@ async function publishBountyPoolDirectly() {
     false
   );
 
-  let escrowTxHash = `escrow_dep_${Date.now()}`;
+  let escrowTxHash = null;
   const provider = getNimiqProvider();
 
   if (provider) {
@@ -1210,14 +1210,37 @@ async function publishBountyPoolDirectly() {
         });
       }
     } catch (err) {
-      console.warn("Escrow deposit provider error:", err);
+      console.warn("Escrow deposit provider error or user dismissed modal:", err);
+      showToastNotification(
+        '⛔ Escrow Deposit Cancelled',
+        'Payment modal was dismissed or cancelled. Bounty pool was NOT created.',
+        false
+      );
+      return; // STOP EXECUTION! Do NOT publish task if user dismissed/cancelled payment!
     }
-  }
 
-  // Nimiq Pay deeplink for escrow deposit — open in new tab so page stays intact
-  const escrowDeepLink = `nimiq:${NIMIQ_ESCROW_CONTRACT_ADDRESS.replace(/\s+/g, '')}?value=${totalEscrowLuna}&label=NimBounty%20Escrow%20Deposit`;
-  // Use open() not location.href so we don't navigate away and lose the task
-  try { window.open(escrowDeepLink, '_self'); } catch(e) { window.location.href = escrowDeepLink; }
+    if (!escrowTxHash) {
+      showToastNotification(
+        '⛔ Escrow Deposit Failed',
+        'Transaction was not confirmed by wallet. Bounty pool was NOT created.',
+        false
+      );
+      return; // STOP EXECUTION!
+    }
+  } else {
+    // Standard web browser fallback outside Nimiq Pay MiniApp
+    const confirmed = confirm(
+      `Fund Escrow Deposit (${totalEscrowNim} NIM)\n\nTo publish this bounty, send ${totalEscrowNim} NIM to Escrow Vault:\n${NIMIQ_ESCROW_CONTRACT_ADDRESS}\n\nClick OK to open Nimiq Pay and publish, or Cancel to abort.`
+    );
+    if (!confirmed) {
+      showToastNotification('⛔ Escrow Deposit Cancelled', 'Bounty pool was not created.', false);
+      return;
+    }
+
+    const escrowDeepLink = `nimiq:${NIMIQ_ESCROW_CONTRACT_ADDRESS.replace(/\s+/g, '')}?value=${totalEscrowLuna}&label=NimBounty%20Escrow%20Deposit`;
+    try { window.open(escrowDeepLink, '_blank'); } catch(e) {}
+    escrowTxHash = `escrow_dep_${Date.now()}`;
+  }
 
   const newBounty = {
     id: bountyId,
@@ -1382,6 +1405,7 @@ async function reviewProof(submissionId, action) {
     // ─────────────────────────────────────────────────────────────────────────
     let txHash = null;
     let autoPayoutFailed = false;
+    let serverErrorMessage = '';
 
     try {
       const apiEndpoint = window.location.origin.includes('localhost')
@@ -1404,10 +1428,12 @@ async function reviewProof(submissionId, action) {
       } else if (disbData && disbData.error) {
         console.warn('Escrow disburse error:', disbData.error);
         autoPayoutFailed = true;
+        serverErrorMessage = disbData.error;
       }
     } catch (e) {
       console.warn('API escrow disburse failed:', e);
       autoPayoutFailed = true;
+      serverErrorMessage = e.message || String(e);
     }
 
     // Record the approved payout in state & DB
@@ -1429,13 +1455,13 @@ async function reviewProof(submissionId, action) {
     triggerConfetti();
 
     if (autoPayoutFailed) {
-      // ESCROW_MNEMONIC not configured in Vercel — show manual fallback
-      // NOTE: This only affects POSTER approval payout, NOT worker task completion.
       const nimiqPayDeeplink = `nimiq:${cleanWorkerAddr}?value=${lunaValue}&label=NimBounty%20Escrow%20Payout`;
       showEscrowPayoutInstructions(cleanWorkerAddr, sub.reward, lunaValue, nimiqPayDeeplink);
       showToastNotification(
-        '⚠️ Escrow Mnemonic Missing in Vercel',
-        `ESCROW_MNEMONIC not set in Vercel env vars. The proof is APPROVED — now manually send ${sub.reward} NIM from the Escrow Vault to the worker.`,
+        '⚠️ Escrow Payout Note',
+        serverErrorMessage
+          ? `Backend response: ${serverErrorMessage}\nProof approved! Please send ${sub.reward} NIM from Escrow Vault using instructions below.`
+          : `Proof approved! Please send ${sub.reward} NIM manually from Escrow Vault.`,
         false
       );
     } else {
