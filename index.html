@@ -1,11 +1,12 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>NimBounty — Instant Micro-Task Engine on Nimiq Pay</title>
   <meta name="description" content="Safe, instant micro-task escrow and user testing powered by Nimiq Pay." />
-  
+
   <!-- Favicon Links -->
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   <link rel="icon" type="image/png" href="favicon.png" />
@@ -14,17 +15,20 @@
   <!-- Google Fonts: Work Sans, Instrument Serif, Geist Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&family=Work+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,600&display=swap" rel="stylesheet">
-  
+  <link
+    href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&family=Work+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,600&display=swap"
+    rel="stylesheet">
+
   <!-- QRCode.js library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  
+
   <!-- Official Nimiq Hub API & Mini App SDK Scripts -->
   <script src="https://cdn.nimiq.com/v1.3.0/hub-api/HubApi.standalone.umd.js"></script>
   <script src="https://cdn.nimiq.com/v1.0.0/mini-app-sdk/MiniAppSdk.standalone.umd.js"></script>
-  
+
   <link rel="stylesheet" href="style.css" />
 </head>
+
 <body>
 
   <!-- Fullscreen Confetti Canvas Layer -->
@@ -37,8 +41,9 @@
   <nav class="navbar" id="navbar">
     <div class="nav-container">
       <a href="#" class="nav-logo" onclick="showView('landing')">
-        <svg class="logo-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+        <svg class="logo-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
         </svg>
         <span class="logo-text">nim<span class="logo-serif">Bounty</span></span>
       </a>
@@ -56,7 +61,18 @@
       <div class="nav-right-actions">
         <!-- Light / Dark Theme Switcher Button -->
         <button class="btn-theme-toggle" onclick="toggleTheme()" id="theme-toggle-btn" title="Toggle Light/Dark Theme">
-          <svg class="theme-icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <svg class="theme-icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2">
+            <circle cx="12" cy="12" r="5" />
+            <line x1="12" y1="1" x2="12" y2="3" />
+            <line x1="12" y1="21" x2="12" y2="23" />
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+            <line x1="1" y1="12" x2="3" y2="12" />
+            <line x1="21" y1="12" x2="23" y2="12" />
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+          </svg>
         </button>
 
         <button class="btn-ghost-sm desktop-wallet-btn" onclick="handleWalletButtonClick()" id="btn-connect-wallet">
@@ -68,7 +84,8 @@
         </button>
 
         <!-- Mobile Hamburger Toggle Button -->
-        <button class="hamburger-btn" id="hamburger-btn" onclick="toggleMobileMenu()" aria-label="Toggle Navigation Menu">
+        <button class="hamburger-btn" id="hamburger-btn" onclick="toggleMobileMenu()"
+          aria-label="Toggle Navigation Menu">
           <span class="bar bar1"></span>
           <span class="bar bar2"></span>
           <span class="bar bar3"></span>
@@ -79,19 +96,22 @@
     <!-- Mobile Navigation Drawer -->
     <div class="mobile-nav-drawer" id="mobile-nav-drawer">
       <button class="mobile-nav-link active" onclick="showView('landing'); toggleMobileMenu();">Overview</button>
-      <button class="mobile-nav-link" onclick="scrollToSection('how-it-works'); toggleMobileMenu();">How It Works</button>
+      <button class="mobile-nav-link" onclick="scrollToSection('how-it-works'); toggleMobileMenu();">How It
+        Works</button>
       <button class="mobile-nav-link" onclick="scrollToSection('features'); toggleMobileMenu();">Protections</button>
       <button class="mobile-nav-link" onclick="scrollToSection('faq'); toggleMobileMenu();">FAQ</button>
       <button class="mobile-nav-link" onclick="showView('app'); toggleMobileMenu();">Console App</button>
       <div class="mobile-drawer-divider"></div>
-      <button class="btn-ghost-sm full-width" onclick="toggleTheme()" style="justify-content: center; margin-bottom: 8px;">
+      <button class="btn-ghost-sm full-width" onclick="toggleTheme()"
+        style="justify-content: center; margin-bottom: 8px;">
         <span id="theme-text-mobile">🌙 Switch to Dark Mode</span>
       </button>
       <button class="btn-ghost-sm full-width" onclick="handleWalletButtonClick(); toggleMobileMenu();">
         <span class="wallet-dot"></span>
         <span id="wallet-text-mobile">Connect Nimiq Wallet</span>
       </button>
-      <button class="btn-primary-lg full-width" onclick="showView('app'); toggleMobileMenu();" style="margin-top: 10px;">
+      <button class="btn-primary-lg full-width" onclick="showView('app'); toggleMobileMenu();"
+        style="margin-top: 10px;">
         Launch App Console &rarr;
       </button>
     </div>
@@ -105,18 +125,19 @@
     <!-- Hero Section -->
     <section class="hero-section">
       <div class="hero-container">
-        
+
         <div class="hero-tag slide-in">
           <span class="tag-pulse-dot"></span> LIVE ON NIMIQ PAY MAINNET
         </div>
 
         <h1 class="hero-title rise-in">
           Powering micro-tasks <br />
-          the <span class="typewriter-box"><span id="typewriter-text" class="serif-italic">fast</span><span class="typewriter-cursor">|</span></span> way
+          the <span class="typewriter-box"><span id="typewriter-text" class="serif-italic">fast</span><span
+              class="typewriter-cursor">|</span></span> way
         </h1>
 
         <p class="hero-sub fade-in">
-          Safe micro-task bounty engine on Nimiq Pay — instant NIM escrow payouts, 
+          Safe micro-task bounty engine on Nimiq Pay — instant NIM escrow payouts,
           anti-sybil device protection, and zero gas fees for workers. All enforced onchain.
         </p>
 
@@ -127,7 +148,9 @@
           </div>
           <span class="flow-arrow">&rarr;</span>
           <div class="flow-pill active">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
             2. Escrow Protection
           </div>
           <span class="flow-arrow">&rarr;</span>
@@ -186,35 +209,40 @@
           <div class="step-badge">1</div>
           <div class="step-tag">DEPOSIT</div>
           <h3 class="step-title">Create & Seed Escrow</h3>
-          <p class="step-desc">Poster creates a task, sets reward per completion, and deposits total NIM into smart escrow in one transaction.</p>
+          <p class="step-desc">Poster creates a task, sets reward per completion, and deposits total NIM into smart
+            escrow in one transaction.</p>
         </div>
 
         <div class="step-card">
           <div class="step-badge">2</div>
           <div class="step-tag">PROTECT</div>
           <h3 class="step-title">Device Lock & Claim</h3>
-          <p class="step-desc">Workers claim tasks bound by Nimiq device ID to eliminate multi-accounting and bot farming.</p>
+          <p class="step-desc">Workers claim tasks bound by Nimiq device ID to eliminate multi-accounting and bot
+            farming.</p>
         </div>
 
         <div class="step-card">
           <div class="step-badge">3</div>
           <div class="step-tag">EXECUTE</div>
           <h3 class="step-title">Complete & Submit</h3>
-          <p class="step-desc">Worker performs feedback, testing, or social action and uploads proof directly through Nimiq Pay.</p>
+          <p class="step-desc">Worker performs feedback, testing, or social action and uploads proof directly through
+            Nimiq Pay.</p>
         </div>
 
         <div class="step-card">
           <div class="step-badge">4</div>
           <div class="step-tag">VERIFY</div>
           <h3 class="step-title">Review & Auto-Timer</h3>
-          <p class="step-desc">Poster reviews proof with 1-click approval or 24h auto-approval safeguard for worker protection.</p>
+          <p class="step-desc">Poster reviews proof with 1-click approval or 24h auto-approval safeguard for worker
+            protection.</p>
         </div>
 
         <div class="step-card">
           <div class="step-badge">5</div>
           <div class="step-tag">SETTLE</div>
           <h3 class="step-title">Instant Payout</h3>
-          <p class="step-desc">NIM reward releases immediately from escrow to the worker's wallet with zero middleman cuts.</p>
+          <p class="step-desc">NIM reward releases immediately from escrow to the worker's wallet with zero middleman
+            cuts.</p>
         </div>
       </div>
     </section>
@@ -229,34 +257,51 @@
       <div class="protections-grid">
         <div class="protection-card">
           <div class="icon-box icon-emerald">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
           </div>
           <h3 class="prot-title">Anti-Sybil Device Caps</h3>
-          <p class="prot-desc">Hardware-bound 64-hex device signatures via Nimiq SDK ensure 1 physical device cannot farm multiple bounty slots.</p>
+          <p class="prot-desc">Hardware-bound 64-hex device signatures via Nimiq SDK ensure 1 physical device cannot
+            farm multiple bounty slots.</p>
         </div>
 
         <div class="protection-card">
           <div class="icon-box icon-emerald">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
           </div>
           <h3 class="prot-title">Auto-Approve Safeguards</h3>
-          <p class="prot-desc">If a poster is inactive for >24 hours after proof submission, funds automatically release to protect worker labor.</p>
+          <p class="prot-desc">If a poster is inactive for >24 hours after proof submission, funds automatically release
+            to protect worker labor.</p>
         </div>
 
         <div class="protection-card">
           <div class="icon-box icon-purple">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path
+                d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+              <line x1="12" y1="22.08" x2="12" y2="12" />
+            </svg>
           </div>
           <h3 class="prot-title">Zero Worker Gas Costs</h3>
-          <p class="prot-desc">Workers sign proof messages off-chain; reward disbursements are covered entirely out of the poster's initial deposit.</p>
+          <p class="prot-desc">Workers sign proof messages off-chain; reward disbursements are covered entirely out of
+            the poster's initial deposit.</p>
         </div>
 
         <div class="protection-card">
           <div class="icon-box icon-gold">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
           </div>
           <h3 class="prot-title">Locked Non-Custodial Escrow</h3>
-          <p class="prot-desc">Funds are locked securely in smart contract vaults. Posters can reclaim unused slots anytime after pool expiry.</p>
+          <p class="prot-desc">Funds are locked securely in smart contract vaults. Posters can reclaim unused slots
+            anytime after pool expiry.</p>
         </div>
       </div>
     </section>
@@ -275,7 +320,9 @@
             <span class="faq-toggle">+</span>
           </button>
           <div class="faq-answer">
-            <p>NimBounty is a micro-task and crowd-testing platform built on the Nimiq Pay Mini Apps Framework. It allows builders to post bounties for user feedback, app testing, and social campaigns while workers earn instant NIM payouts with zero transaction fees.</p>
+            <p>NimBounty is a micro-task and crowd-testing platform built on the Nimiq Pay Mini Apps Framework. It
+              allows builders to post bounties for user feedback, app testing, and social campaigns while workers earn
+              instant NIM payouts with zero transaction fees.</p>
           </div>
         </div>
 
@@ -285,7 +332,8 @@
             <span class="faq-toggle">+</span>
           </button>
           <div class="faq-answer">
-            <p>No! Workers do not pay any gas or transaction fees. They sign their submission off-chain via Nimiq Pay, and payouts are automatically disbursed directly from the poster's escrow vault.</p>
+            <p>No! Workers do not pay any gas or transaction fees. They sign their submission off-chain via Nimiq Pay,
+              and payouts are automatically disbursed directly from the poster's escrow vault.</p>
           </div>
         </div>
 
@@ -295,7 +343,9 @@
             <span class="faq-toggle">+</span>
           </button>
           <div class="faq-answer">
-            <p>NimBounty uses Nimiq Pay's hardware-bound <code>requestDeviceIdentifier</code> API. Each physical device generates a unique 64-character SHA-256 identifier, preventing a single user from creating multiple fake accounts to farm task slots.</p>
+            <p>NimBounty uses Nimiq Pay's hardware-bound <code>requestDeviceIdentifier</code> API. Each physical device
+              generates a unique 64-character SHA-256 identifier, preventing a single user from creating multiple fake
+              accounts to farm task slots.</p>
           </div>
         </div>
 
@@ -305,7 +355,9 @@
             <span class="faq-toggle">+</span>
           </button>
           <div class="faq-answer">
-            <p>Every bounty includes an automatic 24-hour verification window. If the task poster does not manually review or reject your submission within 24 hours, the smart escrow contract auto-approves your submission and transfers the NIM reward to your wallet.</p>
+            <p>Every bounty includes an automatic 24-hour verification window. If the task poster does not manually
+              review or reject your submission within 24 hours, the smart escrow contract auto-approves your submission
+              and transfers the NIM reward to your wallet.</p>
           </div>
         </div>
 
@@ -315,7 +367,8 @@
             <span class="faq-toggle">+</span>
           </button>
           <div class="faq-answer">
-            <p>NimBounty supports native Nimiq (NIM) payments as well as EVM tokens (USDT on Polygon, Mainnet, Base, Arbitrum) through Nimiq Pay's dual-provider engine.</p>
+            <p>NimBounty supports native Nimiq (NIM) payments as well as EVM tokens (USDT on Polygon, Mainnet, Base,
+              Arbitrum) through Nimiq Pay's dual-provider engine.</p>
           </div>
         </div>
       </div>
@@ -340,7 +393,7 @@
   <div id="view-app" class="page-view" style="display: none;">
 
     <main class="console-main">
-      
+
       <!-- Console Header Bar -->
       <div class="console-header-paper">
         <div class="console-header-left">
@@ -351,18 +404,30 @@
         <div class="console-header-actions">
           <!-- Audio Sound Effects Toggle -->
           <button class="btn-sound-toggle" id="btn-sound-toggle" onclick="toggleAudioFx()">
-            <svg class="sound-icon-on" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+            <svg class="sound-icon-on" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+            </svg>
             <span id="sound-toggle-text">Audio FX: ON</span>
           </button>
 
           <!-- Role Toggle Switcher -->
           <div class="role-switcher-container">
             <button class="role-btn active" id="btn-role-worker" onclick="switchRole('worker')">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+              </svg>
               Worker Mode
             </button>
             <button class="role-btn" id="btn-role-poster" onclick="switchRole('poster')">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <path d="M11 5L6 9H2v6h4l5 4V5z" />
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+              </svg>
               Poster Mode
             </button>
           </div>
@@ -371,13 +436,17 @@
 
       <!-- WORKER MODE PANEL -->
       <div id="view-worker" class="view-panel active fade-in">
-        
+
         <!-- Filter Paper Bar -->
         <div class="filter-paper-card">
           <div class="filter-row">
             <div class="search-box">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              <input type="text" id="search-input" placeholder="Search bounties, keywords, or sponsors..." oninput="renderBounties()" />
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input type="text" id="search-input" placeholder="Search bounties, keywords, or sponsors..."
+                oninput="renderBounties()" />
             </div>
 
             <div class="filter-group">
@@ -403,7 +472,10 @@
         <div class="worker-status-card">
           <div class="worker-profile-info">
             <div class="reputation-badge" id="worker-rep-badge">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polygon
+                  points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+              </svg>
               <span id="worker-rep-text">Verified Worker (Reputation: 100/100)</span>
             </div>
             <div class="worker-stats-inline">
@@ -423,7 +495,7 @@
 
       <!-- POSTER MODE PANEL -->
       <div id="view-poster" class="view-panel fade-in" style="display: none;">
-        
+
         <div class="poster-layout">
           <!-- Form Card -->
           <div class="paper-card">
@@ -435,7 +507,8 @@
             <form id="create-bounty-form" onsubmit="handleCreateBounty(event)">
               <div class="form-group">
                 <label for="task-title">Bounty Title</label>
-                <input type="text" id="task-title" placeholder="e.g., Test Nimiq Mini App & Write 3 Feedback Bullet Points" required />
+                <input type="text" id="task-title"
+                  placeholder="e.g., Test Nimiq Mini App & Write 3 Feedback Bullet Points" required />
               </div>
 
               <div class="form-row-2">
@@ -468,13 +541,16 @@
 
                 <div class="form-group">
                   <label for="task-slots">Number of Worker Slots</label>
-                  <input type="number" id="task-slots" min="1" max="100" value="10" required oninput="calculateTotalEscrow()" />
+                  <input type="number" id="task-slots" min="1" max="100" value="10" required
+                    oninput="calculateTotalEscrow()" />
                 </div>
               </div>
 
               <div class="form-group">
                 <label for="task-instructions">Detailed Task Instructions</label>
-                <textarea id="task-instructions" rows="4" placeholder="Describe exactly what the worker needs to do and what proof to submit..." required></textarea>
+                <textarea id="task-instructions" rows="4"
+                  placeholder="Describe exactly what the worker needs to do and what proof to submit..."
+                  required></textarea>
               </div>
 
               <!-- Escrow Summary -->
@@ -533,15 +609,21 @@
   <div class="modal-overlay" id="modal-wallet" style="display: none;">
     <div class="modal-paper paper-card rise-in" style="max-width: 460px; text-align: center;">
       <button class="modal-close" onclick="closeModal('modal-wallet')">&times;</button>
-      
-      <div style="width: 52px; height: 52px; background: var(--gold-tint); color: var(--gold); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+
+      <div
+        style="width: 52px; height: 52px; background: var(--gold-tint); color: var(--gold); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+          <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+        </svg>
       </div>
 
       <h3 style="font-size: 1.4rem; font-weight: 800; margin-bottom: 6px;">Nimiq Wallet Connected</h3>
       <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 20px;">Active Nimiq Pay Protocol Session</p>
 
-      <div style="background: var(--bg-subtle); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 20px; font-family: 'Geist Mono', monospace; font-size: 0.85rem; word-break: break-all; color: var(--ink);" id="modal-wallet-address-display">
+      <div
+        style="background: var(--bg-subtle); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 20px; font-family: 'Geist Mono', monospace; font-size: 0.85rem; word-break: break-all; color: var(--ink);"
+        id="modal-wallet-address-display">
         NQ00 0000 0000 0000 0000
       </div>
 
@@ -550,10 +632,12 @@
         <button class="btn-primary-sm full-width" onclick="copyWalletAddressFromModal()" style="padding: 12px;">
           Copy Full Address 📋
         </button>
-        <button class="btn-ghost-sm full-width" onclick="promptCustomAddressFromModal()" style="padding: 12px; justify-content: center;">
+        <button class="btn-ghost-sm full-width" onclick="promptCustomAddressFromModal()"
+          style="padding: 12px; justify-content: center;">
           Switch / Enter Nimiq Address ✏️
         </button>
-        <button class="btn-danger-outline full-width" onclick="confirmDisconnectWalletFromModal()" style="padding: 12px;">
+        <button class="btn-danger-outline full-width" onclick="confirmDisconnectWalletFromModal()"
+          style="padding: 12px;">
           Disconnect Wallet 🔌
         </button>
       </div>
@@ -564,23 +648,30 @@
   <div class="modal-overlay" id="modal-escrow-confirm" style="display: none;">
     <div class="modal-paper paper-card rise-in" style="max-width: 480px; text-align: center;">
       <button class="modal-close" onclick="closeModal('modal-escrow-confirm')">&times;</button>
-      
-      <div style="width: 56px; height: 56px; background: var(--gold-tint); color: var(--gold); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+
+      <div
+        style="width: 56px; height: 56px; background: var(--gold-tint); color: var(--gold); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        </svg>
       </div>
 
       <h3 style="font-size: 1.4rem; font-weight: 800; margin-bottom: 6px;">Confirm Onchain Escrow Deposit</h3>
-      <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 18px;" id="escrow-modal-task-title">Locking NIM into Nimiq Escrow Vault</p>
+      <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 18px;" id="escrow-modal-task-title">Locking NIM
+        into Nimiq Escrow Vault</p>
 
       <!-- Deposit Breakdown Card -->
-      <div style="background: var(--bg-subtle); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 20px; text-align: left;">
+      <div
+        style="background: var(--bg-subtle); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 20px; text-align: left;">
         <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 8px;">
           <span>Escrow Vault Recipient:</span>
-          <strong style="font-family: 'Geist Mono', monospace; font-size: 0.78rem; color: var(--gold);">NQ07 0000...</strong>
+          <strong style="font-family: 'Geist Mono', monospace; font-size: 0.78rem; color: var(--gold);">NQ07
+            0000...</strong>
         </div>
         <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 8px;">
           <span>Publisher Wallet:</span>
-          <strong style="font-family: 'Geist Mono', monospace; font-size: 0.78rem;" id="escrow-modal-publisher">NQ...</strong>
+          <strong style="font-family: 'Geist Mono', monospace; font-size: 0.78rem;"
+            id="escrow-modal-publisher">NQ...</strong>
         </div>
         <div style="height: 1px; background: var(--border); margin: 10px 0;"></div>
         <div style="display: flex; justify-content: space-between; font-size: 1rem; font-weight: 800;">
@@ -589,8 +680,10 @@
         </div>
       </div>
 
-      <div style="font-size: 0.8rem; color: var(--muted); margin-bottom: 20px; text-align: left; line-height: 1.5; background: var(--gold-tint); padding: 12px; border-radius: 10px; border: 1px dashed var(--gold);">
-        💡 Tapping <strong>Confirm Deposit & Sign</strong> will launch Nimiq Hub Keyguard to sign the transaction. If your wallet has zero balance, the deposit will be cancelled and the task will NOT be published.
+      <div
+        style="font-size: 0.8rem; color: var(--muted); margin-bottom: 20px; text-align: left; line-height: 1.5; background: var(--gold-tint); padding: 12px; border-radius: 10px; border: 1px dashed var(--gold);">
+        💡 Tapping <strong>Confirm Deposit & Sign</strong> will launch Nimiq Hub Keyguard to sign the transaction. If
+        your wallet has zero balance, the deposit will be cancelled and the task will NOT be published.
       </div>
 
       <!-- Action Buttons -->
@@ -598,7 +691,8 @@
         <button class="btn-primary-lg full-width" id="btn-confirm-escrow-action" style="padding: 14px;">
           Confirm Deposit & Sign Transaction &rarr;
         </button>
-        <button class="btn-ghost-sm full-width" onclick="closeModal('modal-escrow-confirm')" style="padding: 12px; justify-content: center;">
+        <button class="btn-ghost-sm full-width" onclick="closeModal('modal-escrow-confirm')"
+          style="padding: 12px; justify-content: center;">
           Cancel & Return to Form
         </button>
       </div>
@@ -609,17 +703,22 @@
   <div class="modal-overlay" id="modal-task" style="display: none;">
     <div class="modal-paper paper-card rise-in">
       <button class="modal-close" onclick="closeModal('modal-task')">&times;</button>
-      
+
       <div class="modal-header">
         <span class="news-category-tag" id="modal-task-cat">APP TESTING</span>
         <h2 id="modal-task-title">Task Title Placeholder</h2>
         <div class="modal-meta-row">
           <span class="reward-pill-gold" id="modal-task-reward">
-            <svg class="bolt-icon-svg" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            <svg class="bolt-icon-svg" viewBox="0 0 24 24">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+            </svg>
             50 NIM
           </span>
           <span class="time-lock-badge" id="modal-task-timer">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
             14:59 Lock Remaining
           </span>
         </div>
@@ -634,7 +733,8 @@
         <form id="proof-submission-form" onsubmit="handleSubmitProof(event)">
           <div class="form-group" id="group-proof-text">
             <label for="proof-text-input">Your Written Response / Feedback</label>
-            <textarea id="proof-text-input" rows="4" placeholder="Enter your detailed feedback, findings, or review..."></textarea>
+            <textarea id="proof-text-input" rows="4"
+              placeholder="Enter your detailed feedback, findings, or review..."></textarea>
           </div>
 
           <div class="form-group" id="group-proof-url" style="display: none;">
@@ -662,14 +762,18 @@
   <div class="modal-overlay" id="modal-qr" style="display: none;">
     <div class="modal-paper paper-card rise-in" style="text-align: center; max-width: 420px;">
       <button class="modal-close" onclick="closeModal('modal-qr')">&times;</button>
-      
-      <h3 style="font-size: 1.4rem; font-weight: 800; margin-bottom: 6px;">Share Bounty QR</h3>
-      <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 20px;" id="qr-bounty-title">Scan in Nimiq Pay Mobile App</p>
 
-      <div id="qrcode-box" style="display: inline-block; padding: 16px; background: #fff; border-radius: 16px; border: 1px solid var(--border); margin-bottom: 20px;"></div>
+      <h3 style="font-size: 1.4rem; font-weight: 800; margin-bottom: 6px;">Share Bounty QR</h3>
+      <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 20px;" id="qr-bounty-title">Scan in Nimiq Pay
+        Mobile App</p>
+
+      <div id="qrcode-box"
+        style="display: inline-block; padding: 16px; background: #fff; border-radius: 16px; border: 1px solid var(--border); margin-bottom: 20px;">
+      </div>
 
       <div style="display: flex; gap: 8px;">
-        <input type="text" id="qr-link-input" readonly style="font-family: 'Geist Mono', monospace; font-size: 0.75rem; width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-subtle);" />
+        <input type="text" id="qr-link-input" readonly
+          style="font-family: 'Geist Mono', monospace; font-size: 0.75rem; width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-subtle);" />
         <button class="btn-primary-sm" onclick="copyQrLink()">Copy</button>
       </div>
     </div>
@@ -682,11 +786,13 @@
       </div>
       <div class="f-info">
         <span>Powered by <strong>Nimiq Pay Framework</strong></span>
-        <a href="https://github.com/OpeyemiMoses/NimBounty" target="_blank" rel="noopener" style="color: var(--gold); text-decoration: none; font-weight: 600;">&bull; GitHub: OpeyemiMoses/NimBounty</a>
+        <a href="https://github.com/OpeyemiMoses/NimBounty" target="_blank" rel="noopener"
+          style="color: var(--gold); text-decoration: none; font-weight: 600;">&bull; GitHub</a>
       </div>
     </div>
   </footer>
 
   <script src="app.js"></script>
 </body>
+
 </html>
