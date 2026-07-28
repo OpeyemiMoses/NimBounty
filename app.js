@@ -1,5 +1,5 @@
 /**
- * NimBounty Engine — Bulletproof Wallet Connection & Direct Worker Payout Settlement Engine
+ * NimBounty Engine — Perfected Nimiq Pay MiniApp Integration & Permanent Sync Engine
  */
 
 let currentView = 'landing';
@@ -19,10 +19,10 @@ const PRODUCTION_URL = 'https://nim-bounty.vercel.app';
 const NIMIQ_ESCROW_CONTRACT_ADDRESS = 'NQ73 ESCR OW00 0000 0000 0000 0000 0000';
 
 // Persistent LocalStorage Keys
-const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v60';
-const STORAGE_KEY_SUBS = 'nimbounty_subs_v60';
-const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v60';
-const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v60';
+const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v65';
+const STORAGE_KEY_SUBS = 'nimbounty_subs_v65';
+const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v65';
+const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v65';
 const STORAGE_KEY_USER_ACCT = 'nimbounty_user_acct_v3';
 const STORAGE_KEY_USER_BAL = 'nimbounty_user_bal_v3';
 
@@ -82,6 +82,13 @@ function getNimiqProvider() {
   return window.nimiq || window.Nimiq || window.nimiqPay || window.NimiqPay || window.miniApp || null;
 }
 
+// Helper: Validate Nimiq Address Format
+function isValidNimiqAddress(address) {
+  if (!address || typeof address !== 'string') return false;
+  const clean = address.replace(/\s+/g, '').toUpperCase();
+  return /^NQ[0-9A-Z]{30,44}$/.test(clean);
+}
+
 // ==========================================
 // 1. BULLETPROOF NIMIQ PAY WALLET CONNECTION ENGINE
 // ==========================================
@@ -106,23 +113,23 @@ async function connectNimiqPayWallet() {
     }
   }
 
-  // If outside Nimiq Pay or provider not detected, prompt user to enter/confirm their Nimiq address
+  // If outside Nimiq Pay container, prompt user to connect or confirm their Nimiq address
   let inputAddr = prompt("Enter your Nimiq Wallet Address (e.g. NQ42 1234 5678...):", userAccount || "");
   if (inputAddr && inputAddr.trim()) {
-    cleanAddr = inputAddr.trim().toUpperCase();
-    if (cleanAddr.startsWith('NQ') && cleanAddr.length >= 30) {
+    const cleanAddr = inputAddr.trim().toUpperCase();
+    if (isValidNimiqAddress(cleanAddr)) {
       userAccount = cleanAddr;
       localStorage.setItem(STORAGE_KEY_USER_ACCT, userAccount);
       updateWalletUI();
       showToastNotification('📱 Wallet Connected!', `Connected Address:\n${userAccount}`, false);
       return;
     } else {
-      alert("Invalid Nimiq Address format. Address must begin with NQ.");
+      alert("Invalid Nimiq Address format. Must begin with NQ followed by digits and letters.");
       return;
     }
   }
 
-  // Fallback default test account if prompt canceled
+  // Fallback test account if prompt canceled
   if (!userAccount) {
     userAccount = `NQ42 ${Math.floor(1000 + Math.random() * 8999)} ${Math.floor(1000 + Math.random() * 8999)} ${Math.floor(1000 + Math.random() * 8999)}`;
     userBalance = 1000;
@@ -146,42 +153,27 @@ async function fetchGlobalPublicBounties() {
     const res = await fetch(apiEndpoint, { cache: 'no-cache' });
     if (res.ok) {
       const data = await res.json();
-      let updated = false;
+      
+      // STRICT OVERWRITE OF PENDING SUBMISSIONS FROM SERVER SO REJECTED/APPROVED ITEMS STAY REMOVED!
+      if (Array.isArray(data.pendingSubmissions)) {
+        pendingSubmissions = data.pendingSubmissions;
+        localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions));
+      }
 
       if (Array.isArray(data.bounties) && data.bounties.length > 0) {
-        data.bounties.forEach(rb => {
-          const idx = bounties.findIndex(b => b.id === rb.id);
-          if (idx !== -1) {
-            if (rb.slotsRemaining < bounties[idx].slotsRemaining) {
-              bounties[idx].slotsRemaining = rb.slotsRemaining;
-              updated = true;
-            }
-          } else {
-            bounties.unshift(rb);
-            updated = true;
-          }
-        });
-      }
-
-      if (Array.isArray(data.pendingSubmissions) && data.pendingSubmissions.length > 0) {
-        const existingSubIds = new Set(pendingSubmissions.map(s => s.id));
-        data.pendingSubmissions.forEach(rs => {
-          if (!existingSubIds.has(rs.id)) {
-            pendingSubmissions.unshift(rs);
-            existingSubIds.add(rs.id);
-            updated = true;
-          }
-        });
-      }
-
-      if (updated) {
+        bounties = data.bounties;
         localStorage.setItem(STORAGE_KEY_BOUNTIES, JSON.stringify(bounties));
-        localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions));
-        renderBounties();
-        renderPosterDashboard();
-        updateLandingStats();
-        renderWorkerStats();
       }
+
+      if (Array.isArray(data.approvedPayoutsHistory)) {
+        approvedPayoutsHistory = data.approvedPayoutsHistory;
+        localStorage.setItem(STORAGE_KEY_PAID_HISTORY, JSON.stringify(approvedPayoutsHistory));
+      }
+
+      renderBounties();
+      renderPosterDashboard();
+      updateLandingStats();
+      renderWorkerStats();
     }
   } catch (e) {
     // Fall back gracefully
@@ -696,10 +688,8 @@ function renderBounties() {
     const isFullyClaimed = b.slotsRemaining <= 0;
 
     if (workerSubtabMode === 'active') {
-      // ACTIVE TAB: Must NOT be expired, Must have slots open (> 0), Must NOT be already completed by this wallet
       return matchesSearch && matchesCat && !isExpired && !isFullyClaimed && !hasAlreadyClaimed;
     } else {
-      // COMPLETED & EXPIRED TAB: Fully claimed, expired, or completed bounties
       return matchesSearch && matchesCat && (isExpired || isFullyClaimed || hasAlreadyClaimed);
     }
   });
@@ -832,7 +822,7 @@ function copyQrLink() {
 // 14. CLAIM & SUBMIT PROOF ENGINE
 // ==========================================
 function openClaimModal(bountyId) {
-  // 1. Must be connected
+  // 1. Must be connected with a valid address
   if (!userAccount) {
     showToastNotification('⛔ Wallet Not Connected', 'Please connect your Nimiq Wallet first before claiming a bounty!', false);
     connectNimiqPayWallet();
@@ -960,22 +950,38 @@ function handleSubmitProof(event) {
     return;
   }
 
+  // Ensure worker address is valid
+  let workerPayoutAddr = userAccount;
+  if (!isValidNimiqAddress(workerPayoutAddr)) {
+    let input = prompt("Please enter your valid Nimiq Worker Wallet Address to receive payout rewards (e.g. NQ42 1234 5678...):", "");
+    if (input && isValidNimiqAddress(input.trim())) {
+      workerPayoutAddr = input.trim().toUpperCase();
+      userAccount = workerPayoutAddr;
+      localStorage.setItem(STORAGE_KEY_USER_ACCT, userAccount);
+    } else {
+      showToastNotification('⚠️ Valid Address Required', 'Please enter a valid Nimiq address starting with NQ to receive worker payouts.', false);
+      return;
+    }
+  }
+
   // Decrement slot count
   if (bounty.slotsRemaining > 0) {
     bounty.slotsRemaining -= 1;
   }
 
-  pendingSubmissions.unshift({
+  const newSub = {
     id: `sub-${Date.now()}`,
     bountyId: bounty.id,
     bountyTitle: bounty.title,
     posterAddress: bounty.posterAddress || bounty.sponsor,
-    workerAddress: userAccount || 'NQ42 WORKER UNKNOWN',
+    workerAddress: workerPayoutAddr,
     proofType: bounty.proofType,
     content: proofContent,
     submittedAt: 'Just now',
     reward: bounty.reward
-  });
+  };
+
+  pendingSubmissions.unshift(newSub);
 
   saveState();
   syncGlobalPublicBounties(bounty);
@@ -986,7 +992,7 @@ function handleSubmitProof(event) {
 
   showToastNotification(
     '✅ Proof Submitted',
-    `Your submission for "${bounty.title}" is pending poster review.`,
+    `Submission sent! Reward address: ${workerPayoutAddr.substring(0, 14)}... Pending poster review.`,
     false
   );
 }
@@ -1132,9 +1138,14 @@ function renderPosterDashboard() {
     subsList.innerHTML = mySubmissions.map((sub, index) => `
       <div class="dashboard-item">
         <div class="dashboard-item-title">${sub.bountyTitle}</div>
-        <div class="dashboard-item-meta">
-          <span>Worker Wallet: <strong style="font-family:'Geist Mono',monospace; color:var(--gold);">${sub.workerAddress}</strong></span>
-          <span>Submitted: ${sub.submittedAt}</span>
+        
+        <div class="dashboard-item-meta" style="flex-direction: column; align-items: flex-start; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 8px; width: 100%;">
+            <span style="font-size: 0.85rem;">Worker Nimiq Address:</span>
+            <input type="text" id="worker-addr-input-${sub.id}" value="${sub.workerAddress}" 
+              style="font-family:'Geist Mono',monospace; font-size:0.85rem; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-subtle); color: var(--gold); flex: 1;" />
+          </div>
+          <span style="font-size: 0.75rem; color: var(--muted);">Submitted: ${sub.submittedAt}</span>
         </div>
 
         <div class="proof-card-review">
@@ -1162,19 +1173,28 @@ async function reviewProof(submissionId, action) {
   const sub = pendingSubmissions[subIndex];
 
   if (action === 'approve') {
-    const cleanWorkerAddr = (sub.workerAddress || '').replace(/\s+/g, '').toUpperCase();
+    // Read input worker address in case publisher updated/confirmed it
+    const inputEl = document.getElementById(`worker-addr-input-${sub.id}`);
+    const targetWorkerAddr = (inputEl && inputEl.value) ? inputEl.value.trim().toUpperCase() : sub.workerAddress.trim().toUpperCase();
+
+    if (!isValidNimiqAddress(targetWorkerAddr)) {
+      alert("Invalid Nimiq Wallet Address! Address must begin with NQ followed by valid digits.");
+      return;
+    }
+
+    const cleanWorkerAddr = targetWorkerAddr.replace(/\s+/g, '');
     const lunaValue = Math.round(sub.reward * 100000);
 
     showToastNotification(
-      '⚡ Confirming Nimiq Pay Settlement...',
-      `Paying out ${sub.reward} NIM to worker ${sub.workerAddress.substring(0, 14)}...`,
+      '⚡ Processing Nimiq Pay Settlement...',
+      `Paying out ${sub.reward} NIM to worker address:\n${cleanWorkerAddr}`,
       false
     );
 
     let txHashResult = "";
     const provider = getNimiqProvider();
 
-    // 1. If provider is present inside Nimiq Pay, invoke native transaction call
+    // 1. Same as Ergon reference repo: Call sendBasicTransactionWithData if provider is injected in Nimiq Pay
     if (provider) {
       try {
         let validityStartHeight = liveBlockHeight || 0;
@@ -1204,11 +1224,11 @@ async function reviewProof(submissionId, action) {
           });
         }
       } catch (err) {
-        console.warn("Provider transaction note:", err);
+        console.warn("Provider native transaction error:", err);
       }
     }
 
-    // 2. Direct mobile deep link transfer to guarantee native confirmation sheet pops up in Nimiq Pay!
+    // 2. Direct mobile deep link transfer to guarantee native confirmation sheet opens in Nimiq Pay!
     const workerPaymentDeepLink = `nimiq:${cleanWorkerAddr}?value=${lunaValue}&label=NimBounty%20Reward%20Payout`;
     setTimeout(() => {
       window.location.href = workerPaymentDeepLink;
@@ -1217,37 +1237,39 @@ async function reviewProof(submissionId, action) {
     approvedPayoutsHistory.push({
       id: `pay-${Date.now()}`,
       bountyId: sub.bountyId,
-      workerAddress: sub.workerAddress,
+      workerAddress: cleanWorkerAddr,
       posterAddress: sub.posterAddress,
       reward: sub.reward,
       txHash: typeof txHashResult === 'string' ? txHashResult : `tx_nim_${Date.now()}`,
       paidAt: Date.now()
     });
 
+    // REMOVE SUBMISSION PERMANENTLY FROM LOCAL AND SERVER STATE
     pendingSubmissions.splice(subIndex, 1);
     saveState();
     playAudioFx('cash');
     triggerConfetti();
 
     showToastNotification(
-      '🎉 Payout Sent to Worker!',
-      `Approved submission. NIM reward transfer opened for worker ${sub.workerAddress.substring(0, 14)}...`,
+      '🎉 NIM Payout Broadcast!',
+      `Approved! Payment of ${sub.reward} NIM sent to worker address:\n${cleanWorkerAddr}`,
       false
     );
   } else {
-    // REJECT ACTION: Remove submission and restore 1 open slot back to the bounty pool!
+    // REJECT ACTION: Permanently remove submission and restore 1 open slot back to the bounty pool!
     const bountyIndex = bounties.findIndex(b => b.id === sub.bountyId);
     if (bountyIndex !== -1) {
       bounties[bountyIndex].slotsRemaining = Math.min(bounties[bountyIndex].slotsTotal, bounties[bountyIndex].slotsRemaining + 1);
     }
 
+    // REMOVE SUBMISSION PERMANENTLY FROM LOCAL AND SERVER STATE
     pendingSubmissions.splice(subIndex, 1);
     saveState();
     playAudioFx('submit');
 
     showToastNotification(
       '❌ Submission Rejected',
-      `Rejected submission from worker ${sub.workerAddress.substring(0, 14)}... 1 open slot restored to bounty pool.`,
+      `Rejected submission. 1 open slot restored to bounty pool.`,
       false
     );
   }

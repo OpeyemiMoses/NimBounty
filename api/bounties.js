@@ -17,39 +17,27 @@ export default async function handler(req, res) {
     try {
       const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
       
+      // Update bounties pool if provided
       if (body.newBounty) {
         const exists = globalBounties.some(b => b.id === body.newBounty.id);
         if (!exists) {
           globalBounties.unshift(body.newBounty);
+        } else {
+          const idx = globalBounties.findIndex(b => b.id === body.newBounty.id);
+          globalBounties[idx] = body.newBounty;
         }
       } else if (Array.isArray(body.bounties)) {
-        const existingIds = new Set(globalBounties.map(b => b.id));
-        body.bounties.forEach(b => {
-          if (!existingIds.has(b.id)) {
-            globalBounties.unshift(b);
-            existingIds.add(b.id);
-          }
-        });
+        globalBounties = body.bounties;
       }
 
+      // STRICT SYNC FOR SUBMISSIONS: Overwrite globalSubmissions so approved/rejected items are permanently removed!
       if (Array.isArray(body.pendingSubmissions)) {
-        const existingSubIds = new Set(globalSubmissions.map(s => s.id));
-        body.pendingSubmissions.forEach(s => {
-          if (!existingSubIds.has(s.id)) {
-            globalSubmissions.unshift(s);
-            existingSubIds.add(s.id);
-          }
-        });
+        globalSubmissions = body.pendingSubmissions;
       }
 
+      // Update approved payouts history
       if (Array.isArray(body.approvedPayoutsHistory)) {
-        const existingPayIds = new Set(globalPayouts.map(p => p.id));
-        body.approvedPayoutsHistory.forEach(p => {
-          if (!existingPayIds.has(p.id)) {
-            globalPayouts.unshift(p);
-            existingPayIds.add(p.id);
-          }
-        });
+        globalPayouts = body.approvedPayoutsHistory;
       }
 
       return res.status(200).json({
