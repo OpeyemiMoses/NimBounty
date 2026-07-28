@@ -379,7 +379,7 @@
             Active & Open Bounties
           </button>
           <button class="subtab-btn" id="btn-worker-tab-history" onclick="switchWorkerSubtab('history')">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 16 14"/></svg>
             Completed & Expired Bounties
           </button>
         </div>
@@ -457,7 +457,7 @@
           <div class="paper-card" style="max-width: 780px; margin: 0 auto;">
             <div class="card-header-press">
               <h2>Publish a New Bounty</h2>
-              <span class="press-date">TRANSFER NIM TO ESCROW VAULT</span>
+              <span class="press-date">SIGN REAL NIM TRANSACTION ONCHAIN</span>
             </div>
 
             <form id="create-bounty-form" onsubmit="handleCreateBounty(event)">
@@ -535,7 +535,7 @@
               </div>
 
               <button type="submit" class="btn-primary-lg full-width" id="btn-deposit-bounty">
-                Transfer NIM to Escrow Vault &rarr;
+                Deposit Escrow & Lock Funds &rarr;
               </button>
             </form>
           </div>
@@ -621,7 +621,7 @@
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
       </div>
 
-      <h3 style="font-size: 1.4rem; font-weight: 800; margin-bottom: 6px;">Confirm NIM Token Transfer</h3>
+      <h3 style="font-size: 1.4rem; font-weight: 800; margin-bottom: 6px;">Sign Real Nimiq Transaction</h3>
       <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 18px;" id="escrow-modal-task-title">Transferring NIM into Nimiq Escrow Vault</p>
 
       <!-- Deposit Breakdown Card -->
@@ -642,56 +642,18 @@
       </div>
 
       <div style="font-size: 0.8rem; color: var(--muted); margin-bottom: 20px; text-align: left; line-height: 1.5; background: var(--gold-tint); padding: 12px; border-radius: 10px; border: 1px dashed var(--gold);">
-        ⚡ Tapping <strong>Open Crypto Transfer Signer &rarr;</strong> brings up the crypto transfer popup to sign & broadcast your transfer onchain!
+        🔑 Tapping <strong>Sign Real Transaction in Nimiq Wallet &rarr;</strong> launches your Nimiq Wallet (Keyguard / Nimiq Pay) to sign and send the real NIM transaction onchain!
       </div>
 
       <!-- Action Buttons -->
       <div style="display: flex; flex-direction: column; gap: 10px;">
         <button class="btn-primary-lg full-width" id="btn-confirm-escrow-action" style="padding: 14px;">
-          Open Crypto Transfer Signer &rarr;
+          Sign Real Transaction in Nimiq Wallet &rarr;
         </button>
         <button class="btn-ghost-sm full-width" onclick="closeModal('modal-escrow-confirm')" style="padding: 12px; justify-content: center;">
           Cancel & Return to Form
         </button>
       </div>
-    </div>
-  </div>
-
-  <!-- NATIVE IN-PAGE CRYPTO TRANSFER SIGNING POPUP MODAL -->
-  <div class="modal-overlay" id="modal-crypto-signer" style="display: none;">
-    <div class="modal-paper paper-card rise-in" style="max-width: 440px; text-align: center; border: 2px solid var(--gold);">
-      <button class="modal-close" onclick="closeModal('modal-crypto-signer')">&times;</button>
-
-      <div style="width: 60px; height: 60px; background: var(--gold-tint); color: var(--gold); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; border: 2px solid var(--gold);">
-        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-      </div>
-
-      <h3 style="font-size: 1.35rem; font-weight: 800; margin-bottom: 4px; color: var(--ink);">Sign Crypto Transfer</h3>
-      <p style="font-size: 0.8rem; color: var(--muted); margin-bottom: 18px;">Direct Token Transfer to Escrow Vault</p>
-
-      <div style="background: var(--bg-subtle); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 20px; text-align: left; font-family: 'Geist Mono', monospace; font-size: 0.82rem;">
-        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-          <span style="color: var(--muted);">From Wallet:</span>
-          <strong style="color: var(--ink);" id="signer-from-addr">NQ...</strong>
-        </div>
-        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-          <span style="color: var(--muted);">To Vault:</span>
-          <strong style="color: var(--gold);" id="signer-to-addr">NQ73 ESCR OW00...</strong>
-        </div>
-        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-          <span style="color: var(--muted);">Gas Fee:</span>
-          <strong style="color: var(--emerald);">0.00 NIM (Zero Gas)</strong>
-        </div>
-        <div style="height: 1px; background: var(--border); margin: 10px 0;"></div>
-        <div style="display: flex; justify-content: space-between; font-size: 0.95rem; font-weight: 800;">
-          <span>Escrow Deposit:</span>
-          <strong style="color: var(--gold); font-size: 1.1rem;" id="signer-amount">500 NIM</strong>
-        </div>
-      </div>
-
-      <button class="btn-primary-lg full-width" onclick="confirmInAppCryptoSign()" style="padding: 16px; font-size: 1.05rem;">
-        ⚡ Sign & Send Onchain Transfer &rarr;
-      </button>
     </div>
   </div>
 
