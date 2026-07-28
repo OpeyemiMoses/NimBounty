@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@nimiq/mini-app-sdk": "^0.1.0"
+  }
+}

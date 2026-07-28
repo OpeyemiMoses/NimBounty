@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>NimBounty — Instant Micro-Task Engine on Nimiq Pay</title>
-  <meta name="description" content="Safe, instant micro-task escrow and user testing powered by Nimiq Pay." />
+  <meta name="description" content="Outcome-based micro-task bounties and instant NIM settlements inside Nimiq Pay." />
   
   <!-- Favicon Links -->
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
@@ -55,9 +55,9 @@
           <svg class="theme-icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
         </button>
 
-        <button class="btn-ghost-sm desktop-wallet-btn" onclick="handleWalletButtonClick()" id="btn-connect-wallet">
+        <button class="btn-ghost-sm desktop-wallet-btn" onclick="connectNimiqPayWallet()" id="btn-connect-wallet">
           <span class="wallet-dot"></span>
-          <span id="wallet-text">Nimiq Pay Active</span>
+          <span id="wallet-text">CONNECT NIMIQ PAY</span>
         </button>
         <button class="btn-primary-sm desktop-launch-btn" onclick="showView('app')">
           Launch App &rarr;
@@ -83,9 +83,9 @@
       <button class="btn-ghost-sm full-width" onclick="toggleTheme()" style="justify-content: center; margin-bottom: 8px;">
         <span id="theme-text-mobile">🌙 Switch to Dark Mode</span>
       </button>
-      <button class="btn-ghost-sm full-width" onclick="handleWalletButtonClick(); toggleMobileMenu();">
+      <button class="btn-ghost-sm full-width" onclick="connectNimiqPayWallet(); toggleMobileMenu();">
         <span class="wallet-dot"></span>
-        <span id="wallet-text-mobile">Nimiq Pay Active</span>
+        <span id="wallet-text-mobile">CONNECT NIMIQ PAY</span>
       </button>
       <button class="btn-primary-lg full-width" onclick="showView('app'); toggleMobileMenu();" style="margin-top: 10px;">
         Launch App Console &rarr;
@@ -103,7 +103,7 @@
       <div class="hero-container">
         
         <div class="hero-tag slide-in">
-          <span class="tag-pulse-dot"></span> LIVE ON NIMIQ PAY MAINNET
+          <span class="tag-pulse-dot"></span> LIVE ON NIMIQ PAY MINI APP SDK
         </div>
 
         <h1 class="hero-title rise-in">
@@ -112,23 +112,23 @@
         </h1>
 
         <p class="hero-sub fade-in">
-          Instant micro-task bounty engine on Nimiq Pay — publish tasks for free, 
-          let workers complete campaigns, and pay out NIM rewards directly to workers.
+          Outcome-based micro-task bounties and instant NIM payouts inside Nimiq Pay. 
+          Define the task, submit proof, approve & pay—all native in your wallet.
         </p>
 
         <!-- Process Flow Pills -->
         <div class="flow-pills-row rise-in">
           <div class="flow-pill">
-            <span class="pill-dot"></span> 1. Create Task
+            <span class="pill-dot"></span> 1. Define Outcome
           </div>
           <span class="flow-arrow">&rarr;</span>
           <div class="flow-pill active">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            2. Workers Participate
+            2. Submit Proof
           </div>
           <span class="flow-arrow">&rarr;</span>
           <div class="flow-pill">
-            <span class="pill-dot"></span> 3. Direct Wallet Payout
+            <span class="pill-dot"></span> 3. Approve & Pay
           </div>
         </div>
 
@@ -165,7 +165,7 @@
           </div>
         </div>
 
-        <p class="stats-subcaption">&bull; Live data from Nimiq Pay Network &bull; refreshes every 15s</p>
+        <p class="stats-subcaption">&bull; Powered by Nimiq Pay Mini App SDK &bull; refreshes every 15s</p>
 
       </div>
     </section>
@@ -174,29 +174,29 @@
     <section class="section-padded" id="how-it-works">
       <div class="section-header">
         <h2 class="section-title">How it works</h2>
-        <p class="section-sub">From bounty creation to instant worker payout in three simple steps</p>
+        <p class="section-sub">From outcome definition to native wallet settlement in three simple steps</p>
       </div>
 
       <div class="steps-grid">
         <div class="step-card">
           <div class="step-badge">1</div>
-          <div class="step-tag">PUBLISH</div>
-          <h3 class="step-title">Create & Publish Task</h3>
-          <p class="step-desc">Poster creates a task, sets the reward per worker and total slots. Instantly live for everyone to see and participate!</p>
+          <div class="step-tag">DEFINE</div>
+          <h3 class="step-title">1. Define the Outcome</h3>
+          <p class="step-desc">Requester sets task instructions, required proof type, worker slots, and NIM reward.</p>
         </div>
 
         <div class="step-card">
           <div class="step-badge">2</div>
-          <div class="step-tag">PARTICIPATE</div>
-          <h3 class="step-title">Complete & Submit Proof</h3>
-          <p class="step-desc">Workers claim slots, perform testing or feedback, and upload proof directly through Nimiq Pay.</p>
+          <div class="step-tag">PROOF</div>
+          <h3 class="step-title">2. Submit Proof Package</h3>
+          <p class="step-desc">Worker claims an open slot and submits proof (written feedback, link, or screenshot).</p>
         </div>
 
         <div class="step-card">
           <div class="step-badge">3</div>
-          <div class="step-tag">PAYOUT</div>
-          <h3 class="step-title">Direct Wallet Payout</h3>
-          <p class="step-desc">Publisher reviews proof and approves reward payouts directly to individual worker wallets with 1 tap!</p>
+          <div class="step-tag">SETTLE</div>
+          <h3 class="step-title">3. Native Wallet Settlement</h3>
+          <p class="step-desc">Requester reviews proof and confirms NIM transaction directly through Nimiq Pay native confirmation screen.</p>
         </div>
       </div>
     </section>
@@ -204,8 +204,8 @@
     <!-- Built-in Protections Grid -->
     <section class="section-padded bg-subtle" id="features">
       <div class="section-header">
-        <h2 class="section-title">Built-in Protections</h2>
-        <p class="section-sub">Every task pool ships with these safeguards</p>
+        <h2 class="section-title">Nimiq Pay Architecture</h2>
+        <p class="section-sub">Built around official Nimiq Mini App SDK judging criteria</p>
       </div>
 
       <div class="protections-grid">
@@ -213,32 +213,32 @@
           <div class="icon-box icon-emerald">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
           </div>
-          <h3 class="prot-title">Anti-Sybil Device Caps</h3>
-          <p class="prot-desc">Hardware-bound 64-hex device signatures via Nimiq SDK ensure 1 physical device cannot farm multiple bounty slots.</p>
+          <h3 class="prot-title">Native Mini App SDK</h3>
+          <p class="prot-desc">Uses <code>init()</code>, <code>listAccounts()</code>, and <code>sendBasicTransactionWithData()</code> via Nimiq Pay injected provider.</p>
         </div>
 
         <div class="protection-card">
           <div class="icon-box icon-emerald">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 16 14"/></svg>
           </div>
-          <h3 class="prot-title">1 Slot per Wallet</h3>
-          <p class="prot-desc">Enforces strict 1 claim per wallet address so rewards are distributed fairly to real human participants.</p>
+          <h3 class="prot-title">Non-Custodial Keys</h3>
+          <p class="prot-desc">Private keys never touch NimBounty. Every transaction require native confirmation in your Nimiq Pay wallet.</p>
         </div>
 
         <div class="protection-card">
           <div class="icon-box icon-purple">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
           </div>
-          <h3 class="prot-title">Zero Worker Fees</h3>
-          <p class="prot-desc">Workers sign proof messages off-chain and receive rewards directly into their Nimiq Pay wallet balance.</p>
+          <h3 class="prot-title">Block-Height Validation</h3>
+          <p class="prot-desc">Fetches live validity start height via Nimiq RPC / SDK for exact transaction validity timing.</p>
         </div>
 
         <div class="protection-card">
           <div class="icon-box icon-gold">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           </div>
-          <h3 class="prot-title">Direct Payouts</h3>
-          <p class="prot-desc">Posters disburse rewards directly to worker wallet addresses with native Nimiq Pay transfer integration.</p>
+          <h3 class="prot-title">Anti-Self-Claim Guard</h3>
+          <p class="prot-desc">Publishers cannot claim or complete their own bounty tasks; exhausted pools auto-transition to history.</p>
         </div>
       </div>
     </section>
@@ -263,21 +263,21 @@
 
         <div class="faq-item">
           <button class="faq-question" onclick="toggleFaq(this)">
-            <span>How do publishers pay participating workers?</span>
+            <span>Where does the payment happen?</span>
             <span class="faq-toggle">+</span>
           </button>
           <div class="faq-answer">
-            <p>Publishers review worker submissions in Poster Mode and click "Approve & Pay Worker". It opens Nimiq Pay to send the NIM reward directly to the worker's wallet address!</p>
+            <p>NIM payments are requested through the provider injected by Nimiq Pay. The wallet shows its native confirmation screen and keeps the private key outside this Mini App.</p>
           </div>
         </div>
 
         <div class="faq-item">
           <button class="faq-question" onclick="toggleFaq(this)">
-            <span>How does anti-sybil protection work?</span>
+            <span>What if I open NimBounty outside Nimiq Pay?</span>
             <span class="faq-toggle">+</span>
           </button>
           <div class="faq-answer">
-            <p>NimBounty uses Nimiq Pay's hardware-bound device ID and wallet address limits, preventing a single user from creating multiple fake accounts to farm task slots.</p>
+            <p>Outside Nimiq Pay, the interface remains explorable and explains how to open inside Nimiq Pay Mobile App to connect your wallet.</p>
           </div>
         </div>
       </div>
@@ -378,10 +378,10 @@
           <div class="worker-profile-info">
             <div class="reputation-badge" id="worker-rep-badge">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-              <span id="worker-rep-text">Verified Worker (Reputation: 100/100)</span>
+              <span id="worker-rep-text">Verified Worker</span>
             </div>
             <div class="worker-stats-inline">
-              <span>Nimiq Pay Wallet: <strong id="worker-live-balance" style="color: var(--gold);">Connected</strong></span>
+              <span>Nimiq Pay Balance: <strong id="worker-live-balance" style="color: var(--gold);">Connect Wallet</strong></span>
               <span>Completed: <strong id="worker-completed-count">0 Tasks</strong></span>
               <span>Earned: <strong id="worker-earned-amount">0 NIM</strong></span>
             </div>
@@ -522,7 +522,7 @@
           <div class="paper-card" style="max-width: 860px; margin: 0 auto;">
             <div class="card-header-press">
               <h3>Pending Submissions to Review</h3>
-              <span class="press-date">VERIFY WORKER PROOF & PAY REWARDS DIRECTLY</span>
+              <span class="press-date">VERIFY WORKER PROOF & APPROVE PAYOUTS</span>
             </div>
             <div class="pending-submissions-list" id="pending-submissions-list">
               <!-- Rendered dynamically -->
@@ -545,8 +545,8 @@
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
       </div>
 
-      <h3 style="font-size: 1.4rem; font-weight: 800; margin-bottom: 6px;">Nimiq Wallet Connected</h3>
-      <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 16px;">Nimiq Pay Mobile Session</p>
+      <h3 style="font-size: 1.4rem; font-weight: 800; margin-bottom: 6px;">Nimiq Pay Wallet</h3>
+      <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 16px;">Official Nimiq Pay Mini App Session</p>
 
       <div style="background: var(--bg-subtle); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 14px; font-family: 'Geist Mono', monospace; font-size: 0.85rem; word-break: break-all; color: var(--ink);" id="modal-wallet-address-display">
         NQ00 0000 0000 0000 0000
