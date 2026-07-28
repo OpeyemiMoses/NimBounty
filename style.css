@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────
-   HATCHAI DESIGN SYSTEM & TOKENS (Nimiq Gold Edition)
+   NIMBOUNTY DESIGN SYSTEM & TOKENS (Nimiq Gold Edition)
 ───────────────────────────────────────── */
 :root {
   --bg:           #f5f3ef; /* Warm luxury linen paper tint */
@@ -13,7 +13,7 @@
   
   --accent:      #1a1917;
   
-  /* Rich Nimiq Gold Colors (Replacing Brown) */
+  /* Rich Nimiq Gold Colors */
   --gold:        #d99b00; /* Vibrant Nimiq Gold */
   --gold-dark:   #b88300;
   --gold-tint:   #fef9eb;
@@ -88,7 +88,7 @@ body {
 }
 
 /* ─────────────────────────────────────────
-   NAVBAR (HatchAI Floating Navigation)
+   NAVBAR (Floating Navigation)
 ───────────────────────────────────────── */
 .navbar {
   position: sticky;
@@ -224,7 +224,7 @@ body {
 }
 
 /* ─────────────────────────────────────────
-   HERO SECTION (Gold Accents & HatchAI Layout)
+   HERO SECTION (Gold Accents)
 ───────────────────────────────────────── */
 .hero-section {
   padding: 90px 24px 70px;
@@ -450,7 +450,7 @@ body {
 }
 
 /* ─────────────────────────────────────────
-   SECTIONS & HOW IT WORKS (HatchAI Step Cards)
+   SECTIONS & HOW IT WORKS (Step Cards)
 ───────────────────────────────────────── */
 .section-padded {
   padding: 90px 24px;
