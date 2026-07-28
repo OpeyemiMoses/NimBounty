@@ -7,15 +7,24 @@ let currentRole = 'worker';
 let workerSubtabMode = 'active'; // 'active' | 'history'
 let posterSubtabMode = 'create'; // 'create' | 'pools' | 'subs'
 
-// PERMANENT STORAGE KEYS — NEVER RESET ON GIT PUSH / DEPLOYMENT / DISCONNECT
-const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_main';
-const STORAGE_KEY_SUBS = 'nimbounty_subs_main';
-const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_main';
-const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_main';
-const STORAGE_KEY_USER_ACCT = 'nimbounty_user_acct_main';
-const STORAGE_KEY_SAVED_EARNED = 'nimbounty_worker_saved_earned_main';
-const STORAGE_KEY_SAVED_COMPLETED = 'nimbounty_worker_saved_completed_main';
-const STORAGE_KEY_SAVED_TOTAL_PAYOUTS = 'nimbounty_saved_total_rewards_paid_main';
+// Storage keys — v2 clears any old cached dummy tasks from browsers
+const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v2';
+const STORAGE_KEY_SUBS = 'nimbounty_subs_v2';
+const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v2';
+const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v2';
+const STORAGE_KEY_USER_ACCT = 'nimbounty_user_acct_main'; // Keep wallet address across versions
+const STORAGE_KEY_SAVED_EARNED = 'nimbounty_worker_saved_earned_v2';
+const STORAGE_KEY_SAVED_COMPLETED = 'nimbounty_worker_saved_completed_v2';
+const STORAGE_KEY_SAVED_TOTAL_PAYOUTS = 'nimbounty_saved_total_rewards_paid_v2';
+
+// One-time: purge all old v1 dummy-task cache keys from any browser
+const LEGACY_KEYS = [
+  'nimbounty_pools_main', 'nimbounty_subs_main',
+  'nimbounty_user_completed_bounties_main', 'nimbounty_approved_payouts_history_main',
+  'nimbounty_worker_saved_earned_main', 'nimbounty_worker_saved_completed_main',
+  'nimbounty_saved_total_rewards_paid_main'
+];
+LEGACY_KEYS.forEach(k => localStorage.removeItem(k));
 
 let userAccount = localStorage.getItem(STORAGE_KEY_USER_ACCT) || null;
 let savedWorkerEarnedNim = parseFloat(localStorage.getItem(STORAGE_KEY_SAVED_EARNED)) || 0;
