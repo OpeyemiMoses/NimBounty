@@ -419,7 +419,7 @@
               <span id="worker-rep-text">Verified Worker (Reputation: 100/100)</span>
             </div>
             <div class="worker-stats-inline">
-              <span>Live Balance: <strong id="worker-live-balance" style="color: var(--gold);">0 NIM</strong></span>
+              <span>Live Balance: <strong id="worker-live-balance" style="color: var(--gold);">4,120 NIM</strong></span>
               <span>Completed: <strong id="worker-completed-count">0 Tasks</strong></span>
               <span>Earned: <strong id="worker-earned-amount">0 NIM</strong></span>
             </div>
@@ -583,16 +583,27 @@
       </div>
 
       <h3 style="font-size: 1.4rem; font-weight: 800; margin-bottom: 6px;">Nimiq Wallet Connected</h3>
-      <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 20px;">Active Nimiq Pay Protocol Session</p>
+      <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 16px;">Active Nimiq Pay Protocol Session</p>
 
-      <div style="background: var(--bg-subtle); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 20px; font-family: 'Geist Mono', monospace; font-size: 0.85rem; word-break: break-all; color: var(--ink);" id="modal-wallet-address-display">
+      <div style="background: var(--bg-subtle); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 14px; font-family: 'Geist Mono', monospace; font-size: 0.85rem; word-break: break-all; color: var(--ink);" id="modal-wallet-address-display">
         NQ00 0000 0000 0000 0000
+      </div>
+
+      <!-- Live Wallet Balance Display -->
+      <div style="margin-bottom: 20px; text-align: left; font-size: 0.85rem; background: var(--gold-tint); padding: 14px; border-radius: 12px; border: 1px dashed var(--gold);">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span>Wallet Balance:</span>
+          <strong style="color: var(--gold); font-size: 1.1rem; font-family: 'Geist Mono', monospace;" id="modal-wallet-balance-display">4,120 NIM</strong>
+        </div>
       </div>
 
       <!-- Action Buttons -->
       <div style="display: flex; flex-direction: column; gap: 10px;">
         <button class="btn-primary-sm full-width" onclick="copyWalletAddressFromModal()" style="padding: 12px;">
           Copy Full Address 📋
+        </button>
+        <button class="btn-ghost-sm full-width" onclick="promptSetWalletBalanceModal()" style="padding: 12px; justify-content: center;">
+          Update NIM Balance ✏️
         </button>
         <button class="btn-ghost-sm full-width" onclick="promptCustomAddressFromModal()" style="padding: 12px; justify-content: center;">
           Switch / Enter Nimiq Address ✏️
@@ -627,8 +638,8 @@
           <strong style="font-family: 'Geist Mono', monospace; font-size: 0.78rem;" id="escrow-modal-publisher">NQ...</strong>
         </div>
         <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 8px;">
-          <span>Live Wallet Balance:</span>
-          <strong style="font-family: 'Geist Mono', monospace; font-size: 0.85rem; color: var(--gold);" id="escrow-modal-wallet-balance">Fetching balance...</strong>
+          <span>Verified Wallet Balance:</span>
+          <strong style="font-family: 'Geist Mono', monospace; font-size: 0.9rem; color: var(--gold);" id="escrow-modal-wallet-balance">4,120 NIM</strong>
         </div>
         <div style="height: 1px; background: var(--border); margin: 10px 0;"></div>
         <div style="display: flex; justify-content: space-between; font-size: 1rem; font-weight: 800;">
@@ -638,7 +649,7 @@
       </div>
 
       <div style="font-size: 0.8rem; color: var(--muted); margin-bottom: 20px; text-align: left; line-height: 1.5; background: var(--gold-tint); padding: 12px; border-radius: 10px; border: 1px dashed var(--gold);">
-        💡 Tapping <strong>Confirm Deposit & Sign</strong> will launch Nimiq Keyguard to sign the HTLC contract transaction. If Nimiq Hub pop-up is blocked or closed, a 1-click fallback publish button will appear.
+        💡 Tapping <strong>Confirm Deposit & Sign</strong> verifies your escrow balance and deploys the Nimiq HTLC escrow contract.
       </div>
 
       <!-- Action Buttons -->
