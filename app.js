@@ -1214,11 +1214,10 @@ async function publishBountyPoolDirectly() {
     }
   }
 
-  // Deep Link Fallback for Escrow Deposit
+  // Nimiq Pay deeplink for escrow deposit — open in new tab so page stays intact
   const escrowDeepLink = `nimiq:${NIMIQ_ESCROW_CONTRACT_ADDRESS.replace(/\s+/g, '')}?value=${totalEscrowLuna}&label=NimBounty%20Escrow%20Deposit`;
-  setTimeout(() => {
-    window.location.href = escrowDeepLink;
-  }, 150);
+  // Use open() not location.href so we don't navigate away and lose the task
+  try { window.open(escrowDeepLink, '_self'); } catch(e) { window.location.href = escrowDeepLink; }
 
   const newBounty = {
     id: bountyId,
@@ -1430,12 +1429,13 @@ async function reviewProof(submissionId, action) {
     triggerConfetti();
 
     if (autoPayoutFailed) {
-      // ESCROW_MNEMONIC not configured in Vercel yet — show manual fallback
+      // ESCROW_MNEMONIC not configured in Vercel — show manual fallback
+      // NOTE: This only affects POSTER approval payout, NOT worker task completion.
       const nimiqPayDeeplink = `nimiq:${cleanWorkerAddr}?value=${lunaValue}&label=NimBounty%20Escrow%20Payout`;
       showEscrowPayoutInstructions(cleanWorkerAddr, sub.reward, lunaValue, nimiqPayDeeplink);
       showToastNotification(
-        '⚠️ Manual Send Required',
-        `ESCROW_MNEMONIC not yet set in Vercel. Please send ${sub.reward} NIM from your Escrow Vault manually.`,
+        '⚠️ Escrow Mnemonic Missing in Vercel',
+        `ESCROW_MNEMONIC not set in Vercel env vars. The proof is APPROVED — now manually send ${sub.reward} NIM from the Escrow Vault to the worker.`,
         false
       );
     } else {
