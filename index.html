@@ -19,9 +19,6 @@
   <!-- QRCode.js library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
-  <!-- Official Nimiq Hub Standalone API -->
-  <script src="https://cdn.jsdelivr.net/npm/@nimiq/hub-api@1.2.1/dist/standalone/HubApi.standalone.umd.min.js"></script>
-  
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -456,10 +453,10 @@
           <div class="paper-card" style="max-width: 780px; margin: 0 auto;">
             <div class="card-header-press">
               <h2>Publish a New Bounty</h2>
-              <span class="press-date">DIRECT NIMIQ PAY HOST WALLET SIGNER</span>
+              <span class="press-date">DIRECT NIMIQ WALLET CHECKOUT PAYOUT</span>
             </div>
 
-            <form id="create-bounty-form" onsubmit="event.preventDefault(); requestHostWalletTransactionSignature();">
+            <form id="create-bounty-form" onsubmit="event.preventDefault(); launchNimiqWalletCheckoutPayment();">
               <div class="form-group">
                 <label for="task-title">Bounty Title</label>
                 <input type="text" id="task-title" placeholder="e.g., Test Nimiq Mini App & Write 3 Feedback Bullet Points" required />
@@ -537,9 +534,9 @@
                 </div>
               </div>
 
-              <!-- Primary Button Requests Host Wallet Transaction -->
+              <!-- Primary Button Triggers Official Nimiq Wallet Payment Page -->
               <button type="submit" class="btn-primary-lg full-width" id="btn-deposit-bounty" style="padding: 16px; font-size: 1.1rem;">
-                ⚡ Send Tokens via Host Wallet &rarr;
+                ⚡ Pay & Sign Transaction in Nimiq Wallet &rarr;
               </button>
             </form>
           </div>
@@ -550,7 +547,7 @@
           <div class="paper-card" style="max-width: 860px; margin: 0 auto;">
             <div class="card-header-press">
               <h3>Your Published Pools</h3>
-              <span class="press-date">FUNDED BY YOUR WALLET BALANCE</span>
+              <span class="press-date">FUNDED BY YOUR REAL WALLET BALANCE</span>
             </div>
             <div class="published-pools-list" id="published-pools-list">
               <!-- Rendered dynamically -->

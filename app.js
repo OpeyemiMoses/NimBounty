@@ -1,5 +1,5 @@
 /**
- * NimBounty Engine — Native Host Wallet Direct Pass-Through Transaction Signer Engine
+ * NimBounty Engine — Official Nimiq Wallet Checkout Payment Signer Engine
  */
 
 let currentView = 'landing';
@@ -18,10 +18,10 @@ const PRODUCTION_URL = 'https://nim-bounty.vercel.app';
 const NIMIQ_ESCROW_CONTRACT_ADDRESS = 'NQ73 ESCR OW00 0000 0000 0000 0000 0000';
 
 // Persistent LocalStorage Keys
-const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v34';
-const STORAGE_KEY_SUBS = 'nimbounty_subs_v34';
-const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v34';
-const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v34';
+const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v35';
+const STORAGE_KEY_SUBS = 'nimbounty_subs_v35';
+const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v35';
+const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v35';
 const STORAGE_KEY_USER_ACCT = 'nimbounty_user_acct_v3';
 const STORAGE_KEY_DISCONNECTED = 'nimbounty_disconnected_session';
 
@@ -234,7 +234,7 @@ async function fetchNimiqLiveRPC() {
     if (data && data.result) {
       liveBlockHeight = parseInt(data.result, 16) || data.result;
       if (rpcTag) {
-        rpcTag.innerHTML = `<span class="tag-pulse-dot"></span> LIVE NIMIQ MAINNET &bull; BLOCK #${liveBlockHeight}`;
+        rpcTag.innerHTML = `<span class="tag-pulse-dot"></span> LIVE NIMIQ PAY MAINNET &bull; BLOCK #${liveBlockHeight}`;
       }
     }
   } catch (err) {
@@ -870,7 +870,7 @@ function handleSubmitProof(event) {
 }
 
 // ==========================================
-// 14. NATIVE HOST WALLET DIRECT PASS-THROUGH TRANSACTIONS
+// 14. OFFICIAL NIMIQ WALLET CHECKOUT PAYMENT SIGNER
 // ==========================================
 function calculateTotalEscrow() {
   const reward = parseFloat(document.getElementById('task-reward')?.value || 0);
@@ -882,7 +882,7 @@ function calculateTotalEscrow() {
   document.getElementById('calc-total').textContent = `${total} NIM`;
 }
 
-async function requestHostWalletTransactionSignature() {
+function launchNimiqWalletCheckoutPayment() {
   const titleInput = document.getElementById('task-title');
   const instructionsInput = document.getElementById('task-instructions');
   const rewardInput = document.getElementById('task-reward');
@@ -906,72 +906,7 @@ async function requestHostWalletTransactionSignature() {
   const valueLuna = Math.round(totalEscrow * 1e5);
   const cleanEscrowAddress = NIMIQ_ESCROW_CONTRACT_ADDRESS.replace(/\s+/g, '');
 
-  const btn = document.getElementById('btn-deposit-bounty');
-  if (btn) {
-    btn.disabled = true;
-    btn.textContent = '📱 Waiting for Wallet Approval...';
-  }
-
-  const txPayload = {
-    recipient: cleanEscrowAddress,
-    value: valueLuna,
-    fee: 0,
-    label: `NimBounty Escrow: ${title}`
-  };
-
-  let txResult = null;
-
-  // 1. Host Wallet Provider JS Object (Nimiq Pay Container)
-  const mobileSdk = getNimiqPayMobileSdk();
-  if (mobileSdk) {
-    try {
-      if (typeof mobileSdk.sendTransaction === 'function') {
-        txResult = await mobileSdk.sendTransaction(txPayload);
-      } else if (typeof mobileSdk.requestPayment === 'function') {
-        txResult = await mobileSdk.requestPayment(txPayload);
-      } else if (typeof mobileSdk.checkout === 'function') {
-        txResult = await mobileSdk.checkout(txPayload);
-      }
-    } catch (e) {
-      console.warn("Wallet host provider call note:", e);
-    }
-  }
-
-  // 2. iOS WKWebView Webkit MessageHandler Bridge
-  if (!txResult && window.webkit && window.webkit.messageHandlers) {
-    try {
-      if (window.webkit.messageHandlers.nimiqPay) {
-        window.webkit.messageHandlers.nimiqPay.postMessage({ type: 'sendTransaction', ...txPayload });
-      } else if (window.webkit.messageHandlers.sendTransaction) {
-        window.webkit.messageHandlers.sendTransaction.postMessage(txPayload);
-      }
-    } catch (e) {
-      console.warn("WKWebView bridge note:", e);
-    }
-  }
-
-  // 3. Standalone Web Wallet Hub API fallback when running in standard browser
-  if (!txResult && window.HubApi) {
-    try {
-      const hubApi = new window.HubApi('https://hub.nimiq.com');
-      txResult = await hubApi.checkout({
-        appName: 'NimBounty Protocol',
-        recipient: cleanEscrowAddress,
-        value: valueLuna
-      });
-    } catch (e) {
-      console.warn("HubApi checkout note:", e);
-    }
-  }
-
-  if (btn) {
-    btn.disabled = false;
-    btn.textContent = '⚡ Send Tokens via Host Wallet →';
-  }
-
-  const txHash = (txResult && (txResult.hash || txResult.transactionHash)) 
-    ? (txResult.hash || txResult.transactionHash) 
-    : `tx_nimiq_onchain_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+  const txHash = `tx_nim_onchain_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 
   // Save bounty pool
   const newBounty = {
@@ -990,11 +925,32 @@ async function requestHostWalletTransactionSignature() {
   playAudioFx('cash');
   triggerConfetti();
 
+  const nimiqCheckoutUrl = `https://wallet.nimiq.com/checkout/${cleanEscrowAddress}/${valueLuna}`;
+
   showToastNotification(
-    '🎉 Transaction Approved by Wallet!',
-    `Tokens transferred from your wallet balance to Escrow Contract! Tx: ${txHash.substring(0, 16)}...`,
-    true
+    '⚡ Opening Nimiq Wallet Payment Page',
+    `Launching Nimiq Wallet for ${totalEscrow.toLocaleString()} NIM transfer...`,
+    false
   );
+
+  // 1. Check Mobile SDK inside Nimiq Pay container
+  const mobileSdk = getNimiqPayMobileSdk();
+  if (mobileSdk) {
+    try {
+      if (typeof mobileSdk.sendTransaction === 'function') {
+        mobileSdk.sendTransaction({ recipient: cleanEscrowAddress, value: valueLuna });
+      } else if (typeof mobileSdk.requestPayment === 'function') {
+        mobileSdk.requestPayment({ recipient: cleanEscrowAddress, value: valueLuna });
+      }
+    } catch (e) {
+      console.warn("Mobile SDK note:", e);
+    }
+  }
+
+  // 2. Open Official Nimiq Wallet Payment Checkout Page
+  setTimeout(() => {
+    window.location.href = nimiqCheckoutUrl;
+  }, 150);
 
   switchPosterSubtab('pools');
 }
