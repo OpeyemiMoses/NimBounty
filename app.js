@@ -1,5 +1,5 @@
 /**
- * NimBounty Engine — Clean Live Protocol Engine (No Mocked Bounties)
+ * NimBounty Engine — Clean Live Protocol Engine (Dynamic Landing Stats)
  */
 
 let currentView = 'landing';
@@ -16,7 +16,6 @@ const STORAGE_KEY_SUBS = 'nimbounty_subs_v2';
 const STORAGE_KEY_STATS = 'nimbounty_stats_v2';
 const STORAGE_KEY_USER_ACCT = 'nimbounty_user_acct_v2';
 
-// Pure Real Data Store — Starts Empty until Created by Users
 let bounties = JSON.parse(localStorage.getItem(STORAGE_KEY_BOUNTIES)) || [];
 let pendingSubmissions = JSON.parse(localStorage.getItem(STORAGE_KEY_SUBS)) || [];
 
@@ -32,6 +31,7 @@ function saveState() {
   localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions));
   localStorage.setItem(STORAGE_KEY_STATS, JSON.stringify(workerStats));
   if (userAccount) localStorage.setItem(STORAGE_KEY_USER_ACCT, userAccount);
+  updateLandingStats();
 }
 
 let activeClaimTimer = null;
@@ -39,7 +39,7 @@ let currentModalBountyId = null;
 const boltSvgIcon = `<svg class="bolt-icon-svg" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`;
 
 // ==========================================
-// 1. LIVE NIMIQ RPC NETWORK FETCH
+// 1. LIVE NIMIQ RPC NETWORK FETCH & LANDING STATS
 // ==========================================
 async function fetchNimiqLiveRPC() {
   const rpcTag = document.querySelector('.hero-tag');
@@ -65,6 +65,19 @@ async function fetchNimiqLiveRPC() {
     if (rpcTag) {
       rpcTag.innerHTML = `<span class="tag-pulse-dot"></span> LIVE ON NIMIQ PAY MAINNET`;
     }
+  }
+}
+
+function updateLandingStats() {
+  const statBounties = document.getElementById('landing-stat-bounties');
+  const statPayouts = document.getElementById('landing-stat-payouts');
+
+  if (statBounties) {
+    statBounties.textContent = bounties.length;
+  }
+  if (statPayouts) {
+    const totalPayout = workerStats.earned;
+    statPayouts.textContent = `${totalPayout} NIM`;
   }
 }
 
@@ -230,6 +243,7 @@ function showView(viewName) {
     navBtnLanding.classList.add('active');
     navBtnApp.classList.remove('active');
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    updateLandingStats();
   } else {
     landingView.style.display = 'none';
     appView.style.display = 'block';
@@ -285,7 +299,6 @@ function renderWorkerStats() {
 async function connectWallet() {
   const walletText = document.getElementById('wallet-text');
   
-  // 1. Mobile Nimiq Pay App SDK
   if (window.nimiqPay || (window.Nimiq && window.Nimiq.MiniApp)) {
     try {
       const sdk = window.nimiqPay || window.Nimiq.MiniApp;
@@ -305,7 +318,6 @@ async function connectWallet() {
     }
   }
 
-  // 2. Real Desktop Nimiq Hub Web Wallet (https://hub.nimiq.com)
   if (window.HubApi) {
     try {
       if (walletText) walletText.textContent = "Opening Nimiq Hub...";
@@ -329,7 +341,6 @@ async function connectWallet() {
     }
   }
 
-  // Fallback demo account if Hub prompt closed
   if (!userAccount) {
     userAccount = "NQ77 NIMIQ PAY USER 1234";
     deviceId = "dev_id_sha256_" + Math.random().toString(36).substring(2, 12);
@@ -396,6 +407,7 @@ function renderBounties() {
         <button class="btn-primary-sm" style="margin-top: 18px;" onclick="switchRole('poster')">Switch to Poster Mode &rarr;</button>
       </div>
     `;
+    updateLandingStats();
     return;
   }
 
@@ -429,8 +441,7 @@ function renderBounties() {
     </div>
   `).join('');
 
-  const landingBounties = document.getElementById('landing-stat-bounties');
-  if (landingBounties) landingBounties.textContent = bounties.length;
+  updateLandingStats();
 }
 
 // ==========================================
@@ -602,7 +613,6 @@ async function handleCreateBounty(event) {
   const instructions = document.getElementById('task-instructions').value;
   const totalEscrow = reward * slots;
 
-  // Real Nimiq Hub Checkout on Desktop
   if (hubApiInstance && !window.nimiqPay) {
     try {
       await hubApiInstance.checkout({
@@ -721,4 +731,5 @@ window.addEventListener('DOMContentLoaded', () => {
   fetchNimiqLiveRPC();
   initNimiqHub();
   calculateTotalEscrow();
+  updateLandingStats();
 });
