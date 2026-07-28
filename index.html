@@ -103,7 +103,7 @@
       <div class="hero-container">
         
         <div class="hero-tag slide-in">
-          <span class="tag-pulse-dot"></span> LIVE ON NIMIQ PAY MINI APP SDK &bull; ONCHAIN ESCROW VAULT
+          <span class="tag-pulse-dot"></span> LIVE ON NIMIQ PAY MINI APP SDK
         </div>
 
         <h1 class="hero-title rise-in">
@@ -112,14 +112,14 @@
         </h1>
 
         <p class="hero-sub fade-in">
-          Outcome-based micro-task bounties locked in Nimiq Onchain Escrow Vaults. 
-          Publisher funds total reward pool upfront &bull; Workers get paid instantly inside Nimiq Pay.
+          Outcome-based micro-task bounties and instant NIM payouts inside Nimiq Pay. 
+          Define the task, submit proof, approve & pay—all native in your wallet.
         </p>
 
         <!-- Process Flow Pills -->
         <div class="flow-pills-row rise-in">
           <div class="flow-pill">
-            <span class="pill-dot"></span> 1. Fund Escrow Vault
+            <span class="pill-dot"></span> 1. Define Outcome
           </div>
           <span class="flow-arrow">&rarr;</span>
           <div class="flow-pill active">
@@ -128,7 +128,7 @@
           </div>
           <span class="flow-arrow">&rarr;</span>
           <div class="flow-pill">
-            <span class="pill-dot"></span> 3. Approve & Release Escrow
+            <span class="pill-dot"></span> 3. Approve & Pay
           </div>
         </div>
 
@@ -155,8 +155,8 @@
           </div>
           <div class="stat-divider"></div>
           <div class="stat-item">
-            <div class="stat-number">100%</div>
-            <div class="stat-label">ESCROW FUNDED POOLS</div>
+            <div class="stat-number">11.2s</div>
+            <div class="stat-label">AVG ONBOARDING TIME</div>
           </div>
           <div class="stat-divider"></div>
           <div class="stat-item">
@@ -174,29 +174,29 @@
     <section class="section-padded" id="how-it-works">
       <div class="section-header">
         <h2 class="section-title">How it works</h2>
-        <p class="section-sub">From upfront escrow deposit to native wallet release in three simple steps</p>
+        <p class="section-sub">From outcome definition to native wallet settlement in three simple steps</p>
       </div>
 
       <div class="steps-grid">
         <div class="step-card">
           <div class="step-badge">1</div>
-          <div class="step-tag">ESCROW</div>
-          <h3 class="step-title">1. Upfront Escrow Deposit</h3>
-          <p class="step-desc">Requester deposits total bounty campaign value into NimBounty Onchain Escrow Vault via Nimiq Pay.</p>
+          <div class="step-tag">DEFINE</div>
+          <h3 class="step-title">1. Define the Outcome</h3>
+          <p class="step-desc">Requester sets task instructions, required proof type, worker slots, and NIM reward.</p>
         </div>
 
         <div class="step-card">
           <div class="step-badge">2</div>
           <div class="step-tag">PROOF</div>
           <h3 class="step-title">2. Submit Proof Package</h3>
-          <p class="step-desc">Worker claims an open slot and submits proof (written feedback, screenshot, link, or X handle).</p>
+          <p class="step-desc">Worker claims an open slot and submits proof (written feedback, link, or screenshot).</p>
         </div>
 
         <div class="step-card">
           <div class="step-badge">3</div>
-          <div class="step-tag">RELEASE</div>
-          <h3 class="step-title">3. Native Escrow Release</h3>
-          <p class="step-desc">Requester approves proof and releases NIM reward directly from Escrow Vault to worker's wallet.</p>
+          <div class="step-tag">SETTLE</div>
+          <h3 class="step-title">3. Native Wallet Settlement</h3>
+          <p class="step-desc">Requester reviews proof and confirms NIM transaction directly through Nimiq Pay native confirmation screen.</p>
         </div>
       </div>
     </section>
@@ -221,8 +221,8 @@
           <div class="icon-box icon-emerald">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 16 14"/></svg>
           </div>
-          <h3 class="prot-title">Onchain Escrow Vault</h3>
-          <p class="prot-desc">Reward pools are 100% deposited into onchain escrow vault address before tasks go live.</p>
+          <h3 class="prot-title">Non-Custodial Keys</h3>
+          <p class="prot-desc">Private keys never touch NimBounty. Every transaction require native confirmation in your Nimiq Pay wallet.</p>
         </div>
 
         <div class="protection-card">
@@ -263,11 +263,11 @@
 
         <div class="faq-item">
           <button class="faq-question" onclick="toggleFaq(this)">
-            <span>How does the Onchain Escrow Vault work?</span>
+            <span>Where does the payment happen?</span>
             <span class="faq-toggle">+</span>
           </button>
           <div class="faq-answer">
-            <p>When a publisher creates a bounty pool, Nimiq Pay prompts them to send the total campaign NIM amount into the NimBounty Escrow Vault (`NQ73 ESCR OW...`). Once approved by the publisher, the reward is released directly from escrow to the worker's address.</p>
+            <p>NIM payments are requested through the provider injected by Nimiq Pay. The wallet shows its native confirmation screen and keeps the private key outside this Mini App.</p>
           </div>
         </div>
 
@@ -287,7 +287,7 @@
     <section class="bottom-cta-banner">
       <div class="banner-content">
         <h2>Ready to launch micro-tasks or earn NIM?</h2>
-        <p>Open the app console to browse bounties or publish your first escrow-backed task pool in seconds.</p>
+        <p>Open the app console to browse bounties or publish your first task pool in seconds.</p>
         <button class="btn-primary-lg" onclick="showView('app')">
           Launch App Console &rarr;
         </button>
@@ -307,7 +307,7 @@
       <div class="console-header-paper">
         <div class="console-header-left">
           <h2 class="console-title">App Console</h2>
-          <span class="console-sub">Manage worker tasks and poster campaigns &bull; Onchain Escrow Engine</span>
+          <span class="console-sub">Manage worker tasks and poster campaigns</span>
         </div>
 
         <div class="console-header-actions">
@@ -418,13 +418,8 @@
         <div id="poster-subview-create" class="poster-subview active fade-in">
           <div class="paper-card" style="max-width: 780px; margin: 0 auto;">
             <div class="card-header-press">
-              <h2>Publish & Fund Onchain Escrow Bounty</h2>
-              <span class="press-date">100% UPFRONT ESCROW VAULT FUNDING VIA NIMIQ PAY</span>
-            </div>
-
-            <div style="background: var(--bg-subtle); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; margin-bottom: 20px; font-size: 0.85rem; color: var(--muted); display: flex; align-items: center; justify-content: space-between;">
-              <span>Official Escrow Vault Address: <strong style="font-family: 'Geist Mono', monospace; color: var(--gold);">NQ73 ESCR OW00 0000 0000 0000 0000 0000</strong></span>
-              <span style="background: var(--gold-tint); color: var(--gold); padding: 4px 8px; border-radius: 6px; font-weight: 700; font-size: 0.75rem;">🔒 Real Escrow</span>
+              <h2>Publish a New Bounty</h2>
+              <span class="press-date">INSTANT GLOBAL PUBLIC BOUNTY CREATION</span>
             </div>
 
             <form id="create-bounty-form" onsubmit="event.preventDefault(); publishBountyPoolDirectly();">
@@ -497,14 +492,14 @@
                 </div>
                 <div class="calc-divider"></div>
                 <div class="calc-row total">
-                  <span>Total Upfront Escrow Deposit:</span>
+                  <span>Total Campaign Payout Value:</span>
                   <strong id="calc-total">500 NIM</strong>
                 </div>
               </div>
 
-              <!-- Primary Button Triggers Upfront Escrow Deposit -->
+              <!-- Primary Button Instantly Publishes Bounty -->
               <button type="submit" class="btn-primary-lg full-width" id="btn-deposit-bounty" style="padding: 16px; font-size: 1.1rem;">
-                🔒 Deposit Total NIM to Escrow Vault & Publish &rarr;
+                🚀 Publish Bounty Pool Now &rarr;
               </button>
             </form>
           </div>
@@ -515,7 +510,7 @@
           <div class="paper-card" style="max-width: 860px; margin: 0 auto;">
             <div class="card-header-press">
               <h3>Your Published Pools</h3>
-              <span class="press-date">ACTIVE CAMPAIGN POOLS (ESCROW FUNDED)</span>
+              <span class="press-date">ACTIVE CAMPAIGN POOLS</span>
             </div>
             <div class="published-pools-list" id="published-pools-list">
               <!-- Rendered dynamically -->
@@ -528,7 +523,7 @@
           <div class="paper-card" style="max-width: 860px; margin: 0 auto;">
             <div class="card-header-press">
               <h3>Pending Submissions to Review</h3>
-              <span class="press-date">VERIFY WORKER PROOF & RELEASE ESCROW PAYOUTS</span>
+              <span class="press-date">VERIFY WORKER PROOF & APPROVE PAYOUTS</span>
             </div>
             <div class="pending-submissions-list" id="pending-submissions-list">
               <!-- Rendered dynamically -->
