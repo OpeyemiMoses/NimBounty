@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NimBounty — Instant Micro-Task Engine on Nimiq Pay</title>
+  <meta name="description" content="Safe, instant micro-task escrow and user testing powered by Nimiq Pay." />
+  
+  <!-- Google Fonts: Work Sans, Instrument Serif, Geist Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&family=Work+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,600&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Floating Navigation Bar -->
+  <nav class="navbar" id="navbar">
+    <div class="nav-container">
+      <a href="#" class="nav-logo" onclick="showView('landing')">
+        <svg class="logo-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+        </svg>
+        <span class="logo-text">nim<span class="logo-serif">Bounty</span></span>
+      </a>
+
+      <!-- Center Navigation Links -->
+      <div class="nav-center-links">
+        <button class="nav-link-btn active" id="nav-btn-landing" onclick="showView('landing')">Overview</button>
+        <button class="nav-link-btn" onclick="scrollToSection('how-it-works')">How It Works</button>
+        <button class="nav-link-btn" onclick="scrollToSection('features')">Protections</button>
+        <button class="nav-link-btn" onclick="scrollToSection('faq')">FAQ</button>
+        <button class="nav-link-btn" id="nav-btn-app" onclick="showView('app')">Console App</button>
+      </div>
+
+      <!-- Right Actions -->
+      <div class="nav-right-actions">
+        <button class="btn-ghost-sm" onclick="connectWallet()" id="btn-connect-wallet">
+          <span class="wallet-dot"></span>
+          <span id="wallet-text">Connect Wallet</span>
+        </button>
+        <button class="btn-primary-sm" onclick="showView('app')">
+          Launch App &rarr;
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ========================================== -->
+  <!-- VIEW 1: LANDING PAGE                       -->
+  <!-- ========================================== -->
+  <div id="view-landing" class="page-view active fade-in">
+
+    <!-- Hero Section -->
+    <section class="hero-section">
+      <div class="hero-container">
+        
+        <div class="hero-tag slide-in">
+          <span class="tag-pulse-dot"></span> LIVE ON NIMIQ PAY MAINNET
+        </div>
+
+        <h1 class="hero-title rise-in">
+          Powering micro-tasks <br />
+          the <span class="typewriter-box"><span id="typewriter-text" class="serif-italic">fast</span><span class="typewriter-cursor">|</span></span> way
+        </h1>
+
+        <p class="hero-sub fade-in">
+          Safe micro-task bounty engine on Nimiq Pay — instant NIM escrow payouts, 
+          anti-sybil device protection, and zero gas fees for workers. All enforced onchain.
+        </p>
+
+        <!-- Process Flow Pills -->
+        <div class="flow-pills-row rise-in">
+          <div class="flow-pill">
+            <span class="pill-dot"></span> 1. Select Task
+          </div>
+          <span class="flow-arrow">&rarr;</span>
+          <div class="flow-pill active">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            2. Escrow Protection
+          </div>
+          <span class="flow-arrow">&rarr;</span>
+          <div class="flow-pill">
+            <span class="pill-dot"></span> 3. Instant Payout
+          </div>
+        </div>
+
+        <!-- Hero CTAs -->
+        <div class="hero-ctas rise-in">
+          <button class="btn-primary-lg" onclick="showView('app')">
+            Launch App Console &rarr;
+          </button>
+          <button class="btn-secondary-lg" onclick="scrollToSection('how-it-works')">
+            Explore Architecture
+          </button>
+        </div>
+
+        <!-- Stats Ribbon -->
+        <div class="stats-card-container rise-in">
+          <div class="stat-item">
+            <div class="stat-number" id="landing-stat-bounties">14</div>
+            <div class="stat-label">ACTIVE SAFE BOUNTIES</div>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-item">
+            <div class="stat-number" id="landing-stat-payouts">12,450 NIM</div>
+            <div class="stat-label">TOTAL REWARDS PAID</div>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-item">
+            <div class="stat-number">11.2s</div>
+            <div class="stat-label">AVG ONBOARDING TIME</div>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-item">
+            <div class="stat-number">0 GAS</div>
+            <div class="stat-label">WORKER TRANSACTION COST</div>
+          </div>
+        </div>
+
+        <p class="stats-subcaption">&bull; Live onchain data from Nimiq Pay Mainnet &bull; refreshes every 30s</p>
+
+      </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section class="section-padded" id="how-it-works">
+      <div class="section-header">
+        <h2 class="section-title">How it works</h2>
+        <p class="section-sub">From bounty creation to instant worker payout in five steps</p>
+      </div>
+
+      <div class="steps-grid">
+        <div class="step-card">
+          <div class="step-badge">1</div>
+          <div class="step-tag">DEPOSIT</div>
+          <h3 class="step-title">Create & Seed Escrow</h3>
+          <p class="step-desc">Poster creates a task, sets reward per completion, and deposits total NIM into smart escrow in one transaction.</p>
+        </div>
+
+        <div class="step-card">
+          <div class="step-badge">2</div>
+          <div class="step-tag">PROTECT</div>
+          <h3 class="step-title">Device Lock & Claim</h3>
+          <p class="step-desc">Workers claim tasks bound by Nimiq device ID to eliminate multi-accounting and bot farming.</p>
+        </div>
+
+        <div class="step-card">
+          <div class="step-badge">3</div>
+          <div class="step-tag">EXECUTE</div>
+          <h3 class="step-title">Complete & Submit</h3>
+          <p class="step-desc">Worker performs feedback, testing, or social action and uploads proof directly through Nimiq Pay.</p>
+        </div>
+
+        <div class="step-card">
+          <div class="step-badge">4</div>
+          <div class="step-tag">VERIFY</div>
+          <h3 class="step-title">Review & Auto-Timer</h3>
+          <p class="step-desc">Poster reviews proof with 1-click approval or 24h auto-approval safeguard for worker protection.</p>
+        </div>
+
+        <div class="step-card">
+          <div class="step-badge">5</div>
+          <div class="step-tag">SETTLE</div>
+          <h3 class="step-title">Instant Payout</h3>
+          <p class="step-desc">NIM reward releases immediately from escrow to the worker's wallet with zero middleman cuts.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Built-in Protections Grid -->
+    <section class="section-padded bg-subtle" id="features">
+      <div class="section-header">
+        <h2 class="section-title">Built-in Protections</h2>
+        <p class="section-sub">Every task pool ships with these onchain safeguards</p>
+      </div>
+
+      <div class="protections-grid">
+        <div class="protection-card">
+          <div class="icon-box icon-emerald">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <h3 class="prot-title">Anti-Sybil Device Caps</h3>
+          <p class="prot-desc">Hardware-bound 64-hex device signatures via Nimiq SDK ensure 1 physical device cannot farm multiple bounty slots.</p>
+        </div>
+
+        <div class="protection-card">
+          <div class="icon-box icon-emerald">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
+          <h3 class="prot-title">Auto-Approve Safeguards</h3>
+          <p class="prot-desc">If a poster is inactive for >24 hours after proof submission, funds automatically release to protect worker labor.</p>
+        </div>
+
+        <div class="protection-card">
+          <div class="icon-box icon-purple">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+          </div>
+          <h3 class="prot-title">Zero Worker Gas Costs</h3>
+          <p class="prot-desc">Workers sign proof messages off-chain; reward disbursements are covered entirely out of the poster's initial deposit.</p>
+        </div>
+
+        <div class="protection-card">
+          <div class="icon-box icon-gold">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          </div>
+          <h3 class="prot-title">Locked Non-Custodial Escrow</h3>
+          <p class="prot-desc">Funds are locked securely in smart contract vaults. Posters can reclaim unused slots anytime after pool expiry.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ Accordion Section -->
+    <section class="section-padded" id="faq">
+      <div class="section-header">
+        <h2 class="section-title">FAQ</h2>
+        <p class="section-sub">Common questions about NimBounty</p>
+      </div>
+
+      <div class="faq-container">
+        <div class="faq-item">
+          <button class="faq-question" onclick="toggleFaq(this)">
+            <span>What is NimBounty?</span>
+            <span class="faq-toggle">+</span>
+          </button>
+          <div class="faq-answer">
+            <p>NimBounty is a micro-task and crowd-testing platform built on the Nimiq Pay Mini Apps Framework. It allows builders to post bounties for user feedback, app testing, and social campaigns while workers earn instant NIM payouts with zero transaction fees.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question" onclick="toggleFaq(this)">
+            <span>Do workers pay gas fees to submit proof?</span>
+            <span class="faq-toggle">+</span>
+          </button>
+          <div class="faq-answer">
+            <p>No! Workers do not pay any gas or transaction fees. They sign their submission off-chain via Nimiq Pay, and payouts are automatically disbursed directly from the poster's escrow vault.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question" onclick="toggleFaq(this)">
+            <span>How does anti-sybil and multi-account protection work?</span>
+            <span class="faq-toggle">+</span>
+          </button>
+          <div class="faq-answer">
+            <p>NimBounty uses Nimiq Pay's hardware-bound <code>requestDeviceIdentifier</code> API. Each physical device generates a unique 64-character SHA-256 identifier, preventing a single user from creating multiple fake accounts to farm task slots.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question" onclick="toggleFaq(this)">
+            <span>What happens if a poster ignores my submitted proof?</span>
+            <span class="faq-toggle">+</span>
+          </button>
+          <div class="faq-answer">
+            <p>Every bounty includes an automatic 24-hour verification window. If the task poster does not manually review or reject your submission within 24 hours, the smart escrow contract auto-approves your submission and transfers the NIM reward to your wallet.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question" onclick="toggleFaq(this)">
+            <span>Which tokens and networks are supported?</span>
+            <span class="faq-toggle">+</span>
+          </button>
+          <div class="faq-answer">
+            <p>NimBounty supports native Nimiq (NIM) payments as well as EVM tokens (USDT on Polygon, Mainnet, Base, Arbitrum) through Nimiq Pay's dual-provider engine.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Bottom CTA Banner -->
+    <section class="bottom-cta-banner">
+      <div class="banner-content">
+        <h2>Ready to launch micro-tasks or earn NIM?</h2>
+        <p>Open the app console to browse bounties or create your first escrow pool in seconds.</p>
+        <button class="btn-primary-lg" onclick="showView('app')">
+          Launch App Console &rarr;
+        </button>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- ========================================== -->
+  <!-- VIEW 2: APP CONSOLE                        -->
+  <!-- ========================================== -->
+  <div id="view-app" class="page-view" style="display: none;">
+
+    <main class="console-main">
+      
+      <!-- Console Header Bar -->
+      <div class="console-header-paper">
+        <div class="console-header-left">
+          <h2 class="console-title">App Console</h2>
+          <span class="console-sub">Manage worker tasks and poster escrow pools</span>
+        </div>
+
+        <!-- Role Toggle Switcher -->
+        <div class="role-switcher-container">
+          <button class="role-btn active" id="btn-role-worker" onclick="switchRole('worker')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+            Worker Mode
+          </button>
+          <button class="role-btn" id="btn-role-poster" onclick="switchRole('poster')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+            Poster Mode
+          </button>
+        </div>
+      </div>
+
+      <!-- WORKER MODE PANEL -->
+      <div id="view-worker" class="view-panel active fade-in">
+        
+        <!-- Filter Paper Bar -->
+        <div class="filter-paper-card">
+          <div class="filter-row">
+            <div class="search-box">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" id="search-input" placeholder="Search bounties, keywords, or sponsors..." oninput="renderBounties()" />
+            </div>
+
+            <div class="filter-group">
+              <select id="category-select" onchange="renderBounties()">
+                <option value="all">All Categories</option>
+                <option value="app-test">App Testing</option>
+                <option value="feedback">UI/UX Feedback</option>
+                <option value="social">Social Share</option>
+                <option value="bug">Bug Hunt</option>
+                <option value="copy">Copy & Translation</option>
+              </select>
+
+              <select id="sort-select" onchange="renderBounties()">
+                <option value="newest">Newest First</option>
+                <option value="highest">Highest Reward</option>
+                <option value="slots">Most Slots Open</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Worker Status Card -->
+        <div class="worker-status-card">
+          <div class="worker-profile-info">
+            <div class="reputation-badge" id="worker-rep-badge">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              Verified Worker (Reputation: 98/100)
+            </div>
+            <div class="worker-stats-inline">
+              <span>Completed: <strong id="worker-completed-count">5 Tasks</strong></span>
+              <span>Earned: <strong id="worker-earned-amount">350 NIM</strong></span>
+              <span>Active Claims: <strong id="worker-active-claims">0 / 3</strong></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bounties Grid -->
+        <div class="bounties-grid" id="bounties-grid">
+          <!-- Rendered dynamically -->
+        </div>
+
+      </div>
+
+      <!-- POSTER MODE PANEL -->
+      <div id="view-poster" class="view-panel fade-in" style="display: none;">
+        
+        <div class="poster-layout">
+          <!-- Form Card -->
+          <div class="paper-card">
+            <div class="card-header-press">
+              <h2>Publish a New Bounty</h2>
+              <span class="press-date">SMART ESCROW DEPOSIT</span>
+            </div>
+
+            <form id="create-bounty-form" onsubmit="handleCreateBounty(event)">
+              <div class="form-group">
+                <label for="task-title">Bounty Title</label>
+                <input type="text" id="task-title" placeholder="e.g., Test Nimiq Mini App & Write 3 Feedback Bullet Points" required />
+              </div>
+
+              <div class="form-row-2">
+                <div class="form-group">
+                  <label for="task-category">Category</label>
+                  <select id="task-category" required>
+                    <option value="app-test">App Testing</option>
+                    <option value="feedback">UI/UX Feedback</option>
+                    <option value="social">Social Share</option>
+                    <option value="bug">Bug Hunt</option>
+                    <option value="copy">Copywriting / Translation</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="task-proof-type">Required Proof</label>
+                  <select id="task-proof-type" required>
+                    <option value="text">Text Review / Feedback</option>
+                    <option value="url">Web Link / URL Proof</option>
+                    <option value="image">Screenshot Upload</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-row-2">
+                <div class="form-group">
+                  <label for="task-reward">Reward per Worker (NIM)</label>
+                  <input type="number" id="task-reward" min="5" value="50" required oninput="calculateTotalEscrow()" />
+                </div>
+
+                <div class="form-group">
+                  <label for="task-slots">Number of Worker Slots</label>
+                  <input type="number" id="task-slots" min="1" max="100" value="10" required oninput="calculateTotalEscrow()" />
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="task-instructions">Detailed Task Instructions</label>
+                <textarea id="task-instructions" rows="4" placeholder="Describe exactly what the worker needs to do and what proof to submit..." required></textarea>
+              </div>
+
+              <!-- Escrow Summary -->
+              <div class="escrow-calc-box">
+                <div class="calc-row">
+                  <span>Reward per slot:</span>
+                  <strong id="calc-single">50 NIM</strong>
+                </div>
+                <div class="calc-row">
+                  <span>Slots count:</span>
+                  <strong id="calc-slots-count">10</strong>
+                </div>
+                <div class="calc-divider"></div>
+                <div class="calc-row total">
+                  <span>Total Escrow Deposit:</span>
+                  <strong id="calc-total">500 NIM</strong>
+                </div>
+              </div>
+
+              <button type="submit" class="btn-primary-lg full-width" id="btn-deposit-bounty">
+                Lock Funds & Deposit Escrow &rarr;
+              </button>
+            </form>
+          </div>
+
+          <!-- Dashboard Columns -->
+          <div class="poster-dashboard-column">
+            <div class="paper-card">
+              <div class="card-header-press">
+                <h3>Your Published Pools</h3>
+              </div>
+              <div class="published-pools-list" id="published-pools-list">
+                <!-- Rendered dynamically -->
+              </div>
+            </div>
+
+            <div class="paper-card" style="margin-top: 24px;">
+              <div class="card-header-press">
+                <h3>Pending Submissions to Review</h3>
+              </div>
+              <div class="pending-submissions-list" id="pending-submissions-list">
+                <!-- Rendered dynamically -->
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </main>
+
+  </div>
+
+  <!-- Modal for Claim & Proof Submission -->
+  <div class="modal-overlay" id="modal-task" style="display: none;">
+    <div class="modal-paper paper-card rise-in">
+      <button class="modal-close" onclick="closeModal('modal-task')">&times;</button>
+      
+      <div class="modal-header">
+        <span class="news-category-tag" id="modal-task-cat">APP TESTING</span>
+        <h2 id="modal-task-title">Task Title Placeholder</h2>
+        <div class="modal-meta-row">
+          <span class="reward-pill-gold" id="modal-task-reward">
+            <svg class="bolt-icon-svg" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            50 NIM
+          </span>
+          <span class="time-lock-badge" id="modal-task-timer">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            14:59 Lock Remaining
+          </span>
+        </div>
+      </div>
+
+      <div class="modal-body">
+        <div class="instructions-box">
+          <h4>Instructions from Sponsor:</h4>
+          <p id="modal-task-instructions">Instruction details go here...</p>
+        </div>
+
+        <form id="proof-submission-form" onsubmit="handleSubmitProof(event)">
+          <div class="form-group" id="group-proof-text">
+            <label for="proof-text-input">Your Written Response / Feedback</label>
+            <textarea id="proof-text-input" rows="4" placeholder="Enter your detailed feedback, findings, or review..."></textarea>
+          </div>
+
+          <div class="form-group" id="group-proof-url" style="display: none;">
+            <label for="proof-url-input">Proof Link / URL</label>
+            <input type="url" id="proof-url-input" placeholder="https://x.com/yourhandle/status/12345 or GitHub URL" />
+          </div>
+
+          <div class="form-group" id="group-proof-image" style="display: none;">
+            <label for="proof-file-input">Upload Screenshot Proof</label>
+            <input type="file" id="proof-file-input" accept="image/*" onchange="previewScreenshot(event)" />
+            <div class="image-preview-container" id="image-preview-box" style="display: none;">
+              <img id="image-preview-img" src="" alt="Screenshot preview" />
+            </div>
+          </div>
+
+          <button type="submit" class="btn-primary-lg full-width" id="btn-submit-proof">
+            Submit Proof & Claim Reward &rarr;
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer-gazette">
+    <div class="footer-container">
+      <div class="f-logo">
+        nim<span class="logo-serif">Bounty</span> <span>&bull; Nimiq Pay Micro-Task Protocol</span>
+      </div>
+      <div class="f-info">
+        <span>Powered by <strong>Nimiq Pay Framework</strong></span>
+        <span>&bull; MIT Open Source License</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
