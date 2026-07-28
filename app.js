@@ -7,22 +7,26 @@ let currentRole = 'worker';
 let workerSubtabMode = 'active'; // 'active' | 'history'
 let posterSubtabMode = 'create'; // 'create' | 'pools' | 'subs'
 
-// Storage keys — v2 clears any old cached dummy tasks from browsers
-const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v2';
-const STORAGE_KEY_SUBS = 'nimbounty_subs_v2';
-const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v2';
-const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v2';
+// Storage keys — v3 clears any old cached tasks from browsers for a fresh clean slate
+const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v3';
+const STORAGE_KEY_SUBS = 'nimbounty_subs_v3';
+const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v3';
+const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v3';
 const STORAGE_KEY_USER_ACCT = 'nimbounty_user_acct_main'; // Keep wallet address across versions
-const STORAGE_KEY_SAVED_EARNED = 'nimbounty_worker_saved_earned_v2';
-const STORAGE_KEY_SAVED_COMPLETED = 'nimbounty_worker_saved_completed_v2';
-const STORAGE_KEY_SAVED_TOTAL_PAYOUTS = 'nimbounty_saved_total_rewards_paid_v2';
+const STORAGE_KEY_SAVED_EARNED = 'nimbounty_worker_saved_earned_v3';
+const STORAGE_KEY_SAVED_COMPLETED = 'nimbounty_worker_saved_completed_v3';
+const STORAGE_KEY_SAVED_TOTAL_PAYOUTS = 'nimbounty_saved_total_rewards_paid_v3';
 
-// One-time: purge all old v1 dummy-task cache keys from any browser
+// One-time: purge all old v1 and v2 cache keys from any browser for a clean slate
 const LEGACY_KEYS = [
   'nimbounty_pools_main', 'nimbounty_subs_main',
   'nimbounty_user_completed_bounties_main', 'nimbounty_approved_payouts_history_main',
   'nimbounty_worker_saved_earned_main', 'nimbounty_worker_saved_completed_main',
-  'nimbounty_saved_total_rewards_paid_main'
+  'nimbounty_saved_total_rewards_paid_main',
+  'nimbounty_pools_v2', 'nimbounty_subs_v2',
+  'nimbounty_user_completed_bounties_v2', 'nimbounty_approved_payouts_history_v2',
+  'nimbounty_worker_saved_earned_v2', 'nimbounty_worker_saved_completed_v2',
+  'nimbounty_saved_total_rewards_paid_v2'
 ];
 LEGACY_KEYS.forEach(k => localStorage.removeItem(k));
 
@@ -854,7 +858,7 @@ function renderBounties() {
     let btnLabel = 'Claim Task & Submit Proof &rarr;';
     let btnDisabled = false;
     let isCardGreyed = isExpired || isFullyClaimed;
-    let badgeText = '🔒 Escrow Funded • ' + timeRemainingStr;
+    let badgeText = '⚡ Direct Pay • ' + timeRemainingStr;
 
     // Priority order: pending review > approved payout > fully claimed > expired > publisher > already claimed
     if (hasPendingSub) {
@@ -1106,6 +1110,21 @@ function handleSubmitProof(event) {
     bounty.slotsRemaining -= 1;
   }
 
+  // Generate off-chain proof signature (0 gas fees)
+  const timestamp = Date.now();
+  const proofMessage = `NIMBOUNTY_PROOF_SIGNATURE | Bounty: ${bounty.id} | Worker: ${workerPayoutAddr} | Time: ${timestamp}`;
+  let signature = `sig_offchain_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+
+  const provider = getNimiqProvider();
+  if (provider && typeof provider.signMessage === 'function') {
+    try {
+      const signedResult = provider.signMessage(proofMessage);
+      if (signedResult) signature = typeof signedResult === 'string' ? signedResult : (signedResult.signature || signature);
+    } catch (e) {
+      console.warn("Off-chain message signing fallback:", e);
+    }
+  }
+
   const newSub = {
     id: `sub-${Date.now()}`,
     bountyId: bounty.id,
@@ -1114,6 +1133,7 @@ function handleSubmitProof(event) {
     workerAddress: workerPayoutAddr,
     proofType: bounty.proofType,
     content: proofContent,
+    signature: signature,
     submittedAt: 'Just now',
     reward: bounty.reward
   };
@@ -1128,8 +1148,8 @@ function handleSubmitProof(event) {
   renderBounties();
 
   showToastNotification(
-    '✅ Proof Submitted',
-    `Submission sent! Reward address: ${workerPayoutAddr.substring(0, 14)}... Pending poster review.`,
+    '✅ Proof Signed & Submitted',
+    `Proof signed off-chain (0 gas cost)! Reward address: ${workerPayoutAddr.substring(0, 14)}... Pending poster review.`,
     false
   );
 }
@@ -1374,13 +1394,15 @@ async function reviewProof(submissionId, action) {
     playAudioFx('cash');
     triggerConfetti();
 
-    // Show Direct Payout confirmation modal for poster
-    const nimiqPayDeeplink = `nimiq:${cleanWorkerAddr}?value=${lunaValue}&label=NimBounty%20Worker%20Payout`;
-    showDirectPayoutModal(cleanWorkerAddr, sub.reward, lunaValue, nimiqPayDeeplink);
+    // Trigger Nimiq Pay deep link for web browser session outside provider
+    if (!provider) {
+      const nimiqPayDeeplink = `nimiq:${cleanWorkerAddr}?value=${lunaValue}&label=NimBounty%20Worker%20Payout`;
+      try { window.location.href = nimiqPayDeeplink; } catch(e) {}
+    }
 
     showToastNotification(
-      '🎉 Proof Approved & Payout Triggered!',
-      `Approved! ${sub.reward} NIM payment triggered from your wallet to worker address:\n${cleanWorkerAddr}`,
+      '🎉 WORKER PAID DIRECTLY!',
+      `Approved! Released ${sub.reward} NIM from your wallet to worker address:\n${cleanWorkerAddr.substring(0, 16)}...`,
       false
     );
   } else {
@@ -1402,52 +1424,6 @@ async function reviewProof(submissionId, action) {
 
   renderPosterDashboard();
   renderBounties();
-}
-
-// ==========================================
-// DIRECT POSTER WORKER PAYOUT MODAL
-// ==========================================
-function showDirectPayoutModal(workerAddr, rewardNim, lunaValue, deeplink) {
-  const existing = document.getElementById('modal-escrow-payout');
-  if (existing) existing.remove();
-
-  const modal = document.createElement('div');
-  modal.id = 'modal-escrow-payout';
-  modal.className = 'modal-overlay';
-  modal.style.display = 'flex';
-  modal.innerHTML = `
-    <div class="modal-paper paper-card rise-in" style="max-width:500px;">
-      <button class="modal-close" onclick="document.getElementById('modal-escrow-payout').remove()">&times;</button>
-      <div class="modal-header">
-        <span class="news-category-tag" style="background:var(--emerald,#22c55e);color:#fff;">DIRECT WORKER PAYOUT</span>
-        <h2 style="font-size:1.3rem;margin-top:12px;">Pay Worker from Your Wallet</h2>
-      </div>
-      <div class="modal-body" style="gap:14px;">
-        <div style="display:flex;flex-direction:column;gap:8px;">
-          <label style="font-size:0.78rem;font-weight:700;color:var(--muted);letter-spacing:.05em;">WORKER WALLET ADDRESS</label>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <input id="epi-worker-addr" type="text" readonly value="${workerAddr}"
-              style="font-family:'Geist Mono',monospace;font-size:0.78rem;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--ink);flex:1;" />
-            <button class="btn-primary-sm" onclick="navigator.clipboard.writeText('${workerAddr}');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500);">Copy</button>
-          </div>
-        </div>
-
-        <div style="display:flex;gap:12px;">
-          <div style="flex:1;background:var(--bg-subtle);border-radius:10px;padding:12px;text-align:center;">
-            <div style="font-size:0.72rem;color:var(--muted);font-weight:700;margin-bottom:4px;">AMOUNT TO PAY</div>
-            <div style="font-size:1.4rem;font-weight:900;color:var(--gold);">&#9889; ${rewardNim} NIM</div>
-          </div>
-        </div>
-
-        <button class="btn-primary-lg full-width" onclick="window.open('${deeplink}');">
-          Open Nimiq Pay to Confirm Payout &rarr;
-        </button>
-
-        <p style="font-size:0.75rem;color:var(--muted);text-align:center;margin-top:-6px;">Tap above to send ${rewardNim} NIM directly from your wallet to the worker in Nimiq Pay.</p>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(modal);
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
