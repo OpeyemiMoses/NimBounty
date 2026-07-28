@@ -1,5 +1,5 @@
 /**
- * NimBounty Engine — Persistent Per-Wallet Stats, Global Protocol Metrics & Ownership Protection
+ * NimBounty Engine — Persistent Disconnect Session & Escrow Modal Confirmation
  */
 
 let currentView = 'landing';
@@ -11,16 +11,18 @@ let isAudioEnabled = true;
 let liveBlockHeight = 0;
 let hubApiInstance = null;
 let uploadedImageDataUrl = null;
+let pendingEscrowDraft = null;
 
 const PRODUCTION_URL = 'https://nim-bounty.vercel.app';
 const NIMIQ_ESCROW_VAULT = 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000';
 
 // Persistent LocalStorage Keys
-const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v8';
-const STORAGE_KEY_SUBS = 'nimbounty_subs_v8';
-const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v8';
-const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v8';
+const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v9';
+const STORAGE_KEY_SUBS = 'nimbounty_subs_v9';
+const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v9';
+const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v9';
 const STORAGE_KEY_USER_ACCT = 'nimbounty_user_acct_v3';
+const STORAGE_KEY_DISCONNECTED = 'nimbounty_disconnected_session';
 
 let bounties = JSON.parse(localStorage.getItem(STORAGE_KEY_BOUNTIES)) || [];
 let pendingSubmissions = JSON.parse(localStorage.getItem(STORAGE_KEY_SUBS)) || [];
@@ -34,6 +36,7 @@ function saveState() {
   localStorage.setItem(STORAGE_KEY_PAID_HISTORY, JSON.stringify(approvedPayoutsHistory));
   if (userAccount) {
     localStorage.setItem(STORAGE_KEY_USER_ACCT, userAccount);
+    localStorage.removeItem(STORAGE_KEY_DISCONNECTED);
   } else {
     localStorage.removeItem(STORAGE_KEY_USER_ACCT);
   }
@@ -221,7 +224,6 @@ function renderWorkerStats() {
     return;
   }
 
-  // Filter approved payouts for THIS EXACT WALLET
   const myApprovedPayouts = approvedPayoutsHistory.filter(p => 
     p.workerAddress && p.workerAddress.toLowerCase() === userAccount.toLowerCase()
   );
@@ -229,7 +231,6 @@ function renderWorkerStats() {
   const completedCount = myApprovedPayouts.length;
   const earnedAmount = myApprovedPayouts.reduce((sum, p) => sum + (p.reward || 0), 0);
 
-  // Filter active pending claims for THIS EXACT WALLET
   const myActiveClaims = pendingSubmissions.filter(s => 
     s.workerAddress && s.workerAddress.toLowerCase() === userAccount.toLowerCase()
   ).length;
@@ -434,7 +435,7 @@ function toggleFaq(buttonEl) {
 }
 
 // ==========================================
-// 10. CUSTOM WALLET MODAL & CONNECT ENGINE
+// 10. CUSTOM WALLET MODAL & PERSISTENT DISCONNECT GUARD
 // ==========================================
 function updateWalletUI() {
   const walletTextDesktop = document.getElementById('wallet-text');
@@ -481,6 +482,11 @@ function confirmDisconnectWalletFromModal() {
 }
 
 async function tryConnectMobileSdkAllVariants() {
+  // PERSISTENT DISCONNECT GUARD: Do not auto-reconnect if user explicitly disconnected!
+  if (localStorage.getItem(STORAGE_KEY_DISCONNECTED) === 'true') {
+    return false;
+  }
+
   const providers = [
     window.nimiqPay,
     window.NimiqPay,
@@ -514,6 +520,7 @@ async function tryConnectMobileSdkAllVariants() {
         if (typeof sdk.requestDeviceIdentifier === 'function') {
           deviceId = await sdk.requestDeviceIdentifier({ reason: 'NimBounty worker verification' });
         }
+        localStorage.removeItem(STORAGE_KEY_DISCONNECTED);
         saveState();
         updateWalletUI();
         return true;
@@ -527,6 +534,9 @@ async function tryConnectMobileSdkAllVariants() {
 }
 
 async function connectWallet() {
+  // User explicitly tapped connect -> clear persistent disconnect flag
+  localStorage.removeItem(STORAGE_KEY_DISCONNECTED);
+
   const isMobileConnected = await tryConnectMobileSdkAllVariants();
   if (isMobileConnected) {
     playAudioFx('cash');
@@ -563,6 +573,7 @@ async function connectWallet() {
 }
 
 function openWalletAddressModal() {
+  localStorage.removeItem(STORAGE_KEY_DISCONNECTED);
   const customAddress = prompt("Enter or paste your Nimiq Wallet Address (starts with NQ...):");
   if (customAddress && customAddress.trim().length >= 10) {
     userAccount = customAddress.trim();
@@ -580,10 +591,11 @@ function disconnectWallet() {
   deviceId = null;
   localStorage.removeItem(STORAGE_KEY_USER_ACCT);
   localStorage.removeItem('nimbounty_device_id_v3');
+  localStorage.setItem(STORAGE_KEY_DISCONNECTED, 'true'); // PERSISTENT DISCONNECT
   updateWalletUI();
   renderPosterDashboard();
   renderWorkerStats();
-  showToastNotification('Disconnected 🔌', 'Nimiq Wallet disconnected successfully.', false);
+  showToastNotification('Disconnected 🔌', 'Nimiq Wallet disconnected. Tap "Connect Nimiq Wallet" anytime to sign in again.', false);
 }
 
 // ==========================================
@@ -888,7 +900,7 @@ function handleSubmitProof(event) {
 }
 
 // ==========================================
-// 14. STRICT ONCHAIN ESCROW PAYMENT & BOUNTY PUBLISH
+// 14. CUSTOM ESCROW CONFIRMATION MODAL & DEPOSIT ENGINE
 // ==========================================
 function calculateTotalEscrow() {
   const reward = parseFloat(document.getElementById('task-reward')?.value || 0);
@@ -916,11 +928,35 @@ async function handleCreateBounty(event) {
   const slots = parseInt(document.getElementById('task-slots').value);
   const instructions = document.getElementById('task-instructions').value;
   const totalEscrow = reward * slots;
+
+  pendingEscrowDraft = {
+    title, category, categoryName, proofType, reward, slots, instructions, totalEscrow
+  };
+
+  // Open custom modal styled identically to the disconnect wallet modal!
+  document.getElementById('escrow-modal-task-title').textContent = title;
+  document.getElementById('escrow-modal-publisher').textContent = `${userAccount.substring(0, 14)}...`;
+  document.getElementById('escrow-modal-total').textContent = `${totalEscrow} NIM`;
+  
+  const actionBtn = document.getElementById('btn-confirm-escrow-action');
+  if (actionBtn) {
+    actionBtn.onclick = executeEscrowPayment;
+  }
+
+  document.getElementById('modal-escrow-confirm').style.display = 'flex';
+}
+
+async function executeEscrowPayment() {
+  closeModal('modal-escrow-confirm');
+  if (!pendingEscrowDraft) return;
+
+  const { title, category, categoryName, proofType, reward, slots, instructions, totalEscrow } = pendingEscrowDraft;
   const totalEscrowSatoshis = totalEscrow * 1e5;
 
   let paymentConfirmed = false;
   let txHash = null;
 
+  // 1. Mobile Nimiq Pay SDK Payment
   const mobileSdk = typeof getMobileNimiqProvider === 'function' ? getMobileNimiqProvider() : null;
   if (mobileSdk && typeof mobileSdk.sendTransaction === 'function') {
     try {
@@ -936,11 +972,12 @@ async function handleCreateBounty(event) {
       }
     } catch (err) {
       console.warn("Mobile escrow payment error / cancelled:", err);
-      showToastNotification('❌ Payment Failed / Cancelled', 'Escrow transaction was cancelled or failed due to insufficient funds. Bounty was NOT published.', false);
+      showToastNotification('❌ Payment Cancelled', 'Escrow transaction was cancelled or failed due to insufficient funds. Bounty was NOT published.', false);
       return;
     }
   }
 
+  // 2. Desktop Real Nimiq Hub Checkout (https://hub.nimiq.com)
   if (!paymentConfirmed && window.HubApi) {
     try {
       if (!hubApiInstance) hubApiInstance = new window.HubApi('https://hub.nimiq.com');
@@ -961,14 +998,15 @@ async function handleCreateBounty(event) {
       }
     } catch(e) {
       console.log("Nimiq Hub checkout cancelled or failed:", e);
-      showToastNotification('❌ Payment Failed / Cancelled', 'Escrow deposit transaction was cancelled or failed due to insufficient funds. Bounty was NOT published.', false);
+      showToastNotification('❌ Payment Cancelled', 'Escrow deposit transaction was cancelled or failed due to insufficient funds. Bounty was NOT published.', false);
       return;
     }
   }
 
+  // STRICT ZERO-MOCK ABORT IF PAYMENT FAILED
   if (!paymentConfirmed) {
     showToastNotification(
-      '❌ Payment Required',
+      '❌ Payment Failed',
       `Insufficient NIM balance or escrow deposit cancelled. Bounty was NOT published.`,
       false
     );
@@ -995,6 +1033,7 @@ async function handleCreateBounty(event) {
   saveState();
   document.getElementById('create-bounty-form').reset();
   calculateTotalEscrow();
+  pendingEscrowDraft = null;
 
   playAudioFx('submit');
   triggerConfetti();
@@ -1008,7 +1047,7 @@ async function handleCreateBounty(event) {
 }
 
 // ==========================================
-// 15. PUBLISHER REVIEW & ACCURATE PAYOUT TRACKING
+// 15. PUBLISHER REVIEW SCREENSHOT RENDERER
 // ==========================================
 function renderPosterDashboard() {
   const poolsList = document.getElementById('published-pools-list');
@@ -1099,7 +1138,6 @@ async function reviewProof(submissionId, action) {
       }
     }
 
-    // Record verified approved payout in global history
     approvedPayoutsHistory.push({
       id: `pay-${Date.now()}`,
       bountyId: sub.bountyId,

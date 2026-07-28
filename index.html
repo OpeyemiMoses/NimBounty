@@ -560,6 +560,51 @@
     </div>
   </div>
 
+  <!-- Custom Escrow Deposit Confirm / Alert Modal (Styled identically to wallet modal) -->
+  <div class="modal-overlay" id="modal-escrow-confirm" style="display: none;">
+    <div class="modal-paper paper-card rise-in" style="max-width: 480px; text-align: center;">
+      <button class="modal-close" onclick="closeModal('modal-escrow-confirm')">&times;</button>
+      
+      <div style="width: 56px; height: 56px; background: var(--gold-tint); color: var(--gold); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      </div>
+
+      <h3 style="font-size: 1.4rem; font-weight: 800; margin-bottom: 6px;">Confirm Onchain Escrow Deposit</h3>
+      <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 18px;" id="escrow-modal-task-title">Locking NIM into Nimiq Escrow Vault</p>
+
+      <!-- Deposit Breakdown Card -->
+      <div style="background: var(--bg-subtle); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 20px; text-align: left;">
+        <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 8px;">
+          <span>Escrow Vault Recipient:</span>
+          <strong style="font-family: 'Geist Mono', monospace; font-size: 0.78rem; color: var(--gold);">NQ07 0000...</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 8px;">
+          <span>Publisher Wallet:</span>
+          <strong style="font-family: 'Geist Mono', monospace; font-size: 0.78rem;" id="escrow-modal-publisher">NQ...</strong>
+        </div>
+        <div style="height: 1px; background: var(--border); margin: 10px 0;"></div>
+        <div style="display: flex; justify-content: space-between; font-size: 1rem; font-weight: 800;">
+          <span>Total Deposit Required:</span>
+          <span style="color: var(--gold); font-family: 'Geist Mono', monospace;" id="escrow-modal-total">500 NIM</span>
+        </div>
+      </div>
+
+      <div style="font-size: 0.8rem; color: var(--muted); margin-bottom: 20px; text-align: left; line-height: 1.5; background: var(--gold-tint); padding: 12px; border-radius: 10px; border: 1px dashed var(--gold);">
+        💡 Tapping <strong>Confirm Deposit & Sign</strong> will launch Nimiq Hub Keyguard to sign the transaction. If your wallet has zero balance, the deposit will be cancelled and the task will NOT be published.
+      </div>
+
+      <!-- Action Buttons -->
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <button class="btn-primary-lg full-width" id="btn-confirm-escrow-action" style="padding: 14px;">
+          Confirm Deposit & Sign Transaction &rarr;
+        </button>
+        <button class="btn-ghost-sm full-width" onclick="closeModal('modal-escrow-confirm')" style="padding: 12px; justify-content: center;">
+          Cancel & Return to Form
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal for Claim & Proof Submission -->
   <div class="modal-overlay" id="modal-task" style="display: none;">
     <div class="modal-paper paper-card rise-in">
