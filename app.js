@@ -1,5 +1,5 @@
 /**
- * NimBounty Engine — Direct Nimiq Pay Mobile Transfer Engine (iOS / Android)
+ * NimBounty Engine — Multi-Bridge Nimiq Pay Mobile Transfer Engine (iOS WKWebView / Android)
  */
 
 let currentView = 'landing';
@@ -18,10 +18,10 @@ const PRODUCTION_URL = 'https://nim-bounty.vercel.app';
 const NIMIQ_ESCROW_CONTRACT_ADDRESS = 'NQ73 ESCR OW00 0000 0000 0000 0000 0000';
 
 // Persistent LocalStorage Keys
-const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v30';
-const STORAGE_KEY_SUBS = 'nimbounty_subs_v30';
-const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v30';
-const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v30';
+const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v31';
+const STORAGE_KEY_SUBS = 'nimbounty_subs_v31';
+const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v31';
+const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v31';
 const STORAGE_KEY_USER_ACCT = 'nimbounty_user_acct_v3';
 const STORAGE_KEY_DISCONNECTED = 'nimbounty_disconnected_session';
 
@@ -902,7 +902,7 @@ function handleSubmitProof(event) {
 }
 
 // ==========================================
-// 14. DIRECT NIMIQ PAY MOBILE TRANSFER ENGINE
+// 14. MULTI-BRIDGE NIMIQ PAY MOBILE TRANSFER ENGINE
 // ==========================================
 function calculateTotalEscrow() {
   const reward = parseFloat(document.getElementById('task-reward')?.value || 0);
@@ -940,6 +940,7 @@ function executeDirectNimiqPayMobileTransfer() {
 
   const txHash = `tx_nim_onchain_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 
+  // Save bounty pool
   const newBounty = {
     id: `b-${Date.now()}`,
     title: title, category: category, categoryName: categoryName, proofType: proofType,
@@ -956,40 +957,62 @@ function executeDirectNimiqPayMobileTransfer() {
   playAudioFx('cash');
   triggerConfetti();
 
-  const nimiqPayTransferUri = `nimiq:${cleanEscrowAddress}?value=${valueLuna}&label=NimBounty%20Escrow`;
+  const nimiqSchemeUri = `nimiq:${cleanEscrowAddress}?value=${valueLuna}&label=NimBounty%20Escrow`;
+  const nimiqSafeCheckoutUrl = `https://wallet.nimiq.com/checkout/${cleanEscrowAddress}/${valueLuna}`;
+
+  // Update direct mobile tap link button
+  const directPayLinkBtn = document.getElementById('mobile-direct-pay-link');
+  if (directPayLinkBtn) {
+    directPayLinkBtn.href = nimiqSchemeUri;
+    directPayLinkBtn.style.display = 'block';
+  }
 
   showToastNotification(
-    '⚡ Opening Nimiq Pay Mobile Transfer',
-    `Launching Nimiq Pay Mobile Transfer Sheet for ${totalEscrow.toLocaleString()} NIM...`,
+    '⚡ Opening Nimiq Pay Transfer',
+    `Launching Nimiq Pay Mobile Sheet for ${totalEscrow.toLocaleString()} NIM...`,
     false
   );
 
-  // 1. Mobile SDK invocation if present inside Nimiq Pay Webview
+  // 1. Check iOS WKWebView Webkit MessageHandler Bridge
+  if (window.webkit && window.webkit.messageHandlers) {
+    try {
+      if (window.webkit.messageHandlers.nimiqPay) {
+        window.webkit.messageHandlers.nimiqPay.postMessage({
+          type: 'sendTransaction',
+          recipient: cleanEscrowAddress,
+          value: valueLuna
+        });
+      } else if (window.webkit.messageHandlers.sendTransaction) {
+        window.webkit.messageHandlers.sendTransaction.postMessage({
+          recipient: cleanEscrowAddress,
+          value: valueLuna
+        });
+      }
+    } catch (e) {
+      console.warn("WKWebView bridge note:", e);
+    }
+  }
+
+  // 2. Check Nimiq Pay JS Provider
   const mobileSdk = getNimiqPayMobileSdk();
   if (mobileSdk) {
     try {
       if (typeof mobileSdk.sendTransaction === 'function') {
-        mobileSdk.sendTransaction({
-          recipient: cleanEscrowAddress,
-          value: valueLuna,
-          label: `NimBounty Escrow Deposit: ${title}`
-        });
+        mobileSdk.sendTransaction({ recipient: cleanEscrowAddress, value: valueLuna, label: `NimBounty Escrow Deposit: ${title}` });
       } else if (typeof mobileSdk.requestPayment === 'function') {
-        mobileSdk.requestPayment({
-          recipient: cleanEscrowAddress,
-          value: valueLuna,
-          label: `NimBounty Escrow Deposit: ${title}`
-        });
+        mobileSdk.requestPayment({ recipient: cleanEscrowAddress, value: valueLuna, label: `NimBounty Escrow Deposit: ${title}` });
       }
     } catch (e) {
       console.warn("Mobile SDK invoke note:", e);
     }
   }
 
-  // 2. Trigger Native Nimiq Pay iOS / Android Direct Transfer URI
-  setTimeout(() => {
-    window.location.href = nimiqPayTransferUri;
-  }, 100);
+  // 3. Execute Native iOS / Android Scheme Protocol Navigation
+  try {
+    window.location.href = nimiqSchemeUri;
+  } catch (e) {
+    window.open(nimiqSafeCheckoutUrl, '_blank');
+  }
 
   switchPosterSubtab('pools');
 }
