@@ -1,5 +1,5 @@
 /**
- * NimBounty Engine — Strict Real Nimiq Pay Wallet Engine (Zero Dummy Fallbacks)
+ * NimBounty Engine — Persistent Data Storage & Greyed Out Completed Payout Cards
  */
 
 let currentView = 'landing';
@@ -7,7 +7,14 @@ let currentRole = 'worker';
 let workerSubtabMode = 'active'; // 'active' | 'history'
 let posterSubtabMode = 'create'; // 'create' | 'pools' | 'subs'
 
-let userAccount = localStorage.getItem('nimbounty_user_acct_v3') || null;
+// PERMANENT STORAGE KEYS — NEVER RESET ON GIT PUSH / DEPLOYMENT
+const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_main';
+const STORAGE_KEY_SUBS = 'nimbounty_subs_main';
+const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_main';
+const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_main';
+const STORAGE_KEY_USER_ACCT = 'nimbounty_user_acct_main';
+
+let userAccount = localStorage.getItem(STORAGE_KEY_USER_ACCT) || null;
 let currentTheme = localStorage.getItem('nimbounty_theme') || 'light';
 let isAudioEnabled = true;
 let liveBlockHeight = 0;
@@ -15,13 +22,6 @@ let uploadedImageDataUrl = null;
 
 const PRODUCTION_URL = 'https://nim-bounty.vercel.app';
 const NIMIQ_ESCROW_CONTRACT_ADDRESS = 'NQ73 ESCR OW00 0000 0000 0000 0000 0000';
-
-// Persistent LocalStorage Keys
-const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v70';
-const STORAGE_KEY_SUBS = 'nimbounty_subs_v70';
-const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v70';
-const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v70';
-const STORAGE_KEY_USER_ACCT = 'nimbounty_user_acct_v3';
 
 let bounties = JSON.parse(localStorage.getItem(STORAGE_KEY_BOUNTIES)) || [];
 let pendingSubmissions = JSON.parse(localStorage.getItem(STORAGE_KEY_SUBS)) || [];
@@ -345,9 +345,15 @@ function updateLandingStats() {
   const statPayouts = document.getElementById('landing-stat-payouts');
 
   const totalRewardsPaid = approvedPayoutsHistory.reduce((sum, item) => sum + (parseFloat(item.reward) || 0), 0);
+  const activeCount = bounties.filter(b => (b.slotsRemaining > 0) && (!b.expiresAt || Date.now() < b.expiresAt)).length;
+  const totalCount = bounties.length;
 
-  if (statBounties) statBounties.textContent = bounties.length;
-  if (statPayouts) statPayouts.textContent = `${totalRewardsPaid.toLocaleString()} NIM`;
+  if (statBounties) {
+    statBounties.textContent = activeCount > 0 ? `${activeCount} Active` : `${totalCount} Total`;
+  }
+  if (statPayouts) {
+    statPayouts.textContent = `${totalRewardsPaid.toLocaleString()} NIM`;
+  }
 }
 
 function renderWorkerStats() {
@@ -687,11 +693,12 @@ function renderBounties() {
     const isExpired = b.expiresAt && Date.now() >= b.expiresAt;
     const hasAlreadyClaimed = hasWalletCompletedBounty(b.id, userAccount);
     const isFullyClaimed = b.slotsRemaining <= 0;
+    const isPaidOut = approvedPayoutsHistory.some(p => p.bountyId === b.id);
 
     if (workerSubtabMode === 'active') {
-      return matchesSearch && matchesCat && !isExpired && !isFullyClaimed && !hasAlreadyClaimed;
+      return matchesSearch && matchesCat && !isExpired && !isFullyClaimed && !hasAlreadyClaimed && !isPaidOut;
     } else {
-      return matchesSearch && matchesCat && (isExpired || isFullyClaimed || hasAlreadyClaimed);
+      return matchesSearch && matchesCat && (isExpired || isFullyClaimed || hasAlreadyClaimed || isPaidOut);
     }
   });
 
@@ -725,16 +732,18 @@ function renderBounties() {
     const hasAlreadyClaimed = hasWalletCompletedBounty(b.id, userAccount);
     const isExpired = b.expiresAt && Date.now() >= b.expiresAt;
     const isFullyClaimed = b.slotsRemaining <= 0;
+    const isPaidOut = approvedPayoutsHistory.some(p => p.bountyId === b.id);
     const timeRemainingStr = formatTimeRemaining(b.expiresAt);
 
     let btnLabel = 'Claim Task & Submit Proof &rarr;';
     let btnDisabled = false;
+    let isCardGreyed = isExpired || isFullyClaimed || isPaidOut;
 
-    if (isExpired) {
-      btnLabel = '⏱️ Pool Expired';
+    if (isPaidOut || isFullyClaimed) {
+      btnLabel = '✅ Paid Out & Completed';
       btnDisabled = true;
-    } else if (isFullyClaimed) {
-      btnLabel = 'Pool Fully Claimed (0 Slots)';
+    } else if (isExpired) {
+      btnLabel = '⏱️ Pool Expired';
       btnDisabled = true;
     } else if (isPublisher) {
       btnLabel = '⛔ Publisher Cannot Claim Own Task';
@@ -745,12 +754,12 @@ function renderBounties() {
     }
 
     return `
-      <div class="newspaper-card rise-in ${(isExpired || isFullyClaimed) ? 'card-expired' : ''}">
+      <div class="newspaper-card rise-in ${isCardGreyed ? 'card-expired' : ''}">
         <div>
           <div class="card-top-bar">
             <span class="news-cat-stamp">${b.categoryName}</span>
             <div class="card-top-right">
-              <span class="time-left-pill" title="Campaign Expiration">⏳ ${timeRemainingStr}</span>
+              <span class="time-left-pill" title="Campaign Expiration">${isPaidOut ? '✅ Paid Out' : '⏳ ' + timeRemainingStr}</span>
               <button class="btn-share-qr" title="Share QR Code" onclick="openQrModal('${b.id}')">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
               </button>
@@ -823,7 +832,6 @@ function copyQrLink() {
 // 14. CLAIM & SUBMIT PROOF ENGINE
 // ==========================================
 function openClaimModal(bountyId) {
-  // STRICT REAL WALLET CHECK: User MUST be connected with a valid Nimiq address
   if (!isRealWalletConnected()) {
     showToastNotification('⛔ Real Wallet Connection Required', 'You must connect a valid Nimiq Pay Wallet address before claiming or submitting proof!', false);
     connectNimiqPayWallet();
@@ -833,25 +841,21 @@ function openClaimModal(bountyId) {
   const bounty = bounties.find(b => b.id === bountyId);
   if (!bounty) return;
 
-  // Publisher cannot claim own bounty
   if (isPublisherOfBounty(bounty, userAccount)) {
     showToastNotification('⛔ Publisher Blocked', 'You are the publisher of this bounty pool! Publishers cannot claim or complete their own tasks.', false);
     return;
   }
 
-  // Pool expired check
   if (bounty.expiresAt && Date.now() >= bounty.expiresAt) {
     showToastNotification('⏱️ Pool Expired', 'This bounty pool duration has expired!', false);
     return;
   }
 
-  // Slots remaining check
   if (bounty.slotsRemaining <= 0) {
     showToastNotification('⛔ Fully Claimed', 'This bounty pool has zero open slots remaining!', false);
     return;
   }
 
-  // Already claimed check
   if (hasWalletCompletedBounty(bountyId, userAccount)) {
     showToastNotification('⛔ Already Claimed', 'Your wallet has already claimed and submitted proof for this task. Maximum 1 completion per wallet per bounty.', false);
     return;
@@ -920,7 +924,6 @@ function previewScreenshot(event) {
 function handleSubmitProof(event) {
   event.preventDefault();
 
-  // STRICT REAL WALLET CHECK BEFORE SUBMITTING PROOF
   if (!isRealWalletConnected()) {
     showToastNotification('⛔ Real Wallet Required', 'You must connect a valid Nimiq Pay Wallet before submitting proof!', false);
     connectNimiqPayWallet();
@@ -961,7 +964,6 @@ function handleSubmitProof(event) {
 
   const workerPayoutAddr = userAccount.trim().toUpperCase().replace(/\s+/g, '');
 
-  // Decrement slot count
   if (bounty.slotsRemaining > 0) {
     bounty.slotsRemaining -= 1;
   }
@@ -1008,7 +1010,6 @@ function calculateTotalEscrow() {
 }
 
 function publishBountyPoolDirectly() {
-  // STRICT REAL WALLET CHECK BEFORE PUBLISHING
   if (!isRealWalletConnected()) {
     showToastNotification('⛔ Real Wallet Required', 'You cannot create a bounty if your real wallet is not connected! Connect your Nimiq Pay Wallet first.', false);
     connectNimiqPayWallet();
@@ -1097,15 +1098,16 @@ function renderPosterDashboard() {
   if (poolsList) {
     poolsList.innerHTML = myBounties.map(b => {
       const isExpired = b.expiresAt && Date.now() >= b.expiresAt;
-      const timeStr = formatTimeRemaining(b.expiresAt);
+      const isPaidOut = approvedPayoutsHistory.some(p => p.bountyId === b.id);
+      const timeStr = isPaidOut ? '✅ Paid Out & Completed' : formatTimeRemaining(b.expiresAt);
 
       return `
-        <div class="dashboard-item">
+        <div class="dashboard-item ${isPaidOut ? 'card-expired' : ''}">
           <div class="dashboard-item-title">${b.title}</div>
           <div class="dashboard-item-meta">
             <span>Reward: <strong>${b.reward} NIM</strong> / worker</span>
             <span>Slots: <strong>${b.slotsRemaining} / ${b.slotsTotal} Open</strong></span>
-            <span>Duration: <strong style="color:${isExpired ? 'var(--danger, #e63946)' : 'var(--gold)'};">${timeStr}</strong></span>
+            <span>Status: <strong style="color:${isPaidOut ? 'var(--emerald)' : isExpired ? 'var(--danger)' : 'var(--gold)'};">${timeStr}</strong></span>
           </div>
         </div>
       `;
@@ -1176,7 +1178,6 @@ async function reviewProof(submissionId, action) {
     let txHashResult = "";
     const provider = getNimiqProvider();
 
-    // 1. Same as Ergon reference repo: Call sendBasicTransactionWithData if provider is injected in Nimiq Pay
     if (provider) {
       try {
         let validityStartHeight = liveBlockHeight || 0;
@@ -1210,7 +1211,6 @@ async function reviewProof(submissionId, action) {
       }
     }
 
-    // 2. Direct mobile deep link transfer to guarantee native confirmation sheet opens in Nimiq Pay!
     const workerPaymentDeepLink = `nimiq:${cleanWorkerAddr}?value=${lunaValue}&label=NimBounty%20Reward%20Payout`;
     setTimeout(() => {
       window.location.href = workerPaymentDeepLink;
@@ -1238,13 +1238,11 @@ async function reviewProof(submissionId, action) {
       false
     );
   } else {
-    // REJECT ACTION: Permanently remove submission and restore 1 open slot back to the bounty pool!
     const bountyIndex = bounties.findIndex(b => b.id === sub.bountyId);
     if (bountyIndex !== -1) {
       bounties[bountyIndex].slotsRemaining = Math.min(bounties[bountyIndex].slotsTotal, bounties[bountyIndex].slotsRemaining + 1);
     }
 
-    // PERMANENT REMOVAL FROM STATE
     pendingSubmissions.splice(subIndex, 1);
     saveState();
     playAudioFx('submit');
