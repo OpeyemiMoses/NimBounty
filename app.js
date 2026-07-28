@@ -1,5 +1,5 @@
 /**
- * NimBounty Engine — Persistent Data Storage & Greyed Out Completed Payout Cards
+ * NimBounty Engine — Permanent Worker Earnings & Persistent Task Stats Engine
  */
 
 let currentView = 'landing';
@@ -7,14 +7,19 @@ let currentRole = 'worker';
 let workerSubtabMode = 'active'; // 'active' | 'history'
 let posterSubtabMode = 'create'; // 'create' | 'pools' | 'subs'
 
-// PERMANENT STORAGE KEYS — NEVER RESET ON GIT PUSH / DEPLOYMENT
+// PERMANENT STORAGE KEYS — NEVER RESET ON GIT PUSH / DEPLOYMENT / DISCONNECT
 const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_main';
 const STORAGE_KEY_SUBS = 'nimbounty_subs_main';
 const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_main';
 const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_main';
 const STORAGE_KEY_USER_ACCT = 'nimbounty_user_acct_main';
+const STORAGE_KEY_SAVED_EARNED = 'nimbounty_worker_saved_earned_main';
+const STORAGE_KEY_SAVED_COMPLETED = 'nimbounty_worker_saved_completed_main';
 
 let userAccount = localStorage.getItem(STORAGE_KEY_USER_ACCT) || null;
+let savedWorkerEarnedNim = parseFloat(localStorage.getItem(STORAGE_KEY_SAVED_EARNED)) || 0;
+let savedWorkerCompletedTasks = parseInt(localStorage.getItem(STORAGE_KEY_SAVED_COMPLETED)) || 0;
+
 let currentTheme = localStorage.getItem('nimbounty_theme') || 'light';
 let isAudioEnabled = true;
 let liveBlockHeight = 0;
@@ -33,6 +38,8 @@ function saveState() {
   localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions));
   localStorage.setItem(STORAGE_KEY_COMPLETED, JSON.stringify(completedBountyIds));
   localStorage.setItem(STORAGE_KEY_PAID_HISTORY, JSON.stringify(approvedPayoutsHistory));
+  localStorage.setItem(STORAGE_KEY_SAVED_EARNED, savedWorkerEarnedNim.toString());
+  localStorage.setItem(STORAGE_KEY_SAVED_COMPLETED, savedWorkerCompletedTasks.toString());
   if (userAccount) {
     localStorage.setItem(STORAGE_KEY_USER_ACCT, userAccount);
   }
@@ -136,8 +143,6 @@ async function connectNimiqPayWallet() {
   if (userAccount && isRealWalletConnected()) {
     openWalletModal();
   } else {
-    userAccount = null;
-    localStorage.removeItem(STORAGE_KEY_USER_ACCT);
     updateWalletUI();
     showToastNotification('⚠️ Connection Required', 'Please connect your Nimiq Wallet to participate or publish bounties.', false);
   }
@@ -167,7 +172,14 @@ async function fetchGlobalPublicBounties() {
       }
 
       if (Array.isArray(data.approvedPayoutsHistory)) {
-        approvedPayoutsHistory = data.approvedPayoutsHistory;
+        // Merge payouts into local history
+        const existingIds = new Set(approvedPayoutsHistory.map(p => p.id));
+        data.approvedPayoutsHistory.forEach(p => {
+          if (!existingIds.has(p.id)) {
+            approvedPayoutsHistory.unshift(p);
+            existingIds.add(p.id);
+          }
+        });
         localStorage.setItem(STORAGE_KEY_PAID_HISTORY, JSON.stringify(approvedPayoutsHistory));
       }
 
@@ -356,31 +368,46 @@ function updateLandingStats() {
   }
 }
 
+// PERSISTENT WORKER STATS RENDERING ENGINE
 function renderWorkerStats() {
   const completedEl = document.getElementById('worker-completed-count');
   const earnedEl = document.getElementById('worker-earned-amount');
   const liveBalEl = document.getElementById('worker-live-balance');
   const repTextEl = document.getElementById('worker-rep-text');
 
-  if (!isRealWalletConnected()) {
-    if (completedEl) completedEl.textContent = `0 Tasks`;
-    if (earnedEl) earnedEl.textContent = `0 NIM`;
-    if (liveBalEl) liveBalEl.textContent = `Wallet Disconnected`;
-    if (repTextEl) repTextEl.textContent = `Please Connect Nimiq Wallet`;
-    return;
+  let myApprovedPayouts = [];
+  if (userAccount) {
+    myApprovedPayouts = approvedPayoutsHistory.filter(p => 
+      p.workerAddress && p.workerAddress.toLowerCase() === userAccount.toLowerCase()
+    );
   }
 
-  const myApprovedPayouts = approvedPayoutsHistory.filter(p => 
-    p.workerAddress && p.workerAddress.toLowerCase() === userAccount.toLowerCase()
-  );
+  const dynamicCompleted = myApprovedPayouts.length;
+  const dynamicEarned = myApprovedPayouts.reduce((sum, p) => sum + (parseFloat(p.reward) || 0), 0);
 
-  const completedCount = myApprovedPayouts.length;
-  const earnedAmount = myApprovedPayouts.reduce((sum, p) => sum + (parseFloat(p.reward) || 0), 0);
+  // Take highest cumulative total to preserve history across wallet disconnects
+  const finalCompleted = Math.max(savedWorkerCompletedTasks, dynamicCompleted, approvedPayoutsHistory.length);
+  const finalEarned = Math.max(savedWorkerEarnedNim, dynamicEarned, approvedPayoutsHistory.reduce((sum, p) => sum + (parseFloat(p.reward) || 0), 0));
 
-  if (completedEl) completedEl.textContent = `${completedCount} Tasks`;
-  if (earnedEl) earnedEl.textContent = `${earnedAmount.toLocaleString()} NIM`;
-  if (liveBalEl) liveBalEl.textContent = `Connected (Nimiq Pay)`;
-  if (repTextEl) repTextEl.textContent = `Verified Wallet (${userAccount.substring(0, 10)}...)`;
+  if (finalCompleted > savedWorkerCompletedTasks) {
+    savedWorkerCompletedTasks = finalCompleted;
+    localStorage.setItem(STORAGE_KEY_SAVED_COMPLETED, savedWorkerCompletedTasks.toString());
+  }
+  if (finalEarned > savedWorkerEarnedNim) {
+    savedWorkerEarnedNim = finalEarned;
+    localStorage.setItem(STORAGE_KEY_SAVED_EARNED, savedWorkerEarnedNim.toString());
+  }
+
+  if (completedEl) completedEl.textContent = `${finalCompleted} Tasks`;
+  if (earnedEl) earnedEl.textContent = `${finalEarned.toLocaleString()} NIM`;
+
+  if (isRealWalletConnected()) {
+    if (liveBalEl) liveBalEl.textContent = `Connected (Nimiq Pay)`;
+    if (repTextEl) repTextEl.textContent = `Verified Wallet (${userAccount.substring(0, 10)}...)`;
+  } else {
+    if (liveBalEl) liveBalEl.textContent = `Wallet Disconnected`;
+    if (repTextEl) repTextEl.textContent = `Please Connect Nimiq Wallet`;
+  }
 }
 
 // ==========================================
@@ -1225,6 +1252,10 @@ async function reviewProof(submissionId, action) {
       txHash: typeof txHashResult === 'string' ? txHashResult : `tx_nim_${Date.now()}`,
       paidAt: Date.now()
     });
+
+    // INCREMENT CUMULATIVE WORKER STATS PERMANENTLY
+    savedWorkerCompletedTasks += 1;
+    savedWorkerEarnedNim += (parseFloat(sub.reward) || 0);
 
     // PERMANENT REMOVAL FROM STATE
     pendingSubmissions.splice(subIndex, 1);
