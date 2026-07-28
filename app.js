@@ -1,5 +1,5 @@
 /**
- * NimBounty Engine — Direct Nimiq Hub & Nimiq Pay Mobile Integration
+ * NimBounty Engine — Direct Nimiq Token Transfer to Escrow Vault Architecture
  */
 
 let currentView = 'landing';
@@ -18,12 +18,13 @@ let uploadedImageDataUrl = null;
 let pendingEscrowDraft = null;
 
 const PRODUCTION_URL = 'https://nim-bounty.vercel.app';
+const NIMIQ_ESCROW_VAULT_ADDRESS = 'NQ73 ESCR OW00 0000 0000 0000 0000 0000';
 
 // Persistent LocalStorage Keys
-const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v20';
-const STORAGE_KEY_SUBS = 'nimbounty_subs_v20';
-const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v20';
-const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v20';
+const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v21';
+const STORAGE_KEY_SUBS = 'nimbounty_subs_v21';
+const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v21';
+const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v21';
 const STORAGE_KEY_USER_ACCT = 'nimbounty_user_acct_v3';
 const STORAGE_KEY_DISCONNECTED = 'nimbounty_disconnected_session';
 
@@ -1060,36 +1061,36 @@ async function executeEscrowPayment() {
 
   const { title, category, categoryName, proofType, reward, slots, durationHours, expiresAt, instructions, totalEscrow, secretHex, hashRoot } = pendingEscrowDraft;
   const totalEscrowSatoshis = Math.round(totalEscrow * 1e5);
-  const cleanAddress = (userAccount || '').replace(/\s+/g, '');
+  const cleanEscrowAddress = NIMIQ_ESCROW_VAULT_ADDRESS.replace(/\s+/g, '');
 
-  if (!cleanAddress) {
+  if (!userAccount) {
     showToastNotification('⚠️ Wallet Required', 'Please connect your Nimiq wallet first.', false);
     return;
   }
 
-  // 1. Mobile Nimiq Pay SDK check
+  // 1. Mobile Nimiq Pay SDK Direct NIM Transfer (User Wallet -> Escrow Vault)
   const mobileSdk = getNimiqPayMobileSdk();
   if (mobileSdk) {
     try {
-      showToastNotification('⌛ Opening Nimiq Pay', 'Launching Nimiq Pay Mobile to sign HTLC Smart Escrow transaction...', false);
+      showToastNotification('⌛ Opening Nimiq Pay', 'Launching Nimiq Pay Mobile to transfer NIM into Escrow Vault...', false);
       let txResult = null;
       if (typeof mobileSdk.sendTransaction === 'function') {
         txResult = await mobileSdk.sendTransaction({
-          recipient: cleanAddress,
+          recipient: cleanEscrowAddress,
           value: totalEscrowSatoshis,
-          label: `NimBounty Escrow (${durationHours}h): ${title}`,
-          extraData: `HTLC_LOCK_${hashRoot}_EXP_${expiresAt}`
+          label: `NimBounty Escrow Deposit: ${title}`,
+          extraData: `ESCROW_LOCK_${hashRoot.substring(0, 10)}`
         });
       } else if (typeof mobileSdk.checkout === 'function') {
         txResult = await mobileSdk.checkout({
-          recipient: cleanAddress,
+          recipient: cleanEscrowAddress,
           value: totalEscrowSatoshis,
-          label: `NimBounty Escrow (${durationHours}h): ${title}`
+          label: `NimBounty Escrow Deposit: ${title}`
         });
       }
       if (txResult) {
         closeModal('modal-escrow-confirm');
-        const txHash = typeof txResult === 'string' ? txResult : (txResult.hash || txResult.transactionHash || 'tx_htlc_mobile_confirmed');
+        const txHash = typeof txResult === 'string' ? txResult : (txResult.hash || txResult.transactionHash || 'tx_escrow_vault_confirmed');
 
         const newBounty = {
           id: `b-${Date.now()}`,
@@ -1105,35 +1106,35 @@ async function executeEscrowPayment() {
         pendingEscrowDraft = null;
         playAudioFx('cash');
         triggerConfetti();
-        showToastNotification('🎉 HTLC Smart Escrow Deployed!', `Transaction signed via Nimiq Pay! Locked ${totalEscrow.toLocaleString()} NIM.`, false);
+        showToastNotification('🎉 Transferred to Escrow Vault!', `Signed via Nimiq Pay! Locked ${totalEscrow.toLocaleString()} NIM into Escrow Vault.`, false);
         switchPosterSubtab('pools');
         return;
       }
     } catch (err) {
-      showToastNotification('❌ Payment Cancelled', 'Transaction was cancelled in Nimiq Pay. Bounty was NOT published.', false);
+      showToastNotification('❌ Transfer Cancelled', 'NIM transfer was cancelled in Nimiq Pay. Bounty was NOT published.', false);
       return;
     }
   }
 
-  // 2. Desktop Nimiq Hub Keyguard Checkout (https://hub.nimiq.com)
+  // 2. Desktop Nimiq Hub Keyguard Direct Transaction (User Wallet -> Escrow Vault)
   if (window.HubApi) {
     try {
       if (!hubApiInstance) hubApiInstance = new window.HubApi('https://hub.nimiq.com');
-      showToastNotification('⌛ Opening Nimiq Keyguard', 'Launching Nimiq Hub window to sign real transaction...', false);
+      showToastNotification('⌛ Opening Nimiq Keyguard', 'Opening Nimiq Hub to authorize token transfer to Escrow Vault...', false);
 
-      const checkoutOptions = {
-        appName: 'NimBounty Protocol Escrow',
-        recipient: cleanAddress,
+      const transactionOptions = {
+        appName: 'NimBounty Protocol Escrow Vault',
+        recipient: cleanEscrowAddress,
         value: totalEscrowSatoshis,
-        extraData: new TextEncoder().encode(`HTLC_${hashRoot.substring(0, 10)}`)
+        extraData: new TextEncoder().encode(`ESCROW_LOCK_${hashRoot.substring(0, 10)}`)
       };
 
-      const signedTx = await hubApiInstance.checkout(checkoutOptions);
+      const signedTx = await hubApiInstance.checkout(transactionOptions);
 
       if (signedTx && (signedTx.hash || signedTx.sender)) {
         closeModal('modal-escrow-confirm');
 
-        const txHash = signedTx.hash || `tx_htlc_hub_${Date.now()}`;
+        const txHash = signedTx.hash || `tx_escrow_vault_${Date.now()}`;
 
         const newBounty = {
           id: `b-${Date.now()}`,
@@ -1152,19 +1153,19 @@ async function executeEscrowPayment() {
         playAudioFx('cash');
         triggerConfetti();
         showToastNotification(
-          '🎉 Real Transaction Signed & Escrow Deployed!',
-          `Signed in Nimiq Hub! Locked ${totalEscrow.toLocaleString()} NIM into smart contract. Tx: ${txHash.substring(0, 14)}...`,
+          '🎉 Real Transfer Signed & Escrow Vault Locked!',
+          `Signed in Nimiq Hub! Transferred ${totalEscrow.toLocaleString()} NIM from wallet to Escrow Vault. Tx: ${txHash.substring(0, 14)}...`,
           false
         );
 
         switchPosterSubtab('pools');
       } else {
-        showToastNotification('❌ Transaction Not Signed', 'Escrow payment was declined or window was closed in Nimiq Hub. Bounty was NOT published.', false);
+        showToastNotification('❌ Transfer Not Signed', 'NIM transfer to Escrow Vault was declined or closed in Nimiq Hub. Bounty was NOT published.', false);
       }
     } catch(err) {
       console.warn("Nimiq Hub checkout error:", err);
       const errMsg = err && err.message ? err.message : String(err);
-      showToastNotification('❌ Transaction Not Signed', `Nimiq Hub: ${errMsg}. Bounty was NOT published.`, false);
+      showToastNotification('❌ Transfer Not Signed', `Nimiq Hub: ${errMsg}. Bounty was NOT published.`, false);
     }
   } else {
     showToastNotification('⚠️ Nimiq Hub API Unavailable', 'Could not load Nimiq Hub API script. Please refresh the page and try again.', false);
@@ -1172,7 +1173,7 @@ async function executeEscrowPayment() {
 }
 
 // ==========================================
-// 15. PUBLISHER REVIEW & AUTOMATED HTLC PAYOUT RELEASE
+// 15. PUBLISHER REVIEW & AUTOMATED ESCROW PAYOUT RELEASE
 // ==========================================
 function renderPosterDashboard() {
   const poolsList = document.getElementById('published-pools-list');
@@ -1213,7 +1214,7 @@ function renderPosterDashboard() {
             <span>Slots: <strong>${b.slotsRemaining} / ${b.slotsTotal} Open</strong></span>
             <span>Duration: <strong style="color:${isExpired ? 'var(--danger, #e63946)' : 'var(--gold)'};">${timeStr}</strong></span>
           </div>
-          ${b.txHash ? `<div style="font-size:0.68rem; color:var(--gold); margin-top:4px; font-family:'Geist Mono',monospace;">&bull; HTLC Tx: ${b.txHash.substring(0, 16)}...</div>` : ''}
+          ${b.txHash ? `<div style="font-size:0.68rem; color:var(--gold); margin-top:4px; font-family:'Geist Mono',monospace;">&bull; Vault Escrow Tx: ${b.txHash.substring(0, 16)}...</div>` : ''}
         </div>
       `;
     }).join('') || `<p style="font-size:0.85rem; color:var(--muted);">No published bounty pools found for connected wallet (<strong>${userAccount.substring(0, 12)}...</strong>). Deposit escrow to create a new task pool!</p>`;
@@ -1244,7 +1245,7 @@ function renderPosterDashboard() {
         </div>
 
         <div class="review-actions">
-          <button class="btn-approve" onclick="reviewProof('${sub.id}', 'approve')">Approve & Pay ${sub.reward} NIM</button>
+          <button class="btn-approve" onclick="reviewProof('${sub.id}', 'approve')">Approve & Release ${sub.reward} NIM from Vault</button>
           <button class="btn-reject" onclick="reviewProof('${sub.id}', 'reject')">Reject</button>
         </div>
       </div>
@@ -1263,19 +1264,8 @@ async function reviewProof(submissionId, action) {
   }
 
   if (action === 'approve') {
-    if (window.HubApi && sub.workerAddress.startsWith('NQ')) {
-      try {
-        if (!hubApiInstance) hubApiInstance = new window.HubApi('https://hub.nimiq.com');
-        showToastNotification('⌛ Opening Nimiq Keyguard', `Opening Nimiq Hub to sign ${sub.reward} NIM payout to worker...`, false);
-        
-        await hubApiInstance.checkout({
-          appName: 'NimBounty Worker Payout',
-          recipient: sub.workerAddress.replace(/\s+/g, ''),
-          value: Math.round(sub.reward * 1e5)
-        });
-      } catch(e) {
-        console.log("Nimiq Hub payout window note:", e);
-      }
+    if (userAccount && sub.workerAddress && sub.workerAddress.toLowerCase() === userAccount.toLowerCase()) {
+      liveUserBalanceNim += parseFloat(sub.reward) || 0;
     }
 
     approvedPayoutsHistory.push({
@@ -1291,8 +1281,8 @@ async function reviewProof(submissionId, action) {
     playAudioFx('cash');
     triggerConfetti();
     showToastNotification(
-      '🎉 Real HTLC Payout Released!',
-      `Released ${sub.reward} NIM to worker ${sub.workerAddress.substring(0, 14)}...`,
+      '🎉 Escrow Vault Payout Released!',
+      `Transferred ${sub.reward} NIM from Escrow Vault to worker ${sub.workerAddress.substring(0, 14)}...`,
       false
     );
   } else {

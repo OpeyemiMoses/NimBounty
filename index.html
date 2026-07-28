@@ -457,7 +457,7 @@
           <div class="paper-card" style="max-width: 780px; margin: 0 auto;">
             <div class="card-header-press">
               <h2>Publish a New Bounty</h2>
-              <span class="press-date">SMART ESCROW DEPOSIT</span>
+              <span class="press-date">TRANSFER NIM TO ESCROW VAULT</span>
             </div>
 
             <form id="create-bounty-form" onsubmit="handleCreateBounty(event)">
@@ -535,7 +535,7 @@
               </div>
 
               <button type="submit" class="btn-primary-lg full-width" id="btn-deposit-bounty">
-                Lock Funds & Deposit Escrow &rarr;
+                Transfer NIM to Escrow Vault &rarr;
               </button>
             </form>
           </div>
@@ -621,34 +621,34 @@
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
       </div>
 
-      <h3 style="font-size: 1.4rem; font-weight: 800; margin-bottom: 6px;">Sign Nimiq Hub Onchain Escrow</h3>
-      <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 18px;" id="escrow-modal-task-title">Locking NIM into Nimiq Escrow Vault</p>
+      <h3 style="font-size: 1.4rem; font-weight: 800; margin-bottom: 6px;">Sign Onchain NIM Transfer to Escrow Vault</h3>
+      <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 18px;" id="escrow-modal-task-title">Transferring NIM into Nimiq Escrow Vault</p>
 
       <!-- Deposit Breakdown Card -->
       <div style="background: var(--bg-subtle); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 20px; text-align: left;">
         <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 8px;">
-          <span>Escrow Smart Contract:</span>
-          <strong style="font-family: 'Geist Mono', monospace; font-size: 0.78rem; color: var(--gold);">Nimiq HTLC Vault</strong>
+          <span>Target Contract / Vault:</span>
+          <strong style="font-family: 'Geist Mono', monospace; font-size: 0.78rem; color: var(--gold);">NimBounty Protocol Escrow Vault</strong>
         </div>
         <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 8px;">
-          <span>Publisher Wallet:</span>
+          <span>From Wallet Address:</span>
           <strong style="font-family: 'Geist Mono', monospace; font-size: 0.78rem;" id="escrow-modal-publisher">NQ...</strong>
         </div>
         <div style="height: 1px; background: var(--border); margin: 10px 0;"></div>
         <div style="display: flex; justify-content: space-between; font-size: 1rem; font-weight: 800;">
-          <span>Total Escrow Deposit Required:</span>
+          <span>Total Escrow NIM to Transfer:</span>
           <span style="color: var(--gold); font-family: 'Geist Mono', monospace;" id="escrow-modal-total">500 NIM</span>
         </div>
       </div>
 
       <div style="font-size: 0.8rem; color: var(--muted); margin-bottom: 20px; text-align: left; line-height: 1.5; background: var(--gold-tint); padding: 12px; border-radius: 10px; border: 1px dashed var(--gold);">
-        🔑 Tapping <strong>Open Nimiq Keyguard & Sign &rarr;</strong> launches Nimiq Hub to sign and broadcast your real transaction onchain!
+        💸 Tapping <strong>Sign & Transfer NIM to Escrow Vault &rarr;</strong> opens Nimiq Hub to authorize the direct token transfer from your wallet into the Escrow Vault!
       </div>
 
       <!-- Action Buttons -->
       <div style="display: flex; flex-direction: column; gap: 10px;">
         <button class="btn-primary-lg full-width" id="btn-confirm-escrow-action" style="padding: 14px;">
-          Open Nimiq Keyguard & Sign &rarr;
+          Sign & Transfer NIM to Escrow Vault &rarr;
         </button>
         <button class="btn-ghost-sm full-width" onclick="closeModal('modal-escrow-confirm')" style="padding: 12px; justify-content: center;">
           Cancel & Return to Form
