@@ -99,6 +99,15 @@ function isValidNimiqAddress(address) {
   return /^NQ[0-9A-Z]{30,44}$/.test(clean);
 }
 
+// Global Wallet Button Handler: If connected, open disconnect modal; if disconnected, connect!
+function handleWalletButtonClick() {
+  if (isRealWalletConnected()) {
+    openWalletModal();
+  } else {
+    connectNimiqPayWallet();
+  }
+}
+
 // ==========================================
 // 1. STRICT NIMIQ PAY WALLET CONNECTION ENGINE
 // ==========================================
@@ -172,7 +181,6 @@ async function fetchGlobalPublicBounties() {
       }
 
       if (Array.isArray(data.approvedPayoutsHistory)) {
-        // Merge payouts into local history
         const existingIds = new Set(approvedPayoutsHistory.map(p => p.id));
         data.approvedPayoutsHistory.forEach(p => {
           if (!existingIds.has(p.id)) {
@@ -385,7 +393,6 @@ function renderWorkerStats() {
   const dynamicCompleted = myApprovedPayouts.length;
   const dynamicEarned = myApprovedPayouts.reduce((sum, p) => sum + (parseFloat(p.reward) || 0), 0);
 
-  // Take highest cumulative total to preserve history across wallet disconnects
   const finalCompleted = Math.max(savedWorkerCompletedTasks, dynamicCompleted, approvedPayoutsHistory.length);
   const finalEarned = Math.max(savedWorkerEarnedNim, dynamicEarned, approvedPayoutsHistory.reduce((sum, p) => sum + (parseFloat(p.reward) || 0), 0));
 
@@ -637,7 +644,10 @@ function confirmDisconnectWalletFromModal() {
   userAccount = null;
   localStorage.removeItem(STORAGE_KEY_USER_ACCT);
   updateWalletUI();
-  showToastNotification('🔌 Disconnected', 'Wallet session disconnected.', false);
+  renderWorkerStats();
+  renderPosterDashboard();
+  renderBounties();
+  showToastNotification('🔌 Wallet Disconnected', 'Your Nimiq Pay wallet session has been disconnected.', false);
 }
 
 // ==========================================
@@ -1253,11 +1263,9 @@ async function reviewProof(submissionId, action) {
       paidAt: Date.now()
     });
 
-    // INCREMENT CUMULATIVE WORKER STATS PERMANENTLY
     savedWorkerCompletedTasks += 1;
     savedWorkerEarnedNim += (parseFloat(sub.reward) || 0);
 
-    // PERMANENT REMOVAL FROM STATE
     pendingSubmissions.splice(subIndex, 1);
     saveState();
     playAudioFx('cash');
