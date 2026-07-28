@@ -1370,83 +1370,45 @@ async function reviewProof(submissionId, action) {
     const cleanWorkerAddr = targetWorkerAddr.replace(/\s+/g, '');
     const lunaValue = Math.round(sub.reward * 100000);
 
-    showToastNotification(
-      '⚡ Releasing Escrow Payout...',
-      `Releasing ${sub.reward} NIM from Escrow Vault to worker address:\n${cleanWorkerAddr}`,
-      false
-    );
+    // ─────────────────────────────────────────────────────────────────────────
+    // IMPORTANT: Do NOT trigger any wallet payment here.
+    // The payout must come FROM the Escrow Vault wallet (NQ65 R26Y VNQL...),
+    // NOT from the poster's connected wallet.
+    //
+    // Triggering provider.sendBasicTransaction() or a nimiq: deeplink here
+    // would charge the POSTER's personal wallet, not the escrow vault.
+    //
+    // Instead: Record the approval in the database, then show the poster
+    // the exact details to send manually from the Escrow Vault in Nimiq Pay.
+    // ─────────────────────────────────────────────────────────────────────────
 
-    let txHashResult = "";
-    try {
-      const apiEndpoint = window.location.origin.includes('localhost')
-        ? `${PRODUCTION_URL}/api/bounties`
-        : `/api/bounties`;
-
-      const res = await fetch(apiEndpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'disburse_escrow',
-          recipient: cleanWorkerAddr,
-          reward: sub.reward,
-          bountyId: sub.bountyId
-        })
-      });
-      const data = await res.json();
-      if (data && data.txHash) {
-        txHashResult = data.txHash;
-      }
-    } catch (e) {
-      console.warn("API escrow disburse error:", e);
-    }
-
-    // Nimiq Pay Provider & Deeplink Payout Trigger
-    const provider = getNimiqProvider();
-    if (provider) {
-      try {
-        let validityStartHeight = liveBlockHeight || 0;
-        if (typeof provider.getBlockNumber === 'function') {
-          try { validityStartHeight = await provider.getBlockNumber(); } catch (e) {}
-        }
-
-        if (typeof provider.sendBasicTransactionWithData === 'function') {
-          txHashResult = await provider.sendBasicTransactionWithData({
-            recipient: cleanWorkerAddr,
-            value: lunaValue,
-            data: `NIMBOUNTY_ESCROW_PAYOUT:${sub.bountyId.slice(0, 18)}`,
-            validityStartHeight: validityStartHeight
-          });
-        }
-      } catch (err) {
-        console.warn("Provider native release error:", err);
-      }
-    }
-
-    const workerPaymentDeepLink = `nimiq:${cleanWorkerAddr}?value=${lunaValue}&label=NimBounty%20Escrow%20Payout`;
-    setTimeout(() => {
-      window.location.href = workerPaymentDeepLink;
-    }, 150);
-
+    // Record the approved payout in the global persistent database
     approvedPayoutsHistory.push({
       id: `pay-${Date.now()}`,
       bountyId: sub.bountyId,
+      bountyTitle: sub.bountyTitle,
       workerAddress: cleanWorkerAddr,
       posterAddress: sub.posterAddress,
       reward: sub.reward,
-      txHash: typeof txHashResult === 'string' ? txHashResult : `tx_nim_escrow_${Date.now()}`,
+      txHash: `pending_manual_escrow_send_${Date.now()}`,
       paidAt: Date.now()
     });
 
     savedTotalRewardsPaid += (parseFloat(sub.reward) || 0);
-
     pendingSubmissions.splice(subIndex, 1);
     saveState();
     playAudioFx('cash');
     triggerConfetti();
 
+    // Show poster the manual payout instruction — they must send from the Escrow Vault wallet
+    const nimiqPayDeeplink = `nimiq:${cleanWorkerAddr}?value=${lunaValue}&label=NimBounty%20Escrow%20Payout`;
+    showEscrowPayoutInstructions(cleanWorkerAddr, sub.reward, lunaValue, nimiqPayDeeplink);
+
+
+
     showToastNotification(
-      '🎉 ESCROW PAYOUT RELEASED!',
-      `Released payment of ${sub.reward} NIM from Escrow Vault to worker address:\n${cleanWorkerAddr}`,
+      '✅ Proof Approved — Send NIM from Escrow Vault',
+      `Approval recorded! Now open Nimiq Pay, switch to your Escrow Vault account, and send ${sub.reward} NIM to the worker.`,
       false
     );
   } else {
@@ -1468,6 +1430,69 @@ async function reviewProof(submissionId, action) {
 
   renderPosterDashboard();
   renderBounties();
+}
+
+// ==========================================
+// ESCROW PAYOUT INSTRUCTION MODAL
+// ==========================================
+function showEscrowPayoutInstructions(workerAddr, rewardNim, lunaValue, deeplink) {
+  // Remove any existing instruction modal
+  const existing = document.getElementById('modal-escrow-payout');
+  if (existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'modal-escrow-payout';
+  modal.className = 'modal-overlay';
+  modal.style.display = 'flex';
+  modal.innerHTML = `
+    <div class="modal-paper paper-card rise-in" style="max-width:520px;">
+      <button class="modal-close" onclick="document.getElementById('modal-escrow-payout').remove()">&times;</button>
+      <div class="modal-header">
+        <span class="news-category-tag" style="background:var(--emerald,#22c55e);color:#fff;">ESCROW PAYOUT READY</span>
+        <h2 style="font-size:1.3rem;margin-top:12px;">Send NIM from Your Escrow Vault</h2>
+      </div>
+      <div class="modal-body" style="gap:14px;">
+        <div class="instructions-box" style="background:var(--bg-subtle);border-left:4px solid var(--gold);">
+          <h4 style="margin-bottom:8px;">&#9888; Important — Do NOT send from your personal wallet</h4>
+          <p style="font-size:0.85rem;">The NIM must be sent from your <strong>Escrow Vault wallet</strong> (<code style="font-size:0.78rem;">${NIMIQ_ESCROW_CONTRACT_ADDRESS}</code>), NOT from your connected poster wallet.</p>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <label style="font-size:0.78rem;font-weight:700;color:var(--muted);letter-spacing:.05em;">WORKER WALLET ADDRESS</label>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input id="epi-worker-addr" type="text" readonly value="${workerAddr}"
+              style="font-family:'Geist Mono',monospace;font-size:0.78rem;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--ink);flex:1;" />
+            <button class="btn-primary-sm" onclick="navigator.clipboard.writeText('${workerAddr}');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500);">Copy</button>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:12px;">
+          <div style="flex:1;background:var(--bg-subtle);border-radius:10px;padding:12px;text-align:center;">
+            <div style="font-size:0.72rem;color:var(--muted);font-weight:700;margin-bottom:4px;">AMOUNT TO SEND</div>
+            <div style="font-size:1.4rem;font-weight:900;color:var(--gold);">&#9889; ${rewardNim} NIM</div>
+          </div>
+          <div style="flex:1;background:var(--bg-subtle);border-radius:10px;padding:12px;text-align:center;">
+            <div style="font-size:0.72rem;color:var(--muted);font-weight:700;margin-bottom:4px;">IN LUNA (raw)</div>
+            <div style="font-size:1.1rem;font-weight:800;color:var(--ink);">${lunaValue.toLocaleString()}</div>
+          </div>
+        </div>
+
+        <div style="font-size:0.82rem;color:var(--muted);background:var(--bg-subtle);border-radius:10px;padding:12px;line-height:1.6;">
+          <strong>Steps:</strong><br/>
+          1. Open <strong>Nimiq Pay</strong> on your device<br/>
+          2. Switch active account to <strong>Escrow Vault</strong> (<code style="font-size:0.75rem;">${NIMIQ_ESCROW_CONTRACT_ADDRESS.substring(0,18)}...</code>)<br/>
+          3. Tap <strong>Send</strong> and paste the worker address<br/>
+          4. Enter <strong>${rewardNim} NIM</strong> and confirm
+        </div>
+
+        <button class="btn-primary-lg full-width" onclick="window.open('${deeplink}');" style="margin-top:4px;">
+          Open Nimiq Pay to Send &rarr;
+        </button>
+        <p style="font-size:0.72rem;color:var(--muted);text-align:center;margin-top:-6px;">Make sure you are logged in as the Escrow Vault account before confirming.</p>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
