@@ -1,5 +1,5 @@
 /**
- * NimBounty Engine — Worldwide Completed & Expired Bounties Visibility Engine
+ * NimBounty Engine — Stable Worldwide Sync, Pending Review Status, & Strict Worker Stats
  */
 
 let currentView = 'landing';
@@ -34,6 +34,8 @@ let bounties = JSON.parse(localStorage.getItem(STORAGE_KEY_BOUNTIES)) || [];
 let pendingSubmissions = JSON.parse(localStorage.getItem(STORAGE_KEY_SUBS)) || [];
 let completedBountyIds = JSON.parse(localStorage.getItem(STORAGE_KEY_COMPLETED)) || [];
 let approvedPayoutsHistory = JSON.parse(localStorage.getItem(STORAGE_KEY_PAID_HISTORY)) || [];
+
+let lastRenderHash = '';
 
 function saveState() {
   localStorage.setItem(STORAGE_KEY_BOUNTIES, JSON.stringify(bounties));
@@ -161,7 +163,7 @@ async function connectNimiqPayWallet() {
 }
 
 // ==========================================
-// 2. GLOBAL REAL-TIME PUBLIC SYNC ENGINE
+// 2. GLOBAL REAL-TIME PUBLIC SYNC ENGINE (SMART MERGE - NO FLICKER)
 // ==========================================
 async function fetchGlobalPublicBounties() {
   try {
@@ -172,32 +174,58 @@ async function fetchGlobalPublicBounties() {
     const res = await fetch(apiEndpoint, { cache: 'no-cache' });
     if (res.ok) {
       const data = await res.json();
-      
-      if (Array.isArray(data.pendingSubmissions)) {
-        pendingSubmissions = data.pendingSubmissions;
-        localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions));
-      }
+      let stateChanged = false;
 
+      // Smart Merge Bounties (Never overwrite/drop local bounties)
       if (Array.isArray(data.bounties) && data.bounties.length > 0) {
-        bounties = data.bounties;
+        const existingBountyIds = new Set(bounties.map(b => b.id));
+        data.bounties.forEach(serverBounty => {
+          if (!existingBountyIds.has(serverBounty.id)) {
+            bounties.unshift(serverBounty);
+            existingBountyIds.add(serverBounty.id);
+            stateChanged = true;
+          } else {
+            const idx = bounties.findIndex(b => b.id === serverBounty.id);
+            if (bounties[idx].slotsRemaining !== serverBounty.slotsRemaining) {
+              bounties[idx].slotsRemaining = serverBounty.slotsRemaining;
+              stateChanged = true;
+            }
+          }
+        });
         localStorage.setItem(STORAGE_KEY_BOUNTIES, JSON.stringify(bounties));
       }
 
+      // Smart Merge Submissions
+      if (Array.isArray(data.pendingSubmissions)) {
+        if (JSON.stringify(pendingSubmissions) !== JSON.stringify(data.pendingSubmissions)) {
+          pendingSubmissions = data.pendingSubmissions;
+          localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions));
+          stateChanged = true;
+        }
+      }
+
+      // Smart Merge Approved Payouts History
       if (Array.isArray(data.approvedPayoutsHistory)) {
-        const existingIds = new Set(approvedPayoutsHistory.map(p => p.id));
+        const existingPayIds = new Set(approvedPayoutsHistory.map(p => p.id));
         data.approvedPayoutsHistory.forEach(p => {
-          if (!existingIds.has(p.id)) {
+          if (!existingPayIds.has(p.id)) {
             approvedPayoutsHistory.unshift(p);
-            existingIds.add(p.id);
+            existingPayIds.add(p.id);
+            stateChanged = true;
           }
         });
         localStorage.setItem(STORAGE_KEY_PAID_HISTORY, JSON.stringify(approvedPayoutsHistory));
       }
 
-      renderBounties();
-      renderPosterDashboard();
-      updateLandingStats();
-      renderWorkerStats();
+      // Only re-render DOM if state actually changed to prevent UI flicker
+      const newHash = `${bounties.length}-${pendingSubmissions.length}-${approvedPayoutsHistory.length}-${workerSubtabMode}-${posterSubtabMode}`;
+      if (stateChanged || newHash !== lastRenderHash) {
+        lastRenderHash = newHash;
+        renderBounties();
+        renderPosterDashboard();
+        updateLandingStats();
+        renderWorkerStats();
+      }
     }
   } catch (e) {
     // Fall back gracefully
@@ -391,7 +419,7 @@ function updateLandingStats() {
   }
 }
 
-// PERSISTENT WORKER STATS RENDERING ENGINE
+// STRICT WORKER-ONLY STATS RENDERING ENGINE (EXCLUDES POSTER PAYOUTS)
 function renderWorkerStats() {
   const completedEl = document.getElementById('worker-completed-count');
   const earnedEl = document.getElementById('worker-earned-amount');
@@ -399,29 +427,18 @@ function renderWorkerStats() {
   const repTextEl = document.getElementById('worker-rep-text');
 
   let myApprovedPayouts = [];
-  if (userAccount) {
+  if (userAccount && isRealWalletConnected()) {
+    const w = userAccount.toLowerCase();
     myApprovedPayouts = approvedPayoutsHistory.filter(p => 
-      p.workerAddress && p.workerAddress.toLowerCase() === userAccount.toLowerCase()
+      p.workerAddress && p.workerAddress.toLowerCase() === w
     );
   }
 
-  const dynamicCompleted = myApprovedPayouts.length;
-  const dynamicEarned = myApprovedPayouts.reduce((sum, p) => sum + (parseFloat(p.reward) || 0), 0);
+  const workerCompletedCount = myApprovedPayouts.length;
+  const workerEarnedAmount = myApprovedPayouts.reduce((sum, p) => sum + (parseFloat(p.reward) || 0), 0);
 
-  const finalCompleted = Math.max(savedWorkerCompletedTasks, dynamicCompleted, approvedPayoutsHistory.length);
-  const finalEarned = Math.max(savedWorkerEarnedNim, dynamicEarned, approvedPayoutsHistory.reduce((sum, p) => sum + (parseFloat(p.reward) || 0), 0));
-
-  if (finalCompleted > savedWorkerCompletedTasks) {
-    savedWorkerCompletedTasks = finalCompleted;
-    localStorage.setItem(STORAGE_KEY_SAVED_COMPLETED, savedWorkerCompletedTasks.toString());
-  }
-  if (finalEarned > savedWorkerEarnedNim) {
-    savedWorkerEarnedNim = finalEarned;
-    localStorage.setItem(STORAGE_KEY_SAVED_EARNED, savedWorkerEarnedNim.toString());
-  }
-
-  if (completedEl) completedEl.textContent = `${finalCompleted} Tasks`;
-  if (earnedEl) earnedEl.textContent = `${finalEarned.toLocaleString()} NIM`;
+  if (completedEl) completedEl.textContent = `${workerCompletedCount} Tasks`;
+  if (earnedEl) earnedEl.textContent = `${workerEarnedAmount.toLocaleString()} NIM`;
 
   if (isRealWalletConnected()) {
     if (liveBalEl) liveBalEl.textContent = `Connected (Nimiq Pay)`;
@@ -730,7 +747,7 @@ function switchPosterSubtab(mode) {
   renderPosterDashboard();
 }
 
-// WORLDWIDE BOUNTIES RENDERING ENGINE
+// WORLDWIDE BOUNTIES RENDERING ENGINE WITH PENDING VS PAID STATUS
 function renderBounties() {
   const grid = document.getElementById('bounties-grid');
   if (!grid) return;
@@ -790,18 +807,30 @@ function renderBounties() {
     const isExpired = b.expiresAt && Date.now() >= b.expiresAt;
     const isFullyClaimed = b.slotsRemaining <= 0;
     const isPaidOut = approvedPayoutsHistory.some(p => p.bountyId === b.id);
+    const hasPendingSub = pendingSubmissions.some(s => s.bountyId === b.id && s.workerAddress && s.workerAddress.toLowerCase() === (userAccount || '').toLowerCase());
     const timeRemainingStr = formatTimeRemaining(b.expiresAt);
 
     let btnLabel = 'Claim Task & Submit Proof &rarr;';
     let btnDisabled = false;
     let isCardGreyed = isExpired || isFullyClaimed || isPaidOut;
+    let badgeText = '⏳ ' + timeRemainingStr;
 
-    if (isPaidOut || isFullyClaimed) {
+    if (isPaidOut) {
       btnLabel = '✅ Paid Out & Completed';
       btnDisabled = true;
+      badgeText = '✅ Paid Out';
+    } else if (hasPendingSub) {
+      btnLabel = '⏳ Proof Pending Poster Review';
+      btnDisabled = true;
+      badgeText = '⏳ Pending Review';
+    } else if (isFullyClaimed) {
+      btnLabel = '🔒 All Slots Claimed (Pending Review)';
+      btnDisabled = true;
+      badgeText = '🔒 Fully Claimed';
     } else if (isExpired) {
       btnLabel = '⏱️ Pool Expired';
       btnDisabled = true;
+      badgeText = '⏱️ Expired';
     } else if (isPublisher) {
       btnLabel = '⛔ Publisher Cannot Claim Own Task';
       btnDisabled = true;
@@ -816,7 +845,7 @@ function renderBounties() {
           <div class="card-top-bar">
             <span class="news-cat-stamp">${b.categoryName}</span>
             <div class="card-top-right">
-              <span class="time-left-pill" title="Campaign Expiration">${isPaidOut ? '✅ Paid Out' : '⏳ ' + timeRemainingStr}</span>
+              <span class="time-left-pill" title="Campaign Expiration">${badgeText}</span>
               <button class="btn-share-qr" title="Share QR Code" onclick="openQrModal('${b.id}')">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
               </button>
@@ -1283,8 +1312,6 @@ async function reviewProof(submissionId, action) {
       paidAt: Date.now()
     });
 
-    savedWorkerCompletedTasks += 1;
-    savedWorkerEarnedNim += (parseFloat(sub.reward) || 0);
     savedTotalRewardsPaid += (parseFloat(sub.reward) || 0);
 
     pendingSubmissions.splice(subIndex, 1);
