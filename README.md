@@ -1,110 +1,79 @@
-# ⚡ NimBounty — Instant Micro-Task & Crowd Testing Protocol on Nimiq Pay
+# nimBounty
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-gold.svg)](LICENSE)
-[![Framework](https://img.shields.io/badge/Framework-Nimiq_Pay_Mini_Apps-1a7a4a.svg)](https://nimiq.dev/mini-apps)
-[![Network](https://img.shields.io/badge/Network-Nimiq_Mainnet_%7C_EVM-blue.svg)](https://nimiq.com)
-[![Status](https://img.shields.io/badge/Status-Production_Ready-brightgreen.svg)](#)
-
-> **NimBounty** is a safe, non-custodial micro-task and crowd-testing engine built for the **Nimiq Pay Mini Apps Competition**. It allows Web3 builders to deposit NIM/USDT into smart escrow pools for instant user testing, feedback, and social micro-tasks, while workers complete tasks with **zero gas fees** and **instant onchain settlement**.
+> Instant Micro-Task & Escrow Engine powered by Nimiq Pay
 
 ---
 
-## 📑 Project Overview
+## ⚡ What is NimBounty?
 
-Traditional task and freelancing platforms take 20%+ commission fees and enforce $50 minimum payout thresholds. Because traditional payment processors charge $0.30 fixed swipe fees per transaction, $0.10 - $2.00 micro-payments have been economically impossible — until now.
-
-**NimBounty** solves this by pairing **Nimiq Pay's fast, zero-friction mobile payment rails** with smart escrow vaults and hardware-bound anti-sybil protections.
-
-### 🌟 Key Features
-
-* **⚡ Instant Smart Escrow:** Posters lock NIM/USDT into escrow in 1 click. Payouts trigger immediately upon proof approval.
-* **🛡️ Hardware Anti-Sybil Protection:** Uses Nimiq SDK `requestDeviceIdentifier` to generate a 64-character hardware hash per device, preventing bot farming and multi-account abuse.
-* **🌿 Zero Worker Gas Costs:** Workers sign submissions off-chain; reward disbursements are covered out of the poster's initial escrow pool deposit.
-* **⏱️ 24-Hour Auto-Approve Safeguard:** Protects worker labor — if a task poster is inactive for >24 hours, the escrow contract automatically approves and releases the reward to the worker.
-* **💼 Dual-Console Experience:** Seamless toggle between **Worker Mode** (browse, claim, submit proof) and **Poster Mode** (create pools, set rules, review submissions).
+**NimBounty** is a safe, non-custodial micro-task and crowd-testing platform built on the **Nimiq Pay Mini Apps Framework**. It enables creators and web3 builders to post bounties (app testing, UI feedback, bug reports, social sharing, copywriting) backed by smart NIM/USDT escrow pools, while workers earn instant payouts with **zero gas fees**.
 
 ---
 
-## 🏗️ System Architecture
+## 🌟 Build Features
 
-```
-                       ┌────────────────────────────────────────┐
-                       │        Nimiq Pay Mobile App            │
-                       │     (WebView Mini App Sandbox)         │
-                       └───────────────────┬────────────────────┘
-                                           │
-                        ┌──────────────────┴──────────────────┐
-                        │   NimBounty Protocol Front-End       │
-                        │ (Work Sans + Geist Mono + SVG UI)    │
-                        └─────────┬───────────────────┬───────┘
-                                  │                   │
-            ┌─────────────────────┴───┐           ┌───┴─────────────────────┐
-            ▼                         ▼           ▼                         ▼
-  [@nimiq/mini-app-sdk]        [Nimiq Provider] [EVM / window.ethereum] [Device ID Sandbox]
-  • Wallet Account Init        • NIM Transactions • USDT on Polygon/Base  • Anti-Sybil SHA-256
-```
+### 🖥️ 1. Landing Page (`#view-landing`)
+* **HatchAI-Inspired Design System:** Styled with warm linen canvas background (`#f5f3ef`), Work Sans display headings, Instrument Serif italic gold accents, and Geist Mono technical font.
+* **Typewriter Hero Header:** Dynamic typewriter animation cycling through key value propositions (*"fast"*, *"safe"*, *"direct"*, *"onchain"*, *"instant"*).
+* **Process Flow Pills:** Step indicators (`1. Select Task` &rarr; `2. Escrow Protection` &rarr; `3. Instant Payout`).
+* **5-Step Process Cards:** Visual walkthrough (*DEPOSIT*, *PROTECT*, *EXECUTE*, *VERIFY*, *SETTLE*).
+* **Built-in Protections 2x2 Grid:** Onchain safeguards with clean SVG icon badges (no stickers or emojis).
+* **Interactive FAQ Accordion:** Expandable `+` / `−` toggles for common questions.
+
+### 💼 2. App Console (`#view-app`)
+* **Dual-Mode Switcher:** Instant toggle between **Worker Mode** and **Poster Mode**.
+* **Worker Mode:** 
+  * Interactive task board with search bar, category filtering (*App Testing*, *UI Feedback*, *Social Share*, *Bug Hunt*, *Translation*), and sorting (*Newest*, *Highest Reward*, *Most Slots*).
+  * Task claim modal with a **15-minute reservation timer**.
+  * Multi-format proof submission (Text, URL link, or Screenshot upload with live preview).
+  * Worker Reputation Badge & Status Bar (Reputation: `98/100`).
+* **Poster Mode:**
+  * **Publish Bounty Form:** Create task pools, set reward per worker, set total slot capacity, and detailed guidelines.
+  * **Live Escrow Calculator:** Automatically computes total NIM deposit required.
+  * **Review Dashboard:** Poster can review pending worker submissions and click **"Approve & Pay"** or **"Reject"**.
+
+### 🛡️ 3. Protocol Protections
+* **Anti-Sybil Device ID Binding:** Integrates Nimiq SDK `requestDeviceIdentifier` to bind task claims to a unique 64-character SHA-256 hardware hash, preventing bot farming and multi-accounting.
+* **24-Hour Auto-Approve Safeguard:** If a poster remains inactive for >24 hours after a proof submission, funds automatically release to the worker.
+* **Zero Worker Gas Costs:** Workers sign submissions off-chain; reward payouts are covered out of the poster's initial deposit.
 
 ---
 
-## 💻 Tech Stack
+## 📁 Repository Structure
 
-* **Core Language:** Modern Vanilla JavaScript (ES6+), HTML5, CSS3 Tokens
-* **Typography & Styling:** Work Sans, Instrument Serif, Geist Mono (Custom HatchAI-style design system with Nimiq Gold palette)
-* **Web3 SDKs:** `@nimiq/mini-app-sdk` (`init()`, `listAccounts()`, `requestDeviceIdentifier()`), `window.ethereum`
-* **Icons:** Inline SVG Vector Icons (zero external font dependencies)
-
----
-
-## 🚀 Quick Start & Local Development
-
-### Prerequisites
-* Node.js (v18+) or Python 3 (for serving static files)
-* Nimiq Pay Mobile App ([iOS](https://apps.apple.com/app/id6471844738) / [Android](https://play.google.com/store/apps/details?id=com.nimiq.pay))
-
-### 1. Clone the Repository
-```bash
-git clone https://github.com/your-username/nimbounty.git
-cd nimbounty
+```text
+nimbounty/
+├── index.html                  # Main application structure (Landing Page & App Console)
+├── style.css                   # HatchAI design system, Nimiq Gold palette, SVG styles
+├── app.js                      # View router, FAQ toggle, Typewriter engine, Nimiq SDK logic
+├── README.md                   # Project documentation
+├── LICENSE                     # MIT License
+├── CODE_OF_CONDUCT.md          # Contributor code of conduct
+├── CONTRIBUTING.md             # Contribution guidelines
+├── SECURITY.md                 # Security policy & vulnerability reporting
+└── .github/
+    ├── ISSUE_TEMPLATE/
+    │   ├── bug_report.md       # Bug report issue template
+    │   └── feature_request.md  # Feature request issue template
+    └── PULL_REQUEST_TEMPLATE.md# Pull request review template
 ```
 
-### 2. Run Local Development Server
-Using Python:
+---
+
+## 🚀 Running Locally
+
+### 1. Launch Dev Server
 ```bash
 python -m http.server 8080
 ```
-Or using Node `http-server`:
-```bash
-npx http-server -p 8080
-```
 
-### 3. Access in Browser & Nimiq Pay
-* **Desktop Preview:** Open `http://localhost:8080` in your web browser.
-* **Nimiq Pay Mobile Test:** Open Nimiq Pay on your phone and open the deeplink:
+### 2. Access App
+* **Desktop Browser:** Navigate to `http://localhost:8080`
+* **Nimiq Pay Mobile Test:** Open Nimiq Pay and open the deeplink:
   `nimiqpay://miniapp?url=http://YOUR_LOCAL_IP:8080`
-
----
-
-## 🏆 Hackathon Competition Alignment
-
-NimBounty is custom-engineered to excel across all 105 scoring criteria for the Nimiq Mini Apps Competition:
-
-| Criteria | Score Impact | Implementation |
-| :--- | :--- | :--- |
-| **NIM Native Integration** | **+5 Bonus Points** | Uses native NIM transactions for escrow funding & worker rewards |
-| **Onboarding Speed** | **< 15 Seconds** | Zero sign-up forms; auto-detects Nimiq Pay wallet address on load |
-| **Anti-Abuse Safeguards** | **High Score** | Binds task claims to 64-hex hardware Device IDs |
-| **Worker Protection** | **High Score** | 24-hour auto-approval release timers for inactive posters |
-| **Visual Design** | **Top Tier** | HatchAI-inspired luxury canvas, typewriter hero, and SVG icon system |
-| **License Compliance** | **Mandatory** | Released under permissive MIT Open Source License |
 
 ---
 
 ## 📜 License
 
 Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for details.
-
----
-
-## 🛡️ Security Policy
-
-Please review our [`SECURITY.md`](SECURITY.md) for details on vulnerability disclosure and security practices.
