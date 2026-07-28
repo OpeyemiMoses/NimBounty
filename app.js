@@ -1,5 +1,5 @@
 /**
- * NimBounty Engine — Toast Notification & Wallet Engine
+ * NimBounty Engine — Toast Notification & Wallet Engine (Production Live Vercel Domain)
  */
 
 let currentView = 'landing';
@@ -9,6 +9,8 @@ let deviceId = localStorage.getItem('nimbounty_device_id_v3') || null;
 let isAudioEnabled = true;
 let liveBlockHeight = 0;
 let hubApiInstance = null;
+
+const PRODUCTION_URL = 'https://nim-bounty.vercel.app';
 
 // Persistent LocalStorage Keys
 const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v3';
@@ -62,8 +64,6 @@ function showToastNotification(title, message, showActionBtn = true) {
   `;
 
   container.insertAdjacentHTML('beforeend', toastHtml);
-
-  // Auto-remove after 9 seconds
   setTimeout(() => removeToast(toastId), 9000);
 }
 
@@ -77,10 +77,11 @@ function removeToast(toastId) {
 }
 
 function copyNimiqPayDeeplink() {
-  const deeplink = `nimiqpay://miniapp?url=${window.location.origin}`;
+  const currentOrigin = window.location.origin.includes('localhost') ? PRODUCTION_URL : window.location.origin;
+  const deeplink = `nimiqpay://miniapp?url=${currentOrigin}`;
   navigator.clipboard.writeText(deeplink);
   playAudioFx('submit');
-  showToastNotification('📋 Deeplink Copied!', 'Open the Nimiq Pay Mobile App and paste/open the deeplink.', false);
+  showToastNotification('📋 Deeplink Copied!', `Copied: ${deeplink}`, false);
 }
 
 // ==========================================
@@ -337,7 +338,6 @@ async function connectWallet() {
 
   const walletText = document.getElementById('wallet-text');
 
-  // 1. Mobile Nimiq Pay App SDK
   if (window.nimiqPay || (window.Nimiq && window.Nimiq.MiniApp)) {
     try {
       const sdk = window.nimiqPay || window.Nimiq.MiniApp;
@@ -358,7 +358,6 @@ async function connectWallet() {
     }
   }
 
-  // 2. Real Desktop Nimiq Hub Web Wallet (https://hub.nimiq.com)
   if (window.HubApi) {
     try {
       if (walletText) walletText.textContent = "Opening Nimiq Hub...";
@@ -381,10 +380,9 @@ async function connectWallet() {
     }
   }
 
-  // 3. If Hub popup blocked / cancelled, trigger Toast Notification encouraging Nimiq Pay Mobile App!
   showToastNotification(
     '📱 Open in Nimiq Pay Mobile App',
-    'Browser pop-up was blocked or not detected. For hardware-bound device protection and zero gas fees, open this link inside the Nimiq Pay Mobile App!',
+    `Browser pop-up was blocked or not detected. Open this link inside Nimiq Pay Mobile App for direct wallet connection: ${PRODUCTION_URL}`,
     true
   );
 
@@ -522,8 +520,9 @@ function openQrModal(bountyId) {
   const bounty = bounties.find(b => b.id === bountyId);
   if (!bounty) return;
 
+  const currentOrigin = window.location.origin.includes('localhost') ? PRODUCTION_URL : window.location.origin;
   document.getElementById('qr-bounty-title').textContent = bounty.title;
-  const deepLink = `nimiqpay://miniapp?url=https://nimbounty.dev/app?id=${bounty.id}`;
+  const deepLink = `nimiqpay://miniapp?url=${currentOrigin}/#app?id=${bounty.id}`;
   document.getElementById('qr-link-input').value = deepLink;
 
   const qrBox = document.getElementById('qrcode-box');
