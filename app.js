@@ -783,50 +783,6 @@ async function reviewProof(index, action) {
   renderPosterDashboard();
 }
 
-// ==========================================
-// 11. INTERACTIVE DEMO DRIVE
-// ==========================================
-function triggerJudgeDemoMode() {
-  showView('app');
-  switchRole('poster');
-
-  const demoBountyId = 'b-demo-judge';
-  let demoBounty = bounties.find(b => b.id === demoBountyId);
-  if (!demoBounty) {
-    demoBounty = {
-      id: demoBountyId,
-      title: '🎮 Interactive Judge Demo Pool',
-      category: 'app-test',
-      categoryName: 'INTERACTIVE DEMO',
-      proofType: 'text',
-      reward: 100,
-      slotsTotal: 10,
-      slotsRemaining: 7,
-      sponsor: 'You (Poster)',
-      instructions: 'Live demo pool to test 1-click escrow release, web audio chimes, and particle confetti explosions.',
-      createdAt: Date.now()
-    };
-    bounties.unshift(demoBounty);
-  }
-
-  pendingSubmissions = [
-    {
-      id: 'sub-demo-1',
-      bountyId: demoBountyId,
-      bountyTitle: '🎮 Interactive Judge Demo Pool',
-      workerAddress: 'NQ88 JUDGE TESTER 5555',
-      proofType: 'text',
-      content: 'Tested the NimBounty flow live. UI is ultra-fast and onboarding took 10 seconds!',
-      submittedAt: 'Just now',
-      reward: 100
-    }
-  ];
-
-  saveState();
-  renderPosterDashboard();
-  alert(`🎮 Interactive Demo Mode Active!\nWe've loaded a pending submission below. Click "Approve & Pay 100 NIM" to trigger the Web Audio cash chime & confetti explosion!`);
-}
-
 window.addEventListener('DOMContentLoaded', () => {
   runTypewriter();
   fetchNimiqLiveRPC();
