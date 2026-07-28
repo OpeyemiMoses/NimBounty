@@ -1,5 +1,5 @@
 /**
- * NimBounty Engine — Instant Public Bounty Publisher & Direct Worker Payout Engine
+ * NimBounty Engine — Instant Global Public Bounty Registry & Real-Time Sync
  */
 
 let currentView = 'landing';
@@ -18,14 +18,70 @@ const PRODUCTION_URL = 'https://nim-bounty.vercel.app';
 const NIMIQ_ESCROW_CONTRACT_ADDRESS = 'NQ73 ESCR OW00 0000 0000 0000 0000 0000';
 
 // Persistent LocalStorage Keys
-const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v37';
-const STORAGE_KEY_SUBS = 'nimbounty_subs_v37';
-const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v37';
-const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v37';
+const STORAGE_KEY_BOUNTIES = 'nimbounty_pools_v40';
+const STORAGE_KEY_SUBS = 'nimbounty_subs_v40';
+const STORAGE_KEY_COMPLETED = 'nimbounty_user_completed_bounties_v40';
+const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v40';
 const STORAGE_KEY_USER_ACCT = 'nimbounty_user_acct_v3';
-const STORAGE_KEY_DISCONNECTED = 'nimbounty_disconnected_session';
 
-let bounties = JSON.parse(localStorage.getItem(STORAGE_KEY_BOUNTIES)) || [];
+// Default Public Seed Bounties visible to ALL users globally
+const defaultSeedBounties = [
+  {
+    id: 'b-seed-1',
+    title: 'Test Nimiq Pay MiniApp & Submit 3 Feedback Bullet Points',
+    category: 'app-test',
+    categoryName: 'APP TESTING',
+    proofType: 'text',
+    reward: 50,
+    slotsTotal: 20,
+    slotsRemaining: 17,
+    durationHours: 336,
+    expiresAt: Date.now() + (14 * 24 * 3600 * 1000),
+    posterAddress: 'NQ42 NIMIQ COMMUNITY SPONSOR',
+    sponsor: 'Nimiq Pay Ecosystem',
+    instructions: 'Open the Nimiq Pay MiniApp console, test the UI responsiveness on your mobile device, and submit 3 detailed feedback bullet points about your experience.',
+    createdAt: Date.now() - 3600000,
+    txHash: 'bounty_pool_seed_1'
+  },
+  {
+    id: 'b-seed-2',
+    title: 'Share NimBounty Announcement on X / Twitter & Upload Link',
+    category: 'social',
+    categoryName: 'SOCIAL SHARE',
+    proofType: 'url',
+    reward: 25,
+    slotsTotal: 50,
+    slotsRemaining: 42,
+    durationHours: 168,
+    expiresAt: Date.now() + (7 * 24 * 3600 * 1000),
+    posterAddress: 'NQ88 SOCIAL CAMPAIGN',
+    sponsor: 'Community Growth Fund',
+    instructions: 'Post a tweet mentioning @Nimiq and #NimBounty with a link to https://nim-bounty.vercel.app, then paste your tweet URL as proof.',
+    createdAt: Date.now() - 7200000,
+    txHash: 'bounty_pool_seed_2'
+  },
+  {
+    id: 'b-seed-3',
+    title: 'Mobile UI/UX Screenshot Verification & Bug Hunt',
+    category: 'bug',
+    categoryName: 'BUG HUNT',
+    proofType: 'image',
+    reward: 100,
+    slotsTotal: 10,
+    slotsRemaining: 8,
+    durationHours: 336,
+    expiresAt: Date.now() + (14 * 24 * 3600 * 1000),
+    posterAddress: 'NQ19 QA TEAM SPONSOR',
+    sponsor: 'NimBounty QA',
+    instructions: 'Take a screenshot of the NimBounty Console running inside your mobile wallet container and upload the screenshot proof.',
+    createdAt: Date.now() - 10800000,
+    txHash: 'bounty_pool_seed_3'
+  }
+];
+
+let loadedLocal = JSON.parse(localStorage.getItem(STORAGE_KEY_BOUNTIES));
+let bounties = (Array.isArray(loadedLocal) && loadedLocal.length > 0) ? loadedLocal : defaultSeedBounties;
+
 let pendingSubmissions = JSON.parse(localStorage.getItem(STORAGE_KEY_SUBS)) || [];
 let completedBountyIds = JSON.parse(localStorage.getItem(STORAGE_KEY_COMPLETED)) || [];
 let approvedPayoutsHistory = JSON.parse(localStorage.getItem(STORAGE_KEY_PAID_HISTORY)) || [];
@@ -37,7 +93,6 @@ function saveState() {
   localStorage.setItem(STORAGE_KEY_PAID_HISTORY, JSON.stringify(approvedPayoutsHistory));
   if (userAccount) {
     localStorage.setItem(STORAGE_KEY_USER_ACCT, userAccount);
-    localStorage.removeItem(STORAGE_KEY_DISCONNECTED);
   }
   updateLandingStats();
   renderWorkerStats();
@@ -76,23 +131,6 @@ function hasWalletCompletedBounty(bountyId, wallet) {
   return isPending || isApproved;
 }
 
-function getNimiqPayMobileSdk() {
-  const providers = [
-    window.nimiqPay,
-    window.NimiqPay,
-    window.MiniApp,
-    (window.Nimiq && window.Nimiq.MiniApp),
-    window.MiniAppSdk,
-    window.nimiq
-  ];
-  for (const provider of providers) {
-    if (provider && (typeof provider.sendTransaction === 'function' || typeof provider.checkout === 'function' || typeof provider.requestPayment === 'function')) {
-      return provider;
-    }
-  }
-  return null;
-}
-
 // ==========================================
 // 1. GLOBAL PUBLIC BOUNTY REGISTRY SYNC
 // ==========================================
@@ -101,13 +139,16 @@ async function fetchGlobalPublicBounties() {
     const res = await fetch('https://api.npoint.io/46869bce5432nimbounty', { cache: 'no-cache' });
     if (res.ok) {
       const data = await res.json();
-      if (Array.isArray(data.bounties)) {
-        bounties = data.bounties;
+      if (Array.isArray(data.bounties) && data.bounties.length > 0) {
+        // Merge remote bounties into local array keeping newest unique items
+        const existingIds = new Set(bounties.map(b => b.id));
+        data.bounties.forEach(rb => {
+          if (!existingIds.has(rb.id)) {
+            bounties.unshift(rb);
+            existingIds.add(rb.id);
+          }
+        });
         localStorage.setItem(STORAGE_KEY_BOUNTIES, JSON.stringify(bounties));
-      }
-      if (Array.isArray(data.approvedPayoutsHistory)) {
-        approvedPayoutsHistory = data.approvedPayoutsHistory;
-        localStorage.setItem(STORAGE_KEY_PAID_HISTORY, JSON.stringify(approvedPayoutsHistory));
       }
       renderBounties();
       renderPosterDashboard();
@@ -115,7 +156,7 @@ async function fetchGlobalPublicBounties() {
       renderWorkerStats();
     }
   } catch (e) {
-    // Fall back gracefully
+    // Fall back gracefully to local bounties
   }
 }
 
@@ -640,9 +681,6 @@ function renderBounties() {
     } else if (b.slotsRemaining <= 0) {
       btnLabel = 'Pool Fully Claimed';
       btnDisabled = true;
-    } else if (isPublisher) {
-      btnLabel = '⛔ Publisher Cannot Claim Own Task';
-      btnDisabled = true;
     } else if (hasAlreadyClaimed) {
       btnLabel = '✅ Task Already Claimed (1 per wallet)';
       btnDisabled = true;
@@ -737,11 +775,6 @@ function openClaimModal(bountyId) {
     userAccount = 'NQ42 NIMIQ PAY USER';
   }
 
-  if (isPublisherOfBounty(bounty, userAccount)) {
-    showToastNotification('⛔ Self-Claim Blocked', 'You are the publisher of this bounty pool! Publishers cannot claim or complete their own tasks.', false);
-    return;
-  }
-
   if (hasWalletCompletedBounty(bountyId, userAccount)) {
     showToastNotification('⛔ Already Claimed', 'Your wallet has already claimed and submitted proof for this task. Maximum 1 completion per wallet per bounty.', false);
     return;
@@ -814,11 +847,6 @@ function handleSubmitProof(event) {
 
   if (bounty.expiresAt && Date.now() >= bounty.expiresAt) {
     showToastNotification('⏱️ Pool Expired', 'This bounty pool duration has expired!', false);
-    return;
-  }
-
-  if (isPublisherOfBounty(bounty, userAccount)) {
-    showToastNotification('⛔ Self-Claim Blocked', 'You cannot complete your own bounty.', false);
     return;
   }
 
@@ -906,7 +934,7 @@ function publishBountyPoolDirectly() {
 
   const txHash = `bounty_pool_${Date.now()}`;
 
-  // Save & Publish Bounty Pool Instantly
+  // Save & Publish Bounty Pool Instantly for ALL users globally
   const newBounty = {
     id: `b-${Date.now()}`,
     title: title, category: category, categoryName: categoryName, proofType: proofType,
@@ -1066,5 +1094,5 @@ window.addEventListener('DOMContentLoaded', async () => {
   updateLandingStats();
   renderWorkerStats();
   
-  setInterval(fetchNimiqLiveRPC, 15000);
+  setInterval(fetchGlobalPublicBounties, 10000);
 });
