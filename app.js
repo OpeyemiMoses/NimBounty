@@ -1416,6 +1416,8 @@ function openSubmitProofModal(bountyId) {
   // Clear previous values
   if (document.getElementById('proof-text-input')) document.getElementById('proof-text-input').value = '';
   if (document.getElementById('proof-url-input')) document.getElementById('proof-url-input').value = '';
+  if (document.getElementById('proof-image-file')) document.getElementById('proof-image-file').value = '';
+  uploadedImageDataUrl = null;
 
   startClaimTimer(15 * 60);
   document.getElementById('modal-submit-proof').style.display = 'flex';
@@ -1440,27 +1442,18 @@ function startClaimTimer(durationSeconds) {
   }, 1000);
 }
 
-function previewScreenshot(event) {
-  const file = event.target.files[0];
-  if (file) {
+async function processImageFileToDataUrl(file) {
+  return new Promise((resolve) => {
     const reader = new FileReader();
     reader.onload = function(e) {
       const rawDataUrl = e.target.result;
-      // Set value immediately so uploadedImageDataUrl is never null or delayed
-      uploadedImageDataUrl = rawDataUrl;
-      const previewImg = document.getElementById('image-preview-img');
-      const previewBox = document.getElementById('image-preview-box');
-      if (previewImg) previewImg.src = rawDataUrl;
-      if (previewBox) previewBox.style.display = 'flex';
-
-      // Compress to lightweight 500px JPEG (~20KB) for instant network sync
       const img = new Image();
       img.onload = function() {
         try {
           const canvas = document.createElement('canvas');
           let width = img.width;
           let height = img.height;
-          const maxDim = 500;
+          const maxDim = 600;
 
           if (width > maxDim || height > maxDim) {
             if (width > height) {
@@ -1477,16 +1470,28 @@ function previewScreenshot(event) {
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, width, height);
 
-          const compressed = canvas.toDataURL('image/jpeg', 0.55);
-          if (compressed && compressed.length < rawDataUrl.length) {
-            uploadedImageDataUrl = compressed;
-            if (previewImg) previewImg.src = compressed;
-          }
-        } catch (err) {}
+          const compressed = canvas.toDataURL('image/jpeg', 0.6);
+          resolve(compressed || rawDataUrl);
+        } catch (err) {
+          resolve(rawDataUrl);
+        }
       };
+      img.onerror = () => resolve(rawDataUrl);
       img.src = rawDataUrl;
     };
+    reader.onerror = () => resolve(null);
     reader.readAsDataURL(file);
+  });
+}
+
+async function previewScreenshot(event) {
+  const file = event.target.files[0];
+  if (file) {
+    uploadedImageDataUrl = await processImageFileToDataUrl(file);
+    const previewImg = document.getElementById('image-preview-img');
+    const previewBox = document.getElementById('image-preview-box');
+    if (previewImg && uploadedImageDataUrl) previewImg.src = uploadedImageDataUrl;
+    if (previewBox) previewBox.style.display = 'flex';
   }
 }
 
@@ -1496,6 +1501,13 @@ async function handleSubmitProof() {
 
   const pType = bounty.proofType || 'text';
   let proofContent = '';
+
+  if (pType === 'image' || pType === 'image_text') {
+    const fileInput = document.getElementById('proof-image-file');
+    if (!uploadedImageDataUrl && fileInput && fileInput.files && fileInput.files[0]) {
+      uploadedImageDataUrl = await processImageFileToDataUrl(fileInput.files[0]);
+    }
+  }
 
   if (pType === 'text') {
     proofContent = document.getElementById('proof-text-input')?.value.trim() || '';
