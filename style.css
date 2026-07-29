@@ -1056,6 +1056,19 @@ textarea {
 
 /* Mobile Media Queries */
 @media (max-width: 768px) {
+  body {
+    padding-bottom: 110px !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .console-main,
+  .page-view,
+  #view-orders,
+  #view-app,
+  #panel-profile {
+    padding-bottom: 120px !important;
+  }
+
   .desktop-only, .desktop-nav {
     display: none !important;
   }

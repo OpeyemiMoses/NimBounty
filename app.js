@@ -1797,32 +1797,36 @@ function triggerConfetti() {
 }
 
 function renderDedicatedOrders() {
-  const list = document.getElementById('dedicated-orders-list');
-  if (!list) return;
+  const lists = [
+    document.getElementById('dedicated-orders-list'),
+    document.getElementById('worker-orders-list')
+  ].filter(Boolean);
 
-  if (!isRealWalletConnected()) {
-    list.innerHTML = createEmptyStateHTML(
-      'Wallet Required',
-      'Connect your Nimiq Pay wallet to view your submitted orders and payout history.',
-      `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>`
-    );
-    return;
-  }
+  if (!lists.length) return;
 
-  const myPayouts = approvedPayoutsHistory.filter(p => isSameNimiqAddress(p.workerAddress, userAccount));
-  list.innerHTML = myPayouts.length ? myPayouts.map(p => `
-    <div style="background:var(--card); border:1px solid var(--border); border-radius:16px; padding:16px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
-      <div>
-        <h4 style="font-size:0.95rem; font-weight:800;">${p.bountyTitle}</h4>
-        <div style="font-size:0.75rem; color:var(--muted); margin-top:2px;">Paid: ${new Date(p.paidAt).toLocaleDateString()}</div>
-      </div>
-      <div style="font-family:var(--font-mono); font-size:1.1rem; font-weight:900; color:var(--gold);">+${p.reward} NIM</div>
-    </div>
-  `).join('') : createEmptyStateHTML(
-    'No Submission Orders',
-    'Your completed task payouts and order history will appear here once you complete bounties.',
-    `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>`
-  );
+  const content = !isRealWalletConnected()
+    ? createEmptyStateHTML(
+        'Wallet Required',
+        'Connect your Nimiq Pay wallet to view your submitted orders and payout history.',
+        `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>`
+      )
+    : (approvedPayoutsHistory.filter(p => isSameNimiqAddress(p.workerAddress, userAccount)).length
+        ? approvedPayoutsHistory.filter(p => isSameNimiqAddress(p.workerAddress, userAccount)).map(p => `
+          <div style="background:var(--card); border:1px solid var(--border); border-radius:16px; padding:16px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <h4 style="font-size:0.95rem; font-weight:800;">${p.bountyTitle}</h4>
+              <div style="font-size:0.75rem; color:var(--muted); margin-top:2px;">Paid: ${new Date(p.paidAt).toLocaleDateString()}</div>
+            </div>
+            <div style="font-family:var(--font-mono); font-size:1.1rem; font-weight:900; color:var(--gold);">+${p.reward} NIM</div>
+          </div>
+        `).join('')
+        : createEmptyStateHTML(
+          'No Submission Orders',
+          'Your completed task payouts and order history will appear here once you complete bounties.',
+          `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>`
+        ));
+
+  lists.forEach(el => el.innerHTML = content);
 }
 
 function updateLandingStats() {

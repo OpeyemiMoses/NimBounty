@@ -684,12 +684,12 @@
   <div id="view-orders" class="page-view" style="display: none;">
     <main class="console-main">
       <div class="paper-card" style="background:var(--card); border:1px solid var(--border); border-radius:20px; padding:24px;">
-        <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
-          <button class="btn-ghost-sm" onclick="showView('app')" style="padding:6px 12px;">&larr; Back to App</button>
-          <h2 style="font-size:1.4rem; font-weight:800; color:var(--ink);">Your Orders &amp; Completed Tasks</h2>
+        <div style="display:flex; flex-direction:column; align-items:flex-start; gap:10px; margin-bottom:18px;">
+          <button class="btn-ghost-sm" onclick="showView('app')" style="padding:7px 14px; font-size:0.82rem;">&larr; Back to App</button>
+          <h2 style="font-size:1.4rem; font-weight:900; color:var(--ink); margin:0; letter-spacing:-0.02em;">Your Orders &amp; Completed Tasks</h2>
         </div>
         <p style="font-size:0.85rem; color:var(--muted); margin-bottom:20px;">History of all tasks completed and rewards claimed by your connected wallet address.</p>
-        <div id="worker-orders-list"></div>
+        <div id="dedicated-orders-list"></div>
       </div>
     </main>
   </div>
