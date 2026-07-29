@@ -362,7 +362,12 @@ function handleWalletButtonClick() {
       modal.style.display = 'flex';
     }
   } else {
-    connectNimiqPayWallet();
+    const isNimiqApp = typeof window !== 'undefined' && (!!window.nimiq || !!window.NimiqProvider || !!window.nimiqPay || !!window.NimiqPay || !!window.miniApp);
+    if (isNimiqApp) {
+      connectNimiqPayWallet();
+    } else {
+      openDesktopConnectModal();
+    }
   }
 }
 
@@ -390,7 +395,7 @@ function updateWalletUI() {
   if (walletTextMobile) walletTextMobile.textContent = displayVal;
 
   if (sessionWallet) {
-    sessionWallet.textContent = isRealWalletConnected() ? displayVal : '⚡ CONNECT NIMIQ PAY';
+    sessionWallet.textContent = isRealWalletConnected() ? displayVal : 'CONNECT NIMIQ PAY';
   }
 
   if (nimEarnedEl) {
@@ -566,17 +571,52 @@ function showView(viewName) {
   }
 }
 
+function updateLandingStats() {
+  const elBounties = document.getElementById('landing-stat-bounties');
+  const elPayouts = document.getElementById('landing-stat-payouts');
+
+  const activeCount = bounties.filter(b => (b.slotsRemaining === undefined || b.slotsRemaining > 0)).length;
+  const seedPayoutsSum = 1250;
+  const livePayoutsSum = approvedPayoutsHistory.reduce((sum, p) => sum + (parseFloat(p.reward) || 0), 0);
+  const totalPayouts = seedPayoutsSum + livePayoutsSum;
+
+  if (elBounties) elBounties.textContent = activeCount > 0 ? activeCount : (INITIAL_SEED_BOUNTIES.length || 2);
+  if (elPayouts) elPayouts.textContent = `${totalPayouts.toLocaleString()} NIM`;
+}
+
 function renderSessionBar() {
   const displayEl = document.getElementById('session-wallet-display');
   const badgeEl = document.getElementById('session-mode-badge');
 
   if (displayEl) {
-    displayEl.textContent = isRealWalletConnected() ? getUserDisplayName(userAccount) : '⚡ CONNECT NIMIQ PAY';
+    displayEl.textContent = isRealWalletConnected() ? getUserDisplayName(userAccount) : 'CONNECT NIMIQ PAY';
   }
   if (badgeEl) {
     badgeEl.textContent = currentRole === 'worker' ? 'Worker Mode' : 'Poster Mode';
     badgeEl.style.color = currentRole === 'worker' ? 'var(--gold)' : 'var(--emerald)';
   }
+
+  updateLandingStats();
+}
+
+function openModeSwitchModal() {
+  const workerBtn = document.getElementById('mode-modal-btn-worker');
+  const posterBtn = document.getElementById('mode-modal-btn-poster');
+  if (workerBtn && posterBtn) {
+    if (currentRole === 'worker') {
+      workerBtn.className = 'btn-primary-lg';
+      workerBtn.style.padding = '14px';
+      posterBtn.className = 'btn-ghost-sm';
+      posterBtn.style.padding = '14px';
+    } else {
+      posterBtn.className = 'btn-primary-lg';
+      posterBtn.style.padding = '14px';
+      workerBtn.className = 'btn-ghost-sm';
+      workerBtn.style.padding = '14px';
+    }
+  }
+  const modal = document.getElementById('modal-mode-switch');
+  if (modal) modal.style.display = 'flex';
 }
 
 function switchToRole(role) {
@@ -599,7 +639,7 @@ function switchToRole(role) {
   }
   renderSessionBar();
   renderMobileBottomNav();
-  showToastNotification('🔄 Mode Switched', `Switched to ${role === 'worker' ? 'Worker' : 'Poster'} Mode`, false);
+  showToastNotification('Mode Switched', `Switched to ${role === 'worker' ? 'Worker' : 'Poster'} Mode`, false);
 }
 
 function switchWorkerSubtab(subtab) {
@@ -650,7 +690,7 @@ function renderMobileBottomNav() {
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 16 14"/></svg>
         History
       </button>
-      <button class="mobile-bottom-tab mode-center-tab" onclick="document.getElementById('modal-mode-switch').style.display='flex';">
+      <button class="mobile-bottom-tab mode-center-tab" onclick="openModeSwitchModal();">
         ${stackLogo}
         Mode
       </button>
@@ -946,6 +986,23 @@ function renderBounties() {
     }
   });
 
+  if (filtered.length === 0) {
+    if (workerSubtab === 'active') {
+      grid.innerHTML = createEmptyStateHTML(
+        'No Active Bounties',
+        'No open task bounties match your search filter right now. Check back soon or publish a new bounty pool!',
+        `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>`
+      );
+    } else {
+      grid.innerHTML = createEmptyStateHTML(
+        'No Completed Tasks',
+        'You have not completed any bounties yet. Explore active bounties to start earning instant NIM rewards!',
+        `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 16 14"/></svg>`
+      );
+    }
+    return;
+  }
+
   grid.innerHTML = filtered.map(b => {
     const isPublisher = isSameNimiqAddress(b.posterAddress, userAccount);
     const hasPendingSub = userAccount ? pendingSubmissions.some(s => s.bountyId === b.id && s.workerAddress && isSameNimiqAddress(s.workerAddress, userAccount)) : false;
@@ -955,13 +1012,13 @@ function renderBounties() {
     let btnDisabled = false;
 
     if (hasPendingSub) {
-      btnLabel = '⏳ Proof Pending Review';
+      btnLabel = `<span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px; vertical-align:middle;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 16 14"/></svg> Proof Pending Review</span>`;
       btnDisabled = true;
     } else if (hasApproved) {
-      btnLabel = '✅ Payout Released';
+      btnLabel = `<span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--emerald)" stroke-width="2.5" style="margin-right:6px; vertical-align:middle;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Payout Released</span>`;
       btnDisabled = true;
     } else if (isPublisher) {
-      btnLabel = '⛔ Publisher (Cannot Claim)';
+      btnLabel = `<span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px; vertical-align:middle;"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg> Publisher (Cannot Claim)</span>`;
       btnDisabled = true;
     }
 
@@ -971,7 +1028,10 @@ function renderBounties() {
           <div class="bounty-card-header">
             <span class="bounty-category-tag">${b.categoryName || b.category || 'General'}</span>
             <div style="display:flex; align-items:center; gap:8px;">
-              <button onclick="openQrModal('${b.id}')" title="Share QR Code" style="background:var(--bg-subtle); border:1px solid var(--border); padding:4px 8px; border-radius:8px; cursor:pointer;">📱 QR</button>
+              <button onclick="openQrModal('${b.id}')" title="Share QR Code" style="background:var(--bg-subtle); border:1px solid var(--border); padding:4px 8px; border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; gap:4px; font-size:0.75rem; font-weight:700; color:var(--ink);">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                QR
+              </button>
               <span class="bounty-reward">${b.reward} NIM</span>
             </div>
           </div>
@@ -1187,7 +1247,11 @@ function renderPosterDashboard() {
         <h4 style="font-size:1rem; font-weight:800;">${b.title}</h4>
         <div style="font-size:0.8rem; color:var(--muted); margin-top:4px;">Reward: ${b.reward} NIM &bull; Slots: ${b.slotsRemaining} / ${b.slotsTotal}</div>
       </div>
-    `).join('') : '<p style="color:var(--muted); font-size:0.85rem;">No published bounty pools yet.</p>';
+    `).join('') : createEmptyStateHTML(
+      'No Published Pools',
+      'You have not published any task bounty pools yet. Click "Publish New Bounty" above to launch your first task pool!',
+      `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>`
+    );
   }
 
   if (subsList) {
@@ -1202,7 +1266,11 @@ function renderPosterDashboard() {
           <button class="btn-ghost-sm" onclick="openRejectionModal('${s.id}')" style="flex:1; justify-content:center; color:var(--danger);">Reject</button>
         </div>
       </div>
-    `).join('') : '<p style="color:var(--muted); font-size:0.85rem;">No pending worker submissions to review.</p>';
+    `).join('') : createEmptyStateHTML(
+      'No Pending Submissions',
+      'When workers complete your published bounties and submit proof packages, they will appear here for 1-click review and payout.',
+      `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>`
+    );
   }
 }
 
@@ -1228,25 +1296,36 @@ async function approveWorkerPayout(subId) {
     }
   }
 
-  approvedPayoutsHistory.push({
-    id: `pay-${Date.now()}`,
+  sub.status = 'approved';
+  sub.approvedAt = Date.now();
+  sub.txHash = txHash;
+
+  approvedPayoutsHistory.unshift({
     bountyId: sub.bountyId,
     bountyTitle: sub.bountyTitle,
     workerAddress: sub.workerAddress,
-    posterAddress: userAccount,
+    posterAddress: sub.posterAddress,
     reward: sub.reward,
-    txHash: txHash,
-    paidAt: Date.now()
+    paidAt: Date.now(),
+    txHash: txHash
   });
 
-  pendingSubmissions.splice(subIndex, 1);
-  localStorage.setItem(STORAGE_KEY_PAID_HISTORY, JSON.stringify(approvedPayoutsHistory));
+  const bIndex = bounties.findIndex(b => b.id === sub.bountyId);
+  if (bIndex !== -1 && bounties[bIndex].slotsRemaining > 0) {
+    bounties[bIndex].slotsRemaining -= 1;
+  }
+
   localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions));
+  localStorage.setItem(STORAGE_KEY_PAID_HISTORY, JSON.stringify(approvedPayoutsHistory));
+  localStorage.setItem(STORAGE_KEY_LOCAL_BOUNTIES, JSON.stringify(bounties));
 
   syncGlobalPublicBounties(null, true);
-  triggerConfetti();
+
   renderPosterDashboard();
-  renderProfile();
+  renderBounties();
+  renderSessionBar();
+  updateWalletUI();
+  triggerConfetti();
   showToastNotification('🎉 Worker Paid!', `${sub.reward} NIM transferred directly to ${getUserDisplayName(sub.workerAddress)}.`, false);
 }
 
@@ -1254,7 +1333,8 @@ let _pendingRejectSubId = null;
 
 function openRejectionModal(subId) {
   _pendingRejectSubId = subId;
-  document.getElementById('modal-reject-reason').style.display = 'flex';
+  const modal = document.getElementById('modal-reject-reason');
+  if (modal) modal.style.display = 'flex';
 }
 
 function submitTaskRejectionWithReason() {
@@ -1337,7 +1417,11 @@ function renderDedicatedOrders() {
   if (!list) return;
 
   if (!isRealWalletConnected()) {
-    list.innerHTML = '<p style="color:var(--muted); font-size:0.85rem; padding:20px 0;">Connect your wallet to view completed orders.</p>';
+    list.innerHTML = createEmptyStateHTML(
+      'Wallet Required',
+      'Connect your Nimiq Pay wallet to view your submitted orders and payout history.',
+      `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>`
+    );
     return;
   }
 
@@ -1350,7 +1434,11 @@ function renderDedicatedOrders() {
       </div>
       <div style="font-family:var(--font-mono); font-size:1.1rem; font-weight:900; color:var(--gold);">+${p.reward} NIM</div>
     </div>
-  `).join('') : '<p style="color:var(--muted); font-size:0.85rem; padding:20px 0;">No completed orders found for this wallet address.</p>';
+  `).join('') : createEmptyStateHTML(
+    'No Submission Orders',
+    'Your completed task payouts and order history will appear here once you complete bounties.',
+    `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>`
+  );
 }
 
 function updateLandingStats() {
