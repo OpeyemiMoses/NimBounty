@@ -316,16 +316,19 @@ function runTypewriter() {
 function checkWalletConnectionGate() {
   const appView = document.getElementById('view-app');
   const gateModal = document.getElementById('modal-wallet-connect-gate');
+  const mobileNav = document.getElementById('mobile-bottom-nav');
 
   if (!isRealWalletConnected()) {
     if (appView) appView.classList.add('app-blur-locked');
-    if (currentView === 'app') {
+    if (mobileNav) mobileNav.classList.add('nav-blur-locked');
+    if (currentView === 'app' || currentView === 'orders') {
       if (gateModal) gateModal.style.display = 'flex';
     } else {
       if (gateModal) gateModal.style.display = 'none';
     }
   } else {
     if (appView) appView.classList.remove('app-blur-locked');
+    if (mobileNav) mobileNav.classList.remove('nav-blur-locked');
     if (gateModal) gateModal.style.display = 'none';
     const errEl = document.getElementById('wallet-gate-error');
     if (errEl) errEl.style.display = 'none';
@@ -350,6 +353,8 @@ async function triggerWalletGateConnection() {
         renderBounties();
         renderPosterDashboard();
         renderSessionBar();
+        renderMobileBottomNav();
+        checkWalletConnectionGate();
         showToastNotification('Wallet Connected', `Connected address: ${getUserDisplayName(userAccount)}`, false);
         checkAndLaunchOnboarding();
       } else {
@@ -358,6 +363,7 @@ async function triggerWalletGateConnection() {
     }
     
     if (isRealWalletConnected()) {
+      renderMobileBottomNav();
       checkWalletConnectionGate();
     } else {
       if (errEl) {
@@ -391,6 +397,7 @@ async function connectNimiqPayWallet() {
         renderBounties();
         renderPosterDashboard();
         renderSessionBar();
+        renderMobileBottomNav();
         checkWalletConnectionGate();
         showToastNotification('Wallet Connected', `Wallet connected: ${getUserDisplayName(userAccount)}`, false);
         checkAndLaunchOnboarding();
@@ -411,6 +418,7 @@ async function connectNimiqPayWallet() {
     renderBounties();
     renderPosterDashboard();
     renderSessionBar();
+    renderMobileBottomNav();
     checkWalletConnectionGate();
     showToastNotification('Wallet Connected', `Connected address: ${getUserDisplayName(userAccount)}`, false);
     checkAndLaunchOnboarding();
@@ -434,14 +442,24 @@ function handleWalletButtonClick() {
 
 function confirmDisconnectWalletFromModal() {
   closeModal('modal-wallet');
+  
+  // Total Disconnect
   userAccount = null;
   localStorage.removeItem(STORAGE_KEY_USER_ACCT);
 
+  const profilePanel = document.getElementById('panel-profile');
+  if (profilePanel) profilePanel.style.display = 'none';
+
+  workerSubtab = 'active';
+  posterSubtab = 'create';
+
   updateWalletUI();
+  renderMobileBottomNav();
+  renderSessionBar();
   renderBounties();
   renderPosterDashboard();
-  renderSessionBar();
   checkWalletConnectionGate();
+
   showToastNotification('Wallet Disconnected', 'Your wallet session has been disconnected.', false);
 }
 
