@@ -319,6 +319,7 @@ async function connectNimiqPayWallet() {
         userAccount = candidateAccount.replace(/\s+/g, '').toUpperCase();
         localStorage.setItem(STORAGE_KEY_USER_ACCT, userAccount);
 
+        await fetchGlobalPublicBounties();
         updateWalletUI();
         renderBounties();
         renderPosterDashboard();
@@ -336,6 +337,7 @@ async function connectNimiqPayWallet() {
   if (inputAddr && inputAddr.trim()) {
     userAccount = inputAddr.trim().replace(/\s+/g, '').toUpperCase();
     localStorage.setItem(STORAGE_KEY_USER_ACCT, userAccount);
+    await fetchGlobalPublicBounties();
     updateWalletUI();
     renderBounties();
     renderPosterDashboard();

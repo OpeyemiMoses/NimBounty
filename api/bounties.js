@@ -1,15 +1,35 @@
 // Vercel Serverless API — NimBounty Global Store Sync Engine
 // Manages global real-time synchronization for bounties, worker submissions, and approved payouts.
 
-const JSONBLOB_ID = '019fa9df-e75f-73a9-b63b-015401cd107c';
-const JSONBLOB_BASE = `https://jsonblob.com/api/jsonBlob/${JSONBLOB_ID}`;
+let activeBlobId = '019faf0c-b8b8-7f1e-881f-0264e03b798d';
+
+async function createNewBlob(initialData = { bounties: [], pendingSubmissions: [], approvedPayoutsHistory: [] }) {
+  try {
+    const res = await fetch('https://jsonblob.com/api/jsonBlob', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify(initialData)
+    });
+    const loc = res.headers.get('location');
+    if (loc) {
+      const parts = loc.split('/');
+      activeBlobId = parts[parts.length - 1];
+    }
+    return initialData;
+  } catch (e) {
+    return initialData;
+  }
+}
 
 async function readStore() {
   try {
-    const res = await fetch(JSONBLOB_BASE, {
+    const res = await fetch(`https://jsonblob.com/api/jsonBlob/${activeBlobId}`, {
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }
     });
-    if (!res.ok) throw new Error(`JSONBlob read failed: ${res.status}`);
+    if (res.status === 404) {
+      return await createNewBlob();
+    }
+    if (!res.ok) throw new Error(`JSONBlob read status: ${res.status}`);
     return await res.json();
   } catch(e) {
     return { bounties: [], pendingSubmissions: [], approvedPayoutsHistory: [] };
@@ -17,13 +37,20 @@ async function readStore() {
 }
 
 async function writeStore(data) {
-  const res = await fetch(JSONBLOB_BASE, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-    body: JSON.stringify(data)
-  });
-  if (!res.ok) throw new Error(`JSONBlob write failed: ${res.status}`);
-  return res.json();
+  try {
+    const res = await fetch(`https://jsonblob.com/api/jsonBlob/${activeBlobId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (res.status === 404) {
+      return await createNewBlob(data);
+    }
+    if (!res.ok) throw new Error(`JSONBlob write status: ${res.status}`);
+    return res.json();
+  } catch (e) {
+    return await createNewBlob(data);
+  }
 }
 
 export default async function handler(req, res) {
