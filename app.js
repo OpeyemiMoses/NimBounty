@@ -827,7 +827,7 @@ function renderProfile() {
 
     <!-- Menu Action Cards -->
     <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:24px;">
-      <div class="menu-action-card" onclick="showView('how-it-works')">
+      <div class="menu-action-card" onclick="scrollToSection('how-it-works')">
         <div class="menu-action-icon">📖</div>
         <div style="flex:1;">
           <div class="menu-action-title">How It Works</div>
@@ -836,7 +836,7 @@ function renderProfile() {
         <span class="menu-action-arrow">&rarr;</span>
       </div>
 
-      <div class="menu-action-card" onclick="showView('protections')">
+      <div class="menu-action-card" onclick="scrollToSection('features')">
         <div class="menu-action-icon">🛡️</div>
         <div style="flex:1;">
           <div class="menu-action-title">Built-in Protections</div>
@@ -845,7 +845,7 @@ function renderProfile() {
         <span class="menu-action-arrow">&rarr;</span>
       </div>
 
-      <div class="menu-action-card" onclick="showView('faq')">
+      <div class="menu-action-card" onclick="scrollToSection('faq')">
         <div class="menu-action-icon">❓</div>
         <div style="flex:1;">
           <div class="menu-action-title">Frequently Asked Questions</div>
