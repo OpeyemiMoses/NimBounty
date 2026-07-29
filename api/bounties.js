@@ -114,7 +114,17 @@ export default async function handler(req, res) {
       }
 
       // 3. Sync Pending Submissions
-      if (Array.isArray(body.pendingSubmissions)) {
+      // newSubmission: a single new submission pushed by a worker — always append safely
+      if (body.newSubmission && body.newSubmission.id) {
+        const alreadyExists = pendingSubmissions.some(s => s.id === body.newSubmission.id);
+        if (!alreadyExists) {
+          pendingSubmissions.unshift(body.newSubmission);
+        } else {
+          // Update existing if status changed (e.g. rejection)
+          const idx = pendingSubmissions.findIndex(s => s.id === body.newSubmission.id);
+          if (idx !== -1) pendingSubmissions[idx] = { ...pendingSubmissions[idx], ...body.newSubmission };
+        }
+      } else if (Array.isArray(body.pendingSubmissions)) {
         if (body.replacePendingSubmissions) {
           pendingSubmissions = body.pendingSubmissions;
         } else {
@@ -123,6 +133,12 @@ export default async function handler(req, res) {
             if (!existingSubIds.has(incoming.id)) {
               pendingSubmissions.unshift(incoming);
               existingSubIds.add(incoming.id);
+            } else {
+              // Update status if changed
+              const idx = pendingSubmissions.findIndex(s => s.id === incoming.id);
+              if (idx !== -1 && incoming.status !== pendingSubmissions[idx].status) {
+                pendingSubmissions[idx] = { ...pendingSubmissions[idx], ...incoming };
+              }
             }
           });
         }

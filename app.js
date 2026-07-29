@@ -233,12 +233,30 @@ async function fetchGlobalPublicBounties() {
   }
 }
 
+// Push a single new submission to the server without overwriting other users' data
+async function pushNewSubmission(newSub, updatedBounty = null) {
+  try {
+    const apiEndpoint = window.location.origin.includes('localhost')
+      ? `${PRODUCTION_URL}/api/bounties`
+      : `/api/bounties`;
+    await fetch(apiEndpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        newSubmission: newSub,
+        newBounty: updatedBounty,
+        approvedPayoutsHistory,
+        updatedAt: Date.now()
+      })
+    });
+  } catch (e) {}
+}
+
 async function syncGlobalPublicBounties(updatedBountyObj = null, replacePendingSubmissions = false) {
   try {
     const apiEndpoint = window.location.origin.includes('localhost')
       ? `${PRODUCTION_URL}/api/bounties`
       : `/api/bounties`;
-
     await fetch(apiEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1486,9 +1504,9 @@ async function handleSubmitProof() {
   localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions));
   localStorage.setItem(STORAGE_KEY_LOCAL_BOUNTIES, JSON.stringify(bounties));
 
-  // Push updated pendingSubmissions AND bounty slots to the shared server store
-  // replacePendingSubmissions=true so the poster's client picks up the new submission on next poll
-  syncGlobalPublicBounties(targetBounty || bounty, true);
+  // Push ONLY the new submission + updated bounty slots to the server.
+  // Never replace the full array — other users' submissions must be preserved.
+  pushNewSubmission(newSub, targetBounty || bounty);
 
   closeModal('modal-submit-proof');
   renderBounties();
