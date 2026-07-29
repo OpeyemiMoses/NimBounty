@@ -335,23 +335,22 @@ function checkWalletConnectionGate() {
   }
 }
 
+function renderQrCodeToContainer(containerEl, url) {
+  if (!containerEl) return;
+  const targetUrl = url || window.location.href;
+  const encoded = encodeURIComponent(targetUrl);
+  containerEl.innerHTML = `
+    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:12px; background:#ffffff; border-radius:16px; border:1px solid var(--border); box-shadow:0 4px 16px rgba(0,0,0,0.06);">
+      <img src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encoded}&color=1a1917&bgcolor=ffffff" width="180" height="180" style="border-radius:12px; display:block;" alt="Nimiq Pay QR Code" />
+    </div>
+  `;
+}
+
 function openDesktopConnectModal() {
   const qrBox = document.getElementById('desktop-connect-qr-box');
   if (qrBox) {
-    qrBox.innerHTML = '';
-    const shareUrl = window.location.href;
-    if (typeof QRCode !== 'undefined') {
-      new QRCode(qrBox, {
-        text: shareUrl,
-        width: 180,
-        height: 180,
-        colorDark: "#1a1917",
-        colorLight: "#ffffff",
-        correctLevel: QRCode.CorrectLevel.H
-      });
-    } else {
-      qrBox.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(shareUrl)}" style="border-radius:12px; width:180px; height:180px;" alt="Nimiq Pay App QR" />`;
-    }
+    const shareUrl = window.location.origin + window.location.pathname;
+    renderQrCodeToContainer(qrBox, shareUrl);
   }
 
   const modal = document.getElementById('modal-desktop-connect');
@@ -488,34 +487,12 @@ function updateWalletUI() {
 }
 
 function handleLaunchApp() {
-  const isMobileScreen = window.innerWidth <= 768;
-  const isNimiqApp = !!getNimiqProvider();
-
-  if (isMobileScreen || isNimiqApp) {
+  const isNimiqApp = typeof window !== 'undefined' && (!!window.nimiq || !!window.NimiqProvider || !!window.nimiqPay || !!window.NimiqPay || !!window.miniApp || (navigator.userAgent && navigator.userAgent.indexOf('Nimiq') !== -1));
+  if (isNimiqApp || isRealWalletConnected()) {
     showView('app');
   } else {
     openDesktopConnectModal();
   }
-}
-
-function openDesktopConnectModal() {
-  const modal = document.getElementById('modal-desktop-connect');
-  const qrBox = document.getElementById('desktop-connect-qr-box');
-  if (!modal) return;
-
-  if (qrBox) {
-    qrBox.innerHTML = '';
-    if (typeof QRCode !== 'undefined') {
-      new QRCode(qrBox, {
-        text: window.location.href,
-        width: 160,
-        height: 160,
-        colorDark: '#1a1917',
-        colorLight: '#ffffff'
-      });
-    }
-  }
-  modal.style.display = 'flex';
 }
 
 function closeModal(modalId) {
@@ -1532,16 +1509,7 @@ function openQrModal(bountyId) {
 
   const qrBox = document.getElementById('qrcode-box');
   if (qrBox) {
-    qrBox.innerHTML = '';
-    if (typeof QRCode !== 'undefined') {
-      new QRCode(qrBox, {
-        text: shareWebUrl,
-        width: 160,
-        height: 160,
-        colorDark: "#1a1917",
-        colorLight: "#ffffff"
-      });
-    }
+    renderQrCodeToContainer(qrBox, shareWebUrl);
   }
 
   document.getElementById('modal-qr').style.display = 'flex';
