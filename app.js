@@ -335,47 +335,55 @@ function checkWalletConnectionGate() {
   }
 }
 
+function openDesktopConnectModal() {
+  const qrBox = document.getElementById('desktop-connect-qr-box');
+  if (qrBox) {
+    qrBox.innerHTML = '';
+    const shareUrl = window.location.href;
+    if (typeof QRCode !== 'undefined') {
+      new QRCode(qrBox, {
+        text: shareUrl,
+        width: 180,
+        height: 180,
+        colorDark: "#1a1917",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.H
+      });
+    } else {
+      qrBox.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(shareUrl)}" style="border-radius:12px; width:180px; height:180px;" alt="Nimiq Pay App QR" />`;
+    }
+  }
+
+  const modal = document.getElementById('modal-desktop-connect');
+  if (modal) modal.style.display = 'flex';
+}
+
 async function triggerWalletGateConnection() {
   const errEl = document.getElementById('wallet-gate-error');
   if (errEl) errEl.style.display = 'none';
 
-  try {
-    const isNimiqApp = typeof window !== 'undefined' && (!!window.nimiq || !!window.NimiqProvider || !!window.nimiqPay || !!window.NimiqPay || !!window.miniApp);
-    if (isNimiqApp) {
+  const isNimiqApp = typeof window !== 'undefined' && (!!window.nimiq || !!window.NimiqProvider || !!window.nimiqPay || !!window.NimiqPay || !!window.miniApp);
+
+  if (isNimiqApp) {
+    try {
       await connectNimiqPayWallet();
-    } else {
-      const inputAddr = prompt("Enter your Nimiq Wallet Address:");
-      if (inputAddr && inputAddr.trim()) {
-        userAccount = inputAddr.trim().replace(/\s+/g, '').toUpperCase();
-        localStorage.setItem(STORAGE_KEY_USER_ACCT, userAccount);
-        await fetchGlobalPublicBounties();
-        updateWalletUI();
-        renderBounties();
-        renderPosterDashboard();
-        renderSessionBar();
+      if (isRealWalletConnected()) {
         renderMobileBottomNav();
         checkWalletConnectionGate();
-        showToastNotification('Wallet Connected', `Connected address: ${getUserDisplayName(userAccount)}`, false);
-        checkAndLaunchOnboarding();
       } else {
-        throw new Error("Connection cancelled");
+        if (errEl) {
+          errEl.textContent = 'User rejected connection. Please connect your wallet inside Nimiq Pay to continue.';
+          errEl.style.display = 'block';
+        }
       }
-    }
-    
-    if (isRealWalletConnected()) {
-      renderMobileBottomNav();
-      checkWalletConnectionGate();
-    } else {
+    } catch (e) {
       if (errEl) {
-        errEl.textContent = 'User rejected connection. Please connect your wallet to continue.';
+        errEl.textContent = 'User rejected connection. Please connect your wallet inside Nimiq Pay to continue.';
         errEl.style.display = 'block';
       }
     }
-  } catch (e) {
-    if (errEl) {
-      errEl.textContent = 'User rejected connection. Please connect your wallet to continue.';
-      errEl.style.display = 'block';
-    }
+  } else {
+    openDesktopConnectModal();
   }
 }
 
@@ -407,23 +415,8 @@ async function connectNimiqPayWallet() {
       console.warn("Nimiq Pay listAccounts error:", e);
       throw e;
     }
-  }
-
-  const inputAddr = prompt("Enter your Nimiq Wallet Address:", userAccount || "NQ65 R26Y VNQL H5H9 F19S U3PB FY7N EJ7H PGNN");
-  if (inputAddr && inputAddr.trim()) {
-    userAccount = inputAddr.trim().replace(/\s+/g, '').toUpperCase();
-    localStorage.setItem(STORAGE_KEY_USER_ACCT, userAccount);
-    await fetchGlobalPublicBounties();
-    updateWalletUI();
-    renderBounties();
-    renderPosterDashboard();
-    renderSessionBar();
-    renderMobileBottomNav();
-    checkWalletConnectionGate();
-    showToastNotification('Wallet Connected', `Connected address: ${getUserDisplayName(userAccount)}`, false);
-    checkAndLaunchOnboarding();
   } else {
-    throw new Error("Connection cancelled");
+    openDesktopConnectModal();
   }
 }
 
