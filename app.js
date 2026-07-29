@@ -623,15 +623,31 @@ function openModeSwitchModal() {
   const posterBtn = document.getElementById('mode-modal-btn-poster');
   if (workerBtn && posterBtn) {
     if (currentRole === 'worker') {
-      workerBtn.style.border = '2px solid var(--gold)';
-      workerBtn.style.background = 'var(--gold-tint)';
+      workerBtn.style.border = '2px solid #ffc72c';
+      workerBtn.style.background = '#ffc72c';
+      workerBtn.style.color = '#1a1917';
+      workerBtn.style.fontWeight = '800';
+      workerBtn.style.boxShadow = '0 4px 14px rgba(255, 199, 44, 0.4)';
+
       posterBtn.style.border = '1px solid var(--border)';
       posterBtn.style.background = 'var(--bg-subtle)';
+      posterBtn.style.color = 'var(--ink)';
+      posterBtn.style.fontWeight = '600';
+      posterBtn.style.boxShadow = 'none';
+      posterBtn.style.opacity = '0.85';
     } else {
-      posterBtn.style.border = '2px solid var(--emerald)';
-      posterBtn.style.background = 'var(--emerald-tint)';
+      posterBtn.style.border = '2px solid #10b981';
+      posterBtn.style.background = '#10b981';
+      posterBtn.style.color = '#ffffff';
+      posterBtn.style.fontWeight = '800';
+      posterBtn.style.boxShadow = '0 4px 14px rgba(16, 185, 129, 0.4)';
+
       workerBtn.style.border = '1px solid var(--border)';
       workerBtn.style.background = 'var(--bg-subtle)';
+      workerBtn.style.color = 'var(--ink)';
+      workerBtn.style.fontWeight = '600';
+      workerBtn.style.boxShadow = 'none';
+      workerBtn.style.opacity = '0.85';
     }
   }
   const modal = document.getElementById('modal-mode-switch');
@@ -1056,10 +1072,21 @@ function finalizeUsername() {
   profile.username = _pendingUsernameChoice;
   saveProfile(userAccount, profile);
 
+  // Update sponsor display on any bounties posted by this account
+  bounties.forEach(b => {
+    if (isSameNimiqAddress(b.posterAddress, userAccount)) {
+      b.sponsor = _pendingUsernameChoice;
+    }
+  });
+  localStorage.setItem(STORAGE_KEY_LOCAL_BOUNTIES, JSON.stringify(bounties));
+
   closeModal('modal-confirm-username');
   renderProfile();
   updateWalletUI();
   renderSessionBar();
+  renderBounties();
+  renderPosterDashboard();
+  renderDedicatedOrders();
   showToastNotification('✅ Username Set!', `Permanent username set: ${_pendingUsernameChoice}`, false);
 }
 
