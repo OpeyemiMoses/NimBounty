@@ -490,7 +490,7 @@
           <div class="session-details">
             <div class="session-address" id="session-wallet-display" onclick="handleWalletButtonClick()" style="cursor:pointer;">Connect Wallet</div>
             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-              <div class="session-role-badge" id="session-mode-badge">Worker Mode</div>
+              <div class="session-role-badge" id="session-mode-badge" onclick="openModeSwitchModal()" style="cursor:pointer;" title="Click to switch Mode">Worker Mode</div>
               <div id="session-nim-earned" style="font-size:0.72rem; font-weight:700; color:var(--emerald); display:none;">0 NIM Earned</div>
             </div>
           </div>
@@ -519,17 +519,9 @@
       <!-- WORKER VIEW -->
       <div id="view-worker">
 
-        <!-- Worker Sub-Tabs Navigation Bar -->
-        <div class="subtab-bar">
-          <button class="subtab-btn active" id="btn-worker-tab-active" onclick="switchWorkerSubtab('active')">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
-            Active &amp; Open Bounties
-          </button>
-          <button class="subtab-btn" id="btn-worker-tab-history" onclick="switchWorkerSubtab('history')">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 16 14"/></svg>
-            Completed &amp; Expired
-          </button>
-        </div>
+        <!-- Hidden subtab trigger elements (used by JS switchWorkerSubtab) -->
+        <button id="btn-worker-tab-active" style="display:none;"></button>
+        <button id="btn-worker-tab-history" style="display:none;"></button>
 
         <div class="filter-paper-card">
           <div class="filter-row">
@@ -563,21 +555,10 @@
       <!-- POSTER VIEW -->
       <div id="view-poster" style="display: none;">
 
-        <!-- Poster Sub-Tabs Navigation Bar -->
-        <div class="subtab-bar">
-          <button class="subtab-btn active" id="btn-poster-tab-create" onclick="switchPosterSubtab('create')">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-            Publish New Bounty
-          </button>
-          <button class="subtab-btn" id="btn-poster-tab-pools" onclick="switchPosterSubtab('pools')">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
-            Your Published Pools
-          </button>
-          <button class="subtab-btn" id="btn-poster-tab-subs" onclick="switchPosterSubtab('subs')">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>
-            Pending Submissions <span class="tab-badge-count" id="poster-badge-subs">0</span>
-          </button>
-        </div>
+        <!-- Hidden subtab trigger elements (used by JS switchPosterSubtab) -->
+        <button id="btn-poster-tab-create" style="display:none;"></button>
+        <button id="btn-poster-tab-pools" style="display:none;"></button>
+        <button id="btn-poster-tab-subs" style="display:none;"></button>
 
         <div id="poster-subview-create">
           <div class="paper-card" style="background:var(--card); border:1px solid var(--border); border-radius:20px; padding:24px; max-width:780px; margin:0 auto;">
@@ -589,7 +570,7 @@
               </span>
             </div>
 
-            <form onsubmit="event.preventDefault(); publishBountyPoolDirectly();">
+            <form id="create-bounty-form" onsubmit="event.preventDefault(); publishBountyPoolDirectly();">
               <div style="display:flex; flex-direction:column; gap:16px;">
                 <div>
                   <label style="font-size:0.85rem; font-weight:700; color:var(--muted); display:block; margin-bottom:6px;">Bounty Title</label>

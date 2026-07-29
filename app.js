@@ -62,6 +62,11 @@ const INITIAL_SEED_BOUNTIES = [
   }
 ];
 
+if (!bounties || bounties.length === 0) {
+  bounties = [...INITIAL_SEED_BOUNTIES];
+  localStorage.setItem(STORAGE_KEY_LOCAL_BOUNTIES, JSON.stringify(bounties));
+}
+
 // Helper: Check Real Wallet Connection
 function isRealWalletConnected() {
   return !!(userAccount && typeof userAccount === 'string' && userAccount.trim().length > 0);
@@ -587,6 +592,7 @@ function updateLandingStats() {
 function renderSessionBar() {
   const displayEl = document.getElementById('session-wallet-display');
   const badgeEl = document.getElementById('session-mode-badge');
+  const nimEarnedEl = document.getElementById('session-nim-earned');
 
   if (displayEl) {
     displayEl.textContent = isRealWalletConnected() ? getUserDisplayName(userAccount) : 'CONNECT NIMIQ PAY';
@@ -594,6 +600,32 @@ function renderSessionBar() {
   if (badgeEl) {
     badgeEl.textContent = currentRole === 'worker' ? 'Worker Mode' : 'Poster Mode';
     badgeEl.style.color = currentRole === 'worker' ? 'var(--gold)' : 'var(--emerald)';
+  }
+
+  // Update desktop role switcher buttons
+  const workerBtn = document.getElementById('btn-role-worker');
+  const posterBtn = document.getElementById('btn-role-poster');
+  if (workerBtn && posterBtn) {
+    if (currentRole === 'worker') {
+      workerBtn.classList.add('active');
+      posterBtn.classList.remove('active');
+    } else {
+      posterBtn.classList.add('active');
+      workerBtn.classList.remove('active');
+    }
+  }
+
+  // Update NIM earned badge in session card
+  if (nimEarnedEl) {
+    if (isRealWalletConnected()) {
+      const workerEarned = approvedPayoutsHistory
+        .filter(p => isSameNimiqAddress(p.workerAddress, userAccount))
+        .reduce((sum, p) => sum + (parseFloat(p.reward) || 0), 0);
+      nimEarnedEl.textContent = `${workerEarned} NIM Earned`;
+      nimEarnedEl.style.display = 'inline-block';
+    } else {
+      nimEarnedEl.style.display = 'none';
+    }
   }
 
   updateLandingStats();
@@ -604,15 +636,15 @@ function openModeSwitchModal() {
   const posterBtn = document.getElementById('mode-modal-btn-poster');
   if (workerBtn && posterBtn) {
     if (currentRole === 'worker') {
-      workerBtn.className = 'btn-primary-lg';
-      workerBtn.style.padding = '14px';
-      posterBtn.className = 'btn-ghost-sm';
-      posterBtn.style.padding = '14px';
+      workerBtn.style.border = '2px solid var(--gold)';
+      workerBtn.style.background = 'var(--gold-tint)';
+      posterBtn.style.border = '1px solid var(--border)';
+      posterBtn.style.background = 'var(--bg-subtle)';
     } else {
-      posterBtn.className = 'btn-primary-lg';
-      posterBtn.style.padding = '14px';
-      workerBtn.className = 'btn-ghost-sm';
-      workerBtn.style.padding = '14px';
+      posterBtn.style.border = '2px solid var(--emerald)';
+      posterBtn.style.background = 'var(--emerald-tint)';
+      workerBtn.style.border = '1px solid var(--border)';
+      workerBtn.style.background = 'var(--bg-subtle)';
     }
   }
   const modal = document.getElementById('modal-mode-switch');
@@ -660,6 +692,68 @@ function switchPosterSubtab(subtab) {
   document.getElementById('poster-subview-subs').style.display = subtab === 'subs' ? 'block' : 'none';
 
   if (subtab === 'pools' || subtab === 'subs') renderPosterDashboard();
+}
+
+function renderDedicatedOrders() {
+  const container = document.getElementById('worker-orders-list');
+  if (!container) return;
+
+  if (!isRealWalletConnected()) {
+    container.innerHTML = createEmptyStateHTML(
+      'Wallet Required',
+      'Please connect your Nimiq Pay wallet to view your completed orders and payout history.',
+      `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`
+    );
+    return;
+  }
+
+  const myApproved = approvedPayoutsHistory.filter(p => p.workerAddress && isSameNimiqAddress(p.workerAddress, userAccount));
+  const myPending = pendingSubmissions.filter(s => s.workerAddress && isSameNimiqAddress(s.workerAddress, userAccount));
+
+  if (myApproved.length === 0 && myPending.length === 0) {
+    container.innerHTML = createEmptyStateHTML(
+      'No Orders Yet',
+      'You have not submitted proof or received payouts for any bounties yet. Complete active bounties in Worker Mode to start building your order history!',
+      `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>`
+    );
+    return;
+  }
+
+  let html = '';
+
+  if (myPending.length > 0) {
+    html += `<h4 style="font-size:0.9rem; font-weight:800; color:var(--gold); margin-bottom:10px;">⏳ Pending Poster Review (${myPending.length})</h4>`;
+    html += myPending.map(s => `
+      <div style="background:var(--bg-subtle); border:1px solid var(--border); border-radius:14px; padding:16px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <div>
+          <strong style="font-size:0.95rem; color:var(--ink); display:block;">${s.bountyTitle}</strong>
+          <span style="font-size:0.78rem; color:var(--muted);">Submitted: ${s.submittedAt || 'Recently'}</span>
+        </div>
+        <div style="text-align:right;">
+          <span style="font-weight:800; color:var(--gold); display:block;">${s.reward} NIM</span>
+          <span style="font-size:0.75rem; background:var(--gold-tint); color:var(--gold); padding:2px 8px; border-radius:6px; font-weight:700;">Pending Review</span>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  if (myApproved.length > 0) {
+    html += `<h4 style="font-size:0.9rem; font-weight:800; color:var(--emerald); margin-top:20px; margin-bottom:10px;">✅ Approved &amp; Paid Out (${myApproved.length})</h4>`;
+    html += myApproved.map(p => `
+      <div style="background:var(--bg-subtle); border:1px solid var(--border); border-radius:14px; padding:16px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <div>
+          <strong style="font-size:0.95rem; color:var(--ink); display:block;">${p.bountyTitle}</strong>
+          <span style="font-size:0.78rem; color:var(--muted);">Payout Address: ${p.workerAddress ? p.workerAddress.substring(0, 14) + '...' : 'Nimiq Wallet'}</span>
+        </div>
+        <div style="text-align:right;">
+          <span style="font-weight:800; color:var(--emerald); display:block;">+${p.reward} NIM</span>
+          <span style="font-size:0.75rem; background:var(--emerald-tint); color:var(--emerald); padding:2px 8px; border-radius:6px; font-weight:700;">Paid Out</span>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  container.innerHTML = html;
 }
 
 // ==========================================
@@ -1181,6 +1275,9 @@ async function handleSubmitProof() {
 
   closeModal('modal-submit-proof');
   renderBounties();
+  renderSessionBar();
+  triggerConfetti();
+  playAudioFx('submit');
   showToastNotification('✅ Proof Submitted!', 'Proof signed off-chain with 0 gas. Waiting for poster review.', false);
   if (textInput) textInput.value = '';
   uploadedImageDataUrl = null;
