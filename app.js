@@ -1088,9 +1088,9 @@ function renderBounties() {
       : false;
 
     if (workerSubtab === 'active') {
-      return matchesSearch && matchesCat && !myApprovedPayout && !hasPendingSub;
+      return matchesSearch && matchesCat && (b.slotsRemaining === undefined || b.slotsRemaining > 0) && !myApprovedPayout && !hasPendingSub;
     } else {
-      return matchesSearch && matchesCat && (myApprovedPayout || hasPendingSub);
+      return matchesSearch && matchesCat && (myApprovedPayout || hasPendingSub || (b.slotsRemaining !== undefined && b.slotsRemaining <= 0));
     }
   });
 
@@ -1113,17 +1113,20 @@ function renderBounties() {
 
   grid.innerHTML = filtered.map(b => {
     const isPublisher = isSameNimiqAddress(b.posterAddress, userAccount);
-    const hasPendingSub = userAccount ? pendingSubmissions.some(s => s.bountyId === b.id && s.workerAddress && isSameNimiqAddress(s.workerAddress, userAccount)) : false;
+    const hasPendingSub = userAccount ? pendingSubmissions.some(s => s.bountyId === b.id && s.workerAddress && isSameNimiqAddress(s.workerAddress, userAccount) && s.status === 'pending') : false;
     const hasApproved = userAccount ? approvedPayoutsHistory.some(p => p.bountyId === b.id && p.workerAddress && isSameNimiqAddress(p.workerAddress, userAccount)) : false;
 
     let btnLabel = 'Participate & Earn NIM &rarr;';
     let btnDisabled = false;
 
-    if (hasPendingSub) {
+    if (hasApproved) {
+      btnLabel = `<span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--emerald)" stroke-width="2.5" style="margin-right:6px; vertical-align:middle;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Paid Out Successfully</span>`;
+      btnDisabled = true;
+    } else if (hasPendingSub) {
       btnLabel = `<span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px; vertical-align:middle;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 16 14"/></svg> Proof Pending Review</span>`;
       btnDisabled = true;
-    } else if (hasApproved) {
-      btnLabel = `<span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--emerald)" stroke-width="2.5" style="margin-right:6px; vertical-align:middle;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Payout Released</span>`;
+    } else if (b.slotsRemaining !== undefined && b.slotsRemaining <= 0) {
+      btnLabel = `<span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px; vertical-align:middle;"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg> All Slots Claimed &amp; Paid Out</span>`;
       btnDisabled = true;
     } else if (isPublisher) {
       btnLabel = `<span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px; vertical-align:middle;"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg> Publisher (Cannot Claim)</span>`;
@@ -1521,6 +1524,7 @@ async function approveWorkerPayout(subId) {
 
   renderPosterDashboard();
   renderBounties();
+  renderMobileBottomNav();
   renderSessionBar();
   updateWalletUI();
   triggerConfetti();
