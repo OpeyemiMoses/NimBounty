@@ -1080,7 +1080,12 @@ function renderProfile() {
       <div style="flex:1; min-width:0;">
         <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
           <div>
-            <h3 style="font-size:1.3rem; font-weight:900; color:var(--ink); margin:0; letter-spacing:-0.02em;">${displayUsername}</h3>
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+              <h3 style="font-size:1.3rem; font-weight:900; color:var(--ink); margin:0; letter-spacing:-0.02em;">${displayUsername}</h3>
+              <button onclick="openSetUsernameModal()" style="background:none; border:none; color:var(--gold); cursor:pointer; padding:2px; display:inline-flex; align-items:center;" title="Set or Edit Username">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              </button>
+            </div>
             <div style="font-size:0.75rem; color:var(--muted); font-weight:600; margin-top:4px; display:flex; align-items:center; gap:4px;">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
               Joined ${joinedDateStr}
@@ -1095,7 +1100,7 @@ function renderProfile() {
         </div>
 
         ${!profile.username ? `
-          <button class="btn-ghost-sm" onclick="document.getElementById('modal-set-username').style.display='flex';" style="margin-top:10px; font-size:0.75rem; padding:4px 10px; border-color:var(--gold); color:var(--gold);">+ Set Permanent Username</button>
+          <button class="btn-ghost-sm" onclick="openSetUsernameModal()" style="margin-top:10px; font-size:0.75rem; padding:4px 10px; border-color:var(--gold); color:var(--gold);">+ Set Permanent Username</button>
         ` : ''}
       </div>
     </div>
@@ -1155,6 +1160,15 @@ function renderProfile() {
 // Username Confirm & Finalize
 let _pendingUsernameChoice = null;
 
+function openSetUsernameModal() {
+  if (!userAccount) return;
+  const profile = getProfile(userAccount);
+  const input = document.getElementById('username-input');
+  if (input) input.value = profile.username || '';
+  const modal = document.getElementById('modal-set-username');
+  if (modal) modal.style.display = 'flex';
+}
+
 function confirmSetUsername() {
   const input = document.getElementById('username-input');
   const val = input ? input.value.trim().toUpperCase() : '';
@@ -1168,7 +1182,7 @@ function confirmSetUsername() {
   document.getElementById('modal-confirm-username').style.display = 'flex';
 }
 
-function finalizeUsername() {
+async function finalizeUsername() {
   if (!_pendingUsernameChoice || !userAccount) return;
   const profile = getProfile(userAccount);
   profile.username = _pendingUsernameChoice;
@@ -1181,6 +1195,9 @@ function finalizeUsername() {
     }
   });
   localStorage.setItem(STORAGE_KEY_LOCAL_BOUNTIES, JSON.stringify(bounties));
+
+  // Sync updated username and bounty sponsor names to global server store
+  await syncGlobalPublicBounties();
 
   closeModal('modal-confirm-username');
   renderProfile();
