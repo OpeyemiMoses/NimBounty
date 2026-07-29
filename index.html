@@ -582,37 +582,50 @@
                   <div>
                     <label style="font-size:0.85rem; font-weight:700; color:var(--muted); display:block; margin-bottom:6px;">Required Proof Type</label>
                     <select id="task-proof-type" style="width:100%; padding:12px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink);">
-                      <option value="url-screenshot">Live URL &amp; Screenshot Proof</option>
-                      <option value="feedback-text">Structured Feedback / Review</option>
-                      <option value="tx-hash">Transaction Hash / Wallet Proof</option>
+                      <option value="text">Text Review / Feedback</option>
+                      <option value="url">Web Link / URL Proof</option>
+                      <option value="image">Screenshot Upload</option>
+                      <option value="image_text">Screenshot + Written Feedback</option>
                     </select>
                   </div>
                 </div>
 
                 <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px;">
                   <div>
-                    <label style="font-size:0.85rem; font-weight:700; color:var(--muted); display:block; margin-bottom:6px;">Reward per Completion (NIM)</label>
-                    <input type="number" id="task-reward" min="1" step="1" value="50" oninput="calculateTotalEscrow()" style="width:100%; padding:12px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink);" required />
+                    <label style="font-size:0.85rem; font-weight:700; color:var(--muted); display:block; margin-bottom:6px;">Reward per Worker (NIM)</label>
+                    <input type="number" id="task-reward" min="5" value="50" oninput="calculateTotalEscrow()" style="width:100%; padding:12px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink);" required />
                   </div>
 
                   <div>
-                    <label style="font-size:0.85rem; font-weight:700; color:var(--muted); display:block; margin-bottom:6px;">Max Worker Slots</label>
-                    <input type="number" id="task-slots" min="1" max="1000" value="5" oninput="calculateTotalEscrow()" style="width:100%; padding:12px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink);" required />
+                    <label style="font-size:0.85rem; font-weight:700; color:var(--muted); display:block; margin-bottom:6px;">Number of Worker Slots</label>
+                    <input type="number" id="task-slots" min="1" max="100" value="10" oninput="calculateTotalEscrow()" style="width:100%; padding:12px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink);" required />
                   </div>
 
                   <div>
-                    <label style="font-size:0.85rem; font-weight:700; color:var(--muted); display:block; margin-bottom:6px;">Duration (Days)</label>
+                    <label style="font-size:0.85rem; font-weight:700; color:var(--muted); display:block; margin-bottom:6px;">Campaign Duration</label>
                     <select id="task-duration" style="width:100%; padding:12px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink);">
-                      <option value="3">3 Days</option>
-                      <option value="7" selected>7 Days</option>
-                      <option value="14">14 Days</option>
-                      <option value="30">30 Days</option>
+                      <option value="24">24 Hours (1 Day Flash)</option>
+                      <option value="72">3 Days (Short)</option>
+                      <option value="168">7 Days (1 Week)</option>
+                      <option value="336" selected>14 Days (2 Weeks Default)</option>
+                      <option value="720">30 Days (Monthly)</option>
                     </select>
                   </div>
                 </div>
 
                 <div>
                   <label style="font-size:0.85rem; font-weight:700; color:var(--muted); display:block; margin-bottom:6px;">Detailed Task Instructions</label>
+                  <textarea id="task-instructions" rows="4" placeholder="Describe exactly what the worker needs to do and what proof to submit..." style="width:100%; padding:12px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink); outline:none;" required></textarea>
+                </div>
+
+                <!-- Summary Box -->
+                <div style="background:var(--bg-subtle); border:1px solid var(--border); border-radius:14px; padding:16px; display:flex; flex-direction:column; gap:8px;">
+                  <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:var(--muted);">
+                    <span>Reward per worker:</span>
+                    <strong id="calc-single" style="color:var(--ink);">50 NIM</strong>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:var(--muted);">
+                    <span>Worker slots:</span>
                     <strong id="calc-slots-count" style="color:var(--ink);">10</strong>
                   </div>
                   <div style="border-top:1px dashed var(--border); margin:4px 0;"></div>
@@ -622,8 +635,8 @@
                   </div>
                 </div>
 
-                <button class="btn-primary-lg full-width" type="submit" style="justify-content:center; padding:16px; font-size:1.05rem;">
-                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:8px;"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                <button type="submit" class="btn-primary-lg full-width" style="justify-content:center; padding:16px; font-size:1.05rem;">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:8px;vertical-align:middle;"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
                   Publish Bounty Pool
                 </button>
               </div>

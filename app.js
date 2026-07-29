@@ -716,7 +716,7 @@ function renderMobileBottomNav() {
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
         My Pools
       </button>
-      <button class="mobile-bottom-tab mode-center-tab" onclick="document.getElementById('modal-mode-switch').style.display='flex';">
+      <button class="mobile-bottom-tab mode-center-tab" onclick="openModeSwitchModal();">
         ${stackLogo}
         Mode
       </button>
@@ -737,38 +737,47 @@ function switchMobileTab(tab) {
   const workerView = document.getElementById('view-worker');
   const posterView = document.getElementById('view-poster');
 
+  // Always ensure we're in the app view first
+  if (tab !== 'orders') showView('app');
+
   if (tab === 'profile') {
     if (profilePanel) profilePanel.style.display = 'block';
     if (workerView) workerView.style.display = 'none';
     if (posterView) posterView.style.display = 'none';
     renderProfile();
   } else if (tab === 'orders') {
+    if (profilePanel) profilePanel.style.display = 'none';
     showView('orders');
-  } else if (tab === 'publish') {
-    showView('app');
-    if (profilePanel) profilePanel.style.display = 'none';
+  } else if (tab === 'publish' || tab === 'pools' || tab === 'subs') {
     currentRole = 'poster';
-    switchPosterSubtab('create');
-  } else if (tab === 'pools') {
-    showView('app');
     if (profilePanel) profilePanel.style.display = 'none';
-    currentRole = 'poster';
-    switchPosterSubtab('pools');
-  } else if (tab === 'subs') {
-    showView('app');
+    if (workerView) workerView.style.display = 'none';
+    if (posterView) posterView.style.display = 'block';
+    if (tab === 'publish') switchPosterSubtab('create');
+    else if (tab === 'pools') switchPosterSubtab('pools');
+    else switchPosterSubtab('subs');
+  } else if (tab === 'active' || tab === 'history') {
+    currentRole = 'worker';
     if (profilePanel) profilePanel.style.display = 'none';
-    currentRole = 'poster';
-    switchPosterSubtab('subs');
-  } else {
-    showView('app');
-    if (profilePanel) profilePanel.style.display = 'none';
-    if (tab === 'active' || tab === 'history') {
-      currentRole = 'worker';
-      switchWorkerSubtab(tab);
-    }
+    if (workerView) workerView.style.display = 'block';
+    if (posterView) posterView.style.display = 'none';
+    switchWorkerSubtab(tab);
   }
+  renderSessionBar();
   renderMobileBottomNav();
 }
+
+function calculateTotalEscrow() {
+  const reward = parseFloat(document.getElementById('task-reward')?.value) || 50;
+  const slots = parseInt(document.getElementById('task-slots')?.value) || 10;
+  const single = document.getElementById('calc-single');
+  const slotsCount = document.getElementById('calc-slots-count');
+  const total = document.getElementById('calc-total');
+  if (single) single.textContent = `${reward} NIM`;
+  if (slotsCount) slotsCount.textContent = slots;
+  if (total) total.textContent = `${(reward * slots).toLocaleString()} NIM`;
+}
+function calculateTotalPool() { calculateTotalEscrow(); }
 
 // ==========================================
 // 7. PROFILE SYSTEM (Screenshot 1 Layout)
@@ -1194,8 +1203,8 @@ function copyQrLink() {
 
 function publishBountyPoolDirectly() {
   if (!isRealWalletConnected()) {
-    showToastNotification('⛔ Wallet Required', 'Connect your Nimiq Pay wallet first!', true);
-    connectNimiqPayWallet();
+    showToastNotification('Wallet Required', 'Connect your Nimiq Pay wallet first!', true);
+    openDesktopConnectModal();
     return;
   }
 
@@ -1203,24 +1212,40 @@ function publishBountyPoolDirectly() {
   const reward = document.getElementById('task-reward')?.value.trim() || '50';
   const slots = parseInt(document.getElementById('task-slots')?.value || '10');
   const category = document.getElementById('task-category')?.value || 'app-test';
-  const desc = document.getElementById('task-desc')?.value.trim();
+  const proofType = document.getElementById('task-proof-type')?.value || 'text';
+  const duration = parseInt(document.getElementById('task-duration')?.value || '336');
+  const desc = document.getElementById('task-instructions')?.value.trim();
 
   if (!title || !desc) {
-    showToastNotification('⚠️ Form Incomplete', 'Please fill out title and instructions.', true);
+    showToastNotification('Form Incomplete', 'Please fill out the title and task instructions.', true);
     return;
   }
+
+  const categoryNames = {
+    'app-test': 'App Testing',
+    'feedback': 'UI/UX Feedback',
+    'social': 'Social Share',
+    'bug': 'Bug Hunt',
+    'copy': 'Copywriting'
+  };
+
+  const expiresAt = Date.now() + (duration * 60 * 60 * 1000);
 
   const newBounty = {
     id: `bounty-${Date.now()}`,
     title,
     category,
-    categoryName: category.toUpperCase(),
+    categoryName: categoryNames[category] || category.toUpperCase(),
+    proofType,
     reward: parseFloat(reward).toFixed(1),
     slotsTotal: slots,
     slotsRemaining: slots,
     posterAddress: userAccount.replace(/\s+/g, '').toUpperCase(),
     sponsor: getUserDisplayName(userAccount),
     instructions: desc,
+    description: desc,
+    duration,
+    expiresAt,
     createdAt: Date.now()
   };
 
@@ -1229,11 +1254,14 @@ function publishBountyPoolDirectly() {
   syncGlobalPublicBounties(newBounty);
 
   renderBounties();
+  renderSessionBar();
   triggerConfetti();
-  showToastNotification('🎉 Bounty Published!', 'Your task campaign is live for workers.', false);
+  showToastNotification('Bounty Published!', 'Your task campaign is live for workers.', false);
 
+  // Clear form
   document.getElementById('task-title').value = '';
-  document.getElementById('task-desc').value = '';
+  document.getElementById('task-instructions').value = '';
+  calculateTotalEscrow();
 }
 
 function renderPosterDashboard() {
