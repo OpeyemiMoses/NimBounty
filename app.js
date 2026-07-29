@@ -269,16 +269,29 @@ async function pushNewSubmission(newSub, updatedBounty = null) {
       ? `${PRODUCTION_URL}/api/bounties`
       : `/api/bounties`;
 
-    await fetch(apiEndpoint, {
+    const payload = {
+      newSubmission: newSub,
+      newBounty: updatedBounty,
+      updatedAt: Date.now()
+    };
+
+    console.log('[PUSH] Sending submission:', newSub.id, 'proofType:', newSub.proofType, 'contentLen:', (newSub.content || '').length);
+
+    const res = await fetch(apiEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        newSubmission: newSub,
-        newBounty: updatedBounty,
-        updatedAt: Date.now()
-      })
+      body: JSON.stringify(payload)
     });
-  } catch (e) {}
+
+    const text = await res.text();
+    console.log('[PUSH] Server response:', res.status, text.substring(0, 200));
+
+    if (!res.ok) {
+      console.error('[PUSH] FAILED - HTTP', res.status, text.substring(0, 500));
+    }
+  } catch (e) {
+    console.error('[PUSH] Network error:', e);
+  }
 }
 
 async function syncGlobalPublicBounties(updatedBountyObj = null, replacePendingSubmissions = false) {
