@@ -1321,18 +1321,7 @@ function renderBounties() {
   }).join('');
 }
 
-async function syncGlobalPublicBounties(updatedBounty = null) {
-  try {
-    const apiEndpoint = window.location.origin.includes('localhost') ? `${PRODUCTION_URL}/api/bounties` : `/api/bounties`;
-    await fetch(apiEndpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ newBounty: updatedBounty, bounties, pendingSubmissions, approvedPayoutsHistory, updatedAt: Date.now() })
-    });
-  } catch (e) {
-    // Silent graceful fallback
-  }
-}
+// syncGlobalPublicBounties is defined near the top of the file (line ~228) — do not redeclare here.
 
 function openSubmitProofModal(bountyId) {
   if (!isRealWalletConnected()) {
@@ -1489,7 +1478,9 @@ async function handleSubmitProof() {
   localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions));
   localStorage.setItem(STORAGE_KEY_LOCAL_BOUNTIES, JSON.stringify(bounties));
 
-  syncGlobalPublicBounties(bounty);
+  // Push updated pendingSubmissions AND bounty slots to the shared server store
+  // replacePendingSubmissions=true so the poster's client picks up the new submission on next poll
+  syncGlobalPublicBounties(targetBounty || bounty, true);
 
   closeModal('modal-submit-proof');
   renderBounties();
