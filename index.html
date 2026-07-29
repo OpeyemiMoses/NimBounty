@@ -311,17 +311,61 @@
       </div>
     </section>
 
-    <!-- Bottom CTA Banner -->
-    <section class="bottom-cta-banner">
-      <div class="banner-content">
-        <h2>Ready to launch micro-tasks or earn NIM?</h2>
-        <p>Open the app console to browse bounties or publish your first task pool in seconds.</p>
-        <button class="btn-primary-lg" onclick="handleLaunchApp()">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:8px;"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-          Launch App Console &rarr;
-        </button>
+    <!-- Landing Page Footer -->
+    <footer class="landing-footer">
+      <div class="footer-container">
+        
+        <div class="footer-top-row">
+          <!-- Brand Column -->
+          <div class="footer-brand-col">
+            <div class="footer-logo">
+              <svg class="logo-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+              </svg>
+              <span class="logo-text">nim<span class="logo-serif">Bounty</span></span>
+            </div>
+            <p class="footer-tagline">
+              Instant micro-task engine powered by Nimiq Pay Mini Apps Framework. 0 gas proof signing &amp; direct wallet payouts.
+            </p>
+            <div class="footer-hackathon-badge">
+              <span class="badge-pulse"></span> Built for <strong>Nimiq Pay Hackathon 2026</strong>
+            </div>
+          </div>
+
+          <!-- Quick Navigation Links Column -->
+          <div class="footer-links-col">
+            <div class="footer-col-title">Navigation</div>
+            <button class="footer-link-btn" onclick="scrollToSection('how-it-works')">How It Works</button>
+            <button class="footer-link-btn" onclick="scrollToSection('features')">Protections</button>
+            <button class="footer-link-btn" onclick="scrollToSection('faq')">FAQ</button>
+            <button class="footer-link-btn" onclick="handleLaunchApp()">Launch App</button>
+          </div>
+
+          <!-- Open Source GitHub Column -->
+          <div class="footer-github-col">
+            <div class="footer-col-title">Open Source</div>
+            <p style="font-size:0.82rem; color:var(--muted); margin-bottom:14px; line-height:1.5;">
+              NimBounty is open-source software. View project source code, submit feedback, or star the repo on GitHub.
+            </p>
+            <a href="https://github.com/OpeyemiMoses/NimBounty" target="_blank" rel="noopener noreferrer" class="btn-github-footer">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+              <span>View Source on GitHub ↗</span>
+            </a>
+          </div>
+
+        </div>
+
+        <div class="footer-bottom-row">
+          <div class="footer-copy">
+            &copy; 2026 NimBounty. Built for the Nimiq Pay Mini Apps Hackathon.
+          </div>
+          <div class="footer-network-badge">
+            <span class="net-dot"></span> Nimiq Pay Mainnet Enabled
+          </div>
+        </div>
+
       </div>
-    </section>
+    </footer>
 
   </div>
 
