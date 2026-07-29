@@ -382,6 +382,7 @@ function updateWalletUI() {
   const walletTextDesktop = document.getElementById('wallet-text');
   const walletTextMobile = document.getElementById('wallet-text-mobile');
   const sessionWallet = document.getElementById('session-wallet-display');
+  const nimEarnedEl = document.getElementById('session-nim-earned');
   
   const displayVal = isRealWalletConnected() ? getUserDisplayName(userAccount) : 'CONNECT NIMIQ PAY';
 
@@ -389,13 +390,18 @@ function updateWalletUI() {
   if (walletTextMobile) walletTextMobile.textContent = displayVal;
 
   if (sessionWallet) {
+    sessionWallet.textContent = isRealWalletConnected() ? displayVal : '⚡ CONNECT NIMIQ PAY';
+  }
+
+  if (nimEarnedEl) {
     if (isRealWalletConnected()) {
       const workerEarned = approvedPayoutsHistory
         .filter(p => isSameNimiqAddress(p.workerAddress, userAccount))
         .reduce((sum, p) => sum + (parseFloat(p.reward) || 0), 0);
-      sessionWallet.textContent = `${displayVal} (${workerEarned} NIM Earned)`;
+      nimEarnedEl.textContent = `${workerEarned} NIM Earned`;
+      nimEarnedEl.style.display = 'block';
     } else {
-      sessionWallet.textContent = '⚡ CONNECT NIMIQ PAY';
+      nimEarnedEl.style.display = 'none';
     }
   }
 
