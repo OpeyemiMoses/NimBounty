@@ -1,7 +1,7 @@
 // Vercel Serverless API — NimBounty Global Store Sync Engine
 // Manages global real-time synchronization for bounties, worker submissions, and approved payouts.
 
-let activeBlobId = '019faf0c-b8b8-7f1e-881f-0264e03b798d';
+let activeBlobId = '019faf56-d7e8-7f3c-882e-0486g15d910f';
 
 async function createNewBlob(initialData = { bounties: [], pendingSubmissions: [], approvedPayoutsHistory: [] }) {
   try {
@@ -79,7 +79,7 @@ export default async function handler(req, res) {
 
       // 1. Sync Bounties
       if (body.newBounty) {
-        const existingIdx = bounties.findIndex(b => b.id === body.newBounty.id);
+        const existingIdx = bounties.findIndex(b => String(b.id) === String(body.newBounty.id));
         if (existingIdx === -1) {
           bounties.unshift(body.newBounty);
         } else {
@@ -88,13 +88,14 @@ export default async function handler(req, res) {
       }
 
       if (Array.isArray(body.bounties) && body.bounties.length > 0) {
-        const existingIds = new Set(bounties.map(b => b.id));
+        const existingIds = new Set(bounties.map(b => String(b.id)));
         body.bounties.forEach(incoming => {
-          if (!existingIds.has(incoming.id)) {
+          const key = String(incoming.id);
+          if (!existingIds.has(key)) {
             bounties.push(incoming);
-            existingIds.add(incoming.id);
+            existingIds.add(key);
           } else {
-            const idx = bounties.findIndex(b => b.id === incoming.id);
+            const idx = bounties.findIndex(b => String(b.id) === key);
             if (idx !== -1 && incoming.slotsRemaining < bounties[idx].slotsRemaining) {
               bounties[idx].slotsRemaining = incoming.slotsRemaining;
             }
@@ -103,24 +104,25 @@ export default async function handler(req, res) {
       }
 
       // 2. Sync Approved Payouts History
-      if (Array.isArray(body.approvedPayoutsHistory)) {
-        const existingPayIds = new Set(approvedPayoutsHistory.map(p => p.id));
+      if (Array.isArray(body.approvedPayoutsHistory) && body.approvedPayoutsHistory.length > 0) {
+        const existingPayKeys = new Set(
+          approvedPayoutsHistory.map(p => p.id || `${p.bountyId}_${(p.workerAddress || '').toUpperCase().replace(/\s+/g,'')}`)
+        );
         body.approvedPayoutsHistory.forEach(incoming => {
-          if (!existingPayIds.has(incoming.id)) {
+          const key = incoming.id || `${incoming.bountyId}_${(incoming.workerAddress || '').toUpperCase().replace(/\s+/g,'')}`;
+          if (!existingPayKeys.has(key)) {
             approvedPayoutsHistory.unshift(incoming);
-            existingPayIds.add(incoming.id);
+            existingPayKeys.add(key);
           }
         });
       }
 
       // 3. Sync Pending Submissions
-      // newSubmission: a single new submission pushed by a worker — always append safely
       if (body.newSubmission && body.newSubmission.id) {
         const alreadyExists = pendingSubmissions.some(s => s.id === body.newSubmission.id);
         if (!alreadyExists) {
           pendingSubmissions.unshift(body.newSubmission);
         } else {
-          // Update existing if status changed (e.g. rejection)
           const idx = pendingSubmissions.findIndex(s => s.id === body.newSubmission.id);
           if (idx !== -1) pendingSubmissions[idx] = { ...pendingSubmissions[idx], ...body.newSubmission };
         }
@@ -134,7 +136,6 @@ export default async function handler(req, res) {
               pendingSubmissions.unshift(incoming);
               existingSubIds.add(incoming.id);
             } else {
-              // Update status if changed
               const idx = pendingSubmissions.findIndex(s => s.id === incoming.id);
               if (idx !== -1 && incoming.status !== pendingSubmissions[idx].status) {
                 pendingSubmissions[idx] = { ...pendingSubmissions[idx], ...incoming };
@@ -146,10 +147,10 @@ export default async function handler(req, res) {
 
       // 4. Purge pendingSubmissions that match an approved payout
       const approvedKeys = new Set(
-        approvedPayoutsHistory.map(p => p.bountyId + '_' + (p.workerAddress || '').toUpperCase().replace(/\s+/g,''))
+        approvedPayoutsHistory.map(p => String(p.bountyId) + '_' + (p.workerAddress || '').toUpperCase().replace(/\s+/g,''))
       );
       pendingSubmissions = pendingSubmissions.filter(s => {
-        const key = s.bountyId + '_' + (s.workerAddress || '').toUpperCase().replace(/\s+/g,'');
+        const key = String(s.bountyId) + '_' + (s.workerAddress || '').toUpperCase().replace(/\s+/g,'');
         return !approvedKeys.has(key);
       });
 

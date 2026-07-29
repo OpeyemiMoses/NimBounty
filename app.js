@@ -196,12 +196,14 @@ async function fetchGlobalPublicBounties() {
 
       // Merge approved payouts history safely without wiping local history
       if (Array.isArray(data.approvedPayoutsHistory) && data.approvedPayoutsHistory.length > 0) {
-        const existingPayIds = new Set(approvedPayoutsHistory.map(p => p.id || `${p.bountyId}-${p.workerAddress}`));
+        const existingPayKeys = new Set(
+          approvedPayoutsHistory.map(p => p.id || `${p.bountyId}_${(p.workerAddress || '').toUpperCase().replace(/\s+/g,'')}`)
+        );
         data.approvedPayoutsHistory.forEach(sp => {
-          const key = sp.id || `${sp.bountyId}-${sp.workerAddress}`;
-          if (!existingPayIds.has(key)) {
+          const key = sp.id || `${sp.bountyId}_${(sp.workerAddress || '').toUpperCase().replace(/\s+/g,'')}`;
+          if (!existingPayKeys.has(key)) {
             approvedPayoutsHistory.unshift(sp);
-            existingPayIds.add(key);
+            existingPayKeys.add(key);
             stateChanged = true;
           }
         });
@@ -227,6 +229,19 @@ async function fetchGlobalPublicBounties() {
             }
           }
         });
+      }
+
+      // Automatically purge local pendingSubmissions that match an entry in approvedPayoutsHistory
+      if (approvedPayoutsHistory.length > 0) {
+        const approvedKeys = new Set(
+          approvedPayoutsHistory.map(p => String(p.bountyId) + '_' + (p.workerAddress || '').toUpperCase().replace(/\s+/g,''))
+        );
+        const prevSubLen = pendingSubmissions.length;
+        pendingSubmissions = pendingSubmissions.filter(s => {
+          const key = String(s.bountyId) + '_' + (s.workerAddress || '').toUpperCase().replace(/\s+/g,'');
+          return !approvedKeys.has(key);
+        });
+        if (pendingSubmissions.length !== prevSubLen) stateChanged = true;
         localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions));
       }
 
@@ -237,6 +252,7 @@ async function fetchGlobalPublicBounties() {
         renderPosterDashboard();
         renderSessionBar();
         renderProfile();
+        renderDedicatedOrders();
         updateWalletUI(); // Refresh NIM earned badge and wallet status
       }
     }
@@ -1797,6 +1813,7 @@ async function approveWorkerPayout(subId) {
   sub.txHash = txHash;
 
   approvedPayoutsHistory.unshift({
+    id: `pay-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
     bountyId: sub.bountyId,
     bountyTitle: sub.bountyTitle,
     workerAddress: sub.workerAddress,
@@ -1806,8 +1823,8 @@ async function approveWorkerPayout(subId) {
     txHash: txHash
   });
 
-  const bIndex = bounties.findIndex(b => b.id === sub.bountyId);
-  // Slot was already decremented when the worker submitted. Don't decrement again here.
+  // Remove approved submission from pendingSubmissions queue
+  pendingSubmissions = pendingSubmissions.filter(s => s.id !== subId);
 
   localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions));
   localStorage.setItem(STORAGE_KEY_PAID_HISTORY, JSON.stringify(approvedPayoutsHistory));
@@ -1819,6 +1836,8 @@ async function approveWorkerPayout(subId) {
   renderBounties();
   renderMobileBottomNav();
   renderSessionBar();
+  renderProfile();
+  renderDedicatedOrders();
   updateWalletUI();
   triggerConfetti();
   showToastNotification('Worker Paid', `${sub.reward} NIM transferred directly to ${getUserDisplayName(sub.workerAddress)}.`, false);
