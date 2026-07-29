@@ -1359,14 +1359,6 @@ textarea {
 }
 
 /* Bottom Navigation Blur & Lock State when Wallet is Disconnected */
-.nav-blur-locked {
-  filter: blur(5px) grayscale(0.4) !important;
-  opacity: 0.5 !important;
-  pointer-events: none !important;
-  user-select: none !important;
-  transition: filter 0.3s ease, opacity 0.3s ease;
-}
-
 /* Guided Onboarding Tour Target Element Highlighting */
 .tour-highlight {
   position: relative;
@@ -1383,15 +1375,9 @@ textarea {
 }
 
 @keyframes tourPulse {
-  0% {
-    box-shadow: 0 0 20px rgba(255, 199, 44, 0.6), 0 0 40px rgba(255, 199, 44, 0.2);
-  }
-  50% {
-    box-shadow: 0 0 35px rgba(255, 199, 44, 0.95), 0 0 65px rgba(255, 199, 44, 0.5);
-  }
-  100% {
-    box-shadow: 0 0 20px rgba(255, 199, 44, 0.6), 0 0 40px rgba(255, 199, 44, 0.2);
-  }
+  0%   { box-shadow: 0 0 20px rgba(255, 199, 44, 0.6), 0 0 40px rgba(255, 199, 44, 0.2); }
+  50%  { box-shadow: 0 0 35px rgba(255, 199, 44, 0.95), 0 0 65px rgba(255, 199, 44, 0.5); }
+  100% { box-shadow: 0 0 20px rgba(255, 199, 44, 0.6), 0 0 40px rgba(255, 199, 44, 0.2); }
 }
 
 /* Entire App View Blur & Lock State when Wallet is Disconnected */
@@ -1403,13 +1389,45 @@ textarea {
   transition: filter 0.3s ease, opacity 0.3s ease;
 }
 
+/* Onboarding Walkthrough — sits above everything, even tour-highlighted cards */
+#onboarding-overlay {
+  z-index: 300000 !important;
+  background: rgba(0, 0, 0, 0.45) !important;
+  pointer-events: auto !important;
+}
+
+#onboarding-overlay .modal-paper {
+  position: fixed !important;
+  top: 75px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: calc(100% - 32px) !important;
+  max-width: 440px !important;
+  z-index: 300005 !important;
+  box-shadow: 0 16px 50px rgba(0, 0, 0, 0.4), 0 0 0 2px var(--gold-border) !important;
+  pointer-events: auto !important;
+}
+
+@media (max-width: 768px) {
+  #onboarding-overlay .modal-paper {
+    top: 70px !important;
+  }
+}
+
+/* Remove extra bottom space on landing view */
+#view-landing {
+  padding-bottom: 0 !important;
+  margin-bottom: 0 !important;
+}
+
 /* Landing Page Footer */
 .landing-footer {
   background: var(--bg-subtle);
   border-top: 1px solid var(--border);
-  padding: 60px 24px 40px;
+  padding: 56px 24px 28px;
   color: var(--ink);
   margin-top: 40px;
+  margin-bottom: 0 !important;
 }
 
 .footer-container {
@@ -1447,6 +1465,13 @@ textarea {
   line-height: 1.6;
   margin-bottom: 16px;
   max-width: 360px;
+}
+.nav-blur-locked {
+  filter: blur(5px) grayscale(0.4) !important;
+  opacity: 0.5 !important;
+  pointer-events: none !important;
+  user-select: none !important;
+  transition: filter 0.3s ease, opacity 0.3s ease;
 }
 
 .footer-hackathon-badge {

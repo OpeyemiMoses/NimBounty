@@ -1288,6 +1288,10 @@ function renderBounties() {
       btnDisabled = true;
     }
 
+    const posterDisplayName = (b.sponsor && String(b.sponsor).trim() && !String(b.sponsor).startsWith('NQ'))
+      ? String(b.sponsor).trim().toUpperCase()
+      : getUserDisplayName(b.posterAddress);
+
     return `
       <div class="bounty-card">
         <div>
@@ -1305,7 +1309,7 @@ function renderBounties() {
         </div>
         <div>
           <div class="bounty-meta-row">
-            <span>Poster: <strong>${getUserDisplayName(b.posterAddress)}</strong></span>
+            <span>Poster: <strong>${posterDisplayName}</strong></span>
             <span>Slots: <strong>${b.slotsRemaining !== undefined ? b.slotsRemaining : (b.slotsTotal || 5)} / ${b.slotsTotal || 5}</strong></span>
           </div>
           <button class="btn-primary-sm full-width" onclick="openSubmitProofModal('${b.id}')" ${btnDisabled ? 'disabled' : ''} style="justify-content:center;">
