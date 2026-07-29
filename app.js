@@ -313,6 +313,66 @@ function runTypewriter() {
 // ==========================================
 // 4. WALLET CONNECTION & LIVE UPDATER ENGINE
 // ==========================================
+function checkWalletConnectionGate() {
+  const appView = document.getElementById('view-app');
+  const gateModal = document.getElementById('modal-wallet-connect-gate');
+
+  if (!isRealWalletConnected()) {
+    if (appView) appView.classList.add('app-blur-locked');
+    if (currentView === 'app') {
+      if (gateModal) gateModal.style.display = 'flex';
+    } else {
+      if (gateModal) gateModal.style.display = 'none';
+    }
+  } else {
+    if (appView) appView.classList.remove('app-blur-locked');
+    if (gateModal) gateModal.style.display = 'none';
+    const errEl = document.getElementById('wallet-gate-error');
+    if (errEl) errEl.style.display = 'none';
+  }
+}
+
+async function triggerWalletGateConnection() {
+  const errEl = document.getElementById('wallet-gate-error');
+  if (errEl) errEl.style.display = 'none';
+
+  try {
+    const isNimiqApp = typeof window !== 'undefined' && (!!window.nimiq || !!window.NimiqProvider || !!window.nimiqPay || !!window.NimiqPay || !!window.miniApp);
+    if (isNimiqApp) {
+      await connectNimiqPayWallet();
+    } else {
+      const inputAddr = prompt("Enter your Nimiq Wallet Address:");
+      if (inputAddr && inputAddr.trim()) {
+        userAccount = inputAddr.trim().replace(/\s+/g, '').toUpperCase();
+        localStorage.setItem(STORAGE_KEY_USER_ACCT, userAccount);
+        await fetchGlobalPublicBounties();
+        updateWalletUI();
+        renderBounties();
+        renderPosterDashboard();
+        renderSessionBar();
+        showToastNotification('Wallet Connected', `Connected address: ${getUserDisplayName(userAccount)}`, false);
+        checkAndLaunchOnboarding();
+      } else {
+        throw new Error("Connection cancelled");
+      }
+    }
+    
+    if (isRealWalletConnected()) {
+      checkWalletConnectionGate();
+    } else {
+      if (errEl) {
+        errEl.textContent = 'User rejected connection. Please connect your wallet to continue.';
+        errEl.style.display = 'block';
+      }
+    }
+  } catch (e) {
+    if (errEl) {
+      errEl.textContent = 'User rejected connection. Please connect your wallet to continue.';
+      errEl.style.display = 'block';
+    }
+  }
+}
+
 async function connectNimiqPayWallet() {
   const provider = getNimiqProvider();
 
@@ -331,12 +391,14 @@ async function connectNimiqPayWallet() {
         renderBounties();
         renderPosterDashboard();
         renderSessionBar();
+        checkWalletConnectionGate();
         showToastNotification('Wallet Connected', `Wallet connected: ${getUserDisplayName(userAccount)}`, false);
         checkAndLaunchOnboarding();
         return;
       }
     } catch (e) {
       console.warn("Nimiq Pay listAccounts error:", e);
+      throw e;
     }
   }
 
@@ -349,8 +411,11 @@ async function connectNimiqPayWallet() {
     renderBounties();
     renderPosterDashboard();
     renderSessionBar();
+    checkWalletConnectionGate();
     showToastNotification('Wallet Connected', `Connected address: ${getUserDisplayName(userAccount)}`, false);
     checkAndLaunchOnboarding();
+  } else {
+    throw new Error("Connection cancelled");
   }
 }
 
@@ -363,12 +428,7 @@ function handleWalletButtonClick() {
       modal.style.display = 'flex';
     }
   } else {
-    const isNimiqApp = typeof window !== 'undefined' && (!!window.nimiq || !!window.NimiqProvider || !!window.nimiqPay || !!window.NimiqPay || !!window.miniApp);
-    if (isNimiqApp) {
-      connectNimiqPayWallet();
-    } else {
-      openDesktopConnectModal();
-    }
+    triggerWalletGateConnection();
   }
 }
 
@@ -381,6 +441,7 @@ function confirmDisconnectWalletFromModal() {
   renderBounties();
   renderPosterDashboard();
   renderSessionBar();
+  checkWalletConnectionGate();
   showToastNotification('Wallet Disconnected', 'Your wallet session has been disconnected.', false);
 }
 
@@ -560,6 +621,7 @@ function showView(viewName) {
   }
 
   renderMobileBottomNav();
+  checkWalletConnectionGate();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 
   if (viewName === 'landing') {
@@ -1869,15 +1931,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     showView('landing');
   }
 
-  if (!isRealWalletConnected()) {
-    setTimeout(() => {
-      if (!isRealWalletConnected()) {
-        if (isNimiqApp) {
-          connectNimiqPayWallet();
-        }
-      }
-    }, 800);
-  }
-
+  checkWalletConnectionGate();
   setInterval(fetchGlobalPublicBounties, 5000);
 });

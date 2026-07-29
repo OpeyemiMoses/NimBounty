@@ -1375,3 +1375,12 @@ textarea {
     box-shadow: 0 0 20px rgba(255, 199, 44, 0.6), 0 0 40px rgba(255, 199, 44, 0.2);
   }
 }
+
+/* Entire App View Blur & Lock State when Wallet is Disconnected */
+.app-blur-locked {
+  filter: blur(8px) grayscale(0.3) !important;
+  opacity: 0.55 !important;
+  pointer-events: none !important;
+  user-select: none !important;
+  transition: filter 0.35s ease, opacity 0.35s ease;
+}
