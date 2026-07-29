@@ -1,4 +1,4 @@
-/* ==========================================
+ï»¿/* ==========================================
    NIMBOUNTY V2 - VERBATIM MAIN DESIGN SYSTEM
    ========================================== */
 
@@ -1389,7 +1389,7 @@ textarea {
   transition: filter 0.3s ease, opacity 0.3s ease;
 }
 
-/* Onboarding Walkthrough — sits above everything, even tour-highlighted cards */
+/* Onboarding Walkthrough ï¿½ sits above everything, even tour-highlighted cards */
 #onboarding-overlay {
   z-index: 300000 !important;
   background: rgba(0, 0, 0, 0.45) !important;

@@ -207,14 +207,23 @@ async function fetchGlobalPublicBounties() {
         localStorage.setItem(STORAGE_KEY_PAID_HISTORY, JSON.stringify(approvedPayoutsHistory));
       }
 
-      // Merge pending submissions safely without wiping local queue
-      if (Array.isArray(data.pendingSubmissions) && data.pendingSubmissions.length > 0) {
+      // Merge pending submissions — also UPDATE status of existing submissions (e.g. approved/rejected)
+      if (Array.isArray(data.pendingSubmissions)) {
         const existingSubIds = new Set(pendingSubmissions.map(s => s.id));
         data.pendingSubmissions.forEach(ss => {
           if (!existingSubIds.has(ss.id)) {
+            // Brand new submission from another user — add it
             pendingSubmissions.unshift(ss);
             existingSubIds.add(ss.id);
             stateChanged = true;
+          } else {
+            // Existing submission — update status if the server has a newer one
+            const idx = pendingSubmissions.findIndex(s => s.id === ss.id);
+            if (idx !== -1 && ss.status && ss.status !== pendingSubmissions[idx].status) {
+              pendingSubmissions[idx].status = ss.status;
+              if (ss.rejectionReason) pendingSubmissions[idx].rejectionReason = ss.rejectionReason;
+              stateChanged = true;
+            }
           }
         });
         localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions));
@@ -226,6 +235,7 @@ async function fetchGlobalPublicBounties() {
         renderBounties();
         renderPosterDashboard();
         renderSessionBar();
+        renderProfile(); // Refresh NIM earned when approvedPayoutsHistory updates
       }
     }
   } catch (e) {
@@ -233,17 +243,33 @@ async function fetchGlobalPublicBounties() {
   }
 }
 
-// Push a single new submission to the server without overwriting other users' data
+// Push a single new submission to the server without overwriting other users' data.
+// Image content is stripped from the server payload (too large for JSONBlob) and kept in localStorage only.
 async function pushNewSubmission(newSub, updatedBounty = null) {
   try {
     const apiEndpoint = window.location.origin.includes('localhost')
       ? `${PRODUCTION_URL}/api/bounties`
       : `/api/bounties`;
+
+    // Strip base64 image from server payload — images are large and will break JSONBlob.
+    // The image stays in the worker's localStorage; only metadata reaches the server.
+    let serverSub = { ...newSub };
+    if (serverSub.content && serverSub.content.startsWith('data:image')) {
+      serverSub = { ...serverSub, content: '[IMAGE_STORED_LOCALLY]', hasLocalImage: true };
+    } else if (serverSub.content && serverSub.content.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(serverSub.content);
+        if (parsed.image) {
+          serverSub = { ...serverSub, content: JSON.stringify({ text: parsed.text || '', image: '[IMAGE_STORED_LOCALLY]' }), hasLocalImage: true };
+        }
+      } catch (e) {}
+    }
+
     await fetch(apiEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        newSubmission: newSub,
+        newSubmission: serverSub,
         newBounty: updatedBounty,
         approvedPayoutsHistory,
         updatedAt: Date.now()
