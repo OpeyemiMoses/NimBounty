@@ -29,6 +29,7 @@ let uploadedImageDataUrl = null;
 let activeClaimTimer = null;
 let currentModalBountyId = null;
 let lastRenderHash = '';
+const INITIAL_SEED_BOUNTIES = [];
 
 // Helper: Check Real Wallet Connection
 function isRealWalletConnected() {
@@ -235,7 +236,8 @@ async function fetchGlobalPublicBounties() {
         renderBounties();
         renderPosterDashboard();
         renderSessionBar();
-        renderProfile(); // Refresh NIM earned when approvedPayoutsHistory updates
+        renderProfile();
+        updateWalletUI(); // Refresh NIM earned badge and wallet status
       }
     }
   } catch (e) {
@@ -244,32 +246,18 @@ async function fetchGlobalPublicBounties() {
 }
 
 // Push a single new submission to the server without overwriting other users' data.
-// Image content is stripped from the server payload (too large for JSONBlob) and kept in localStorage only.
+// Includes the compressed image data URL so the poster receives the image on their device.
 async function pushNewSubmission(newSub, updatedBounty = null) {
   try {
     const apiEndpoint = window.location.origin.includes('localhost')
       ? `${PRODUCTION_URL}/api/bounties`
       : `/api/bounties`;
 
-    // Strip base64 image from server payload — images are large and will break JSONBlob.
-    // The image stays in the worker's localStorage; only metadata reaches the server.
-    let serverSub = { ...newSub };
-    if (serverSub.content && serverSub.content.startsWith('data:image')) {
-      serverSub = { ...serverSub, content: '[IMAGE_STORED_LOCALLY]', hasLocalImage: true };
-    } else if (serverSub.content && serverSub.content.startsWith('{')) {
-      try {
-        const parsed = JSON.parse(serverSub.content);
-        if (parsed.image) {
-          serverSub = { ...serverSub, content: JSON.stringify({ text: parsed.text || '', image: '[IMAGE_STORED_LOCALLY]' }), hasLocalImage: true };
-        }
-      } catch (e) {}
-    }
-
     await fetch(apiEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        newSubmission: serverSub,
+        newSubmission: newSub,
         newBounty: updatedBounty,
         approvedPayoutsHistory,
         updatedAt: Date.now()
@@ -1287,11 +1275,11 @@ function renderBounties() {
     const matchesCat = categoryFilter === 'all' || b.category === categoryFilter;
 
     const myApprovedPayout = userAccount
-      ? approvedPayoutsHistory.some(p => p.bountyId === b.id && p.workerAddress && isSameNimiqAddress(p.workerAddress, userAccount))
+      ? approvedPayoutsHistory.some(p => String(p.bountyId) === String(b.id) && p.workerAddress && isSameNimiqAddress(p.workerAddress, userAccount))
       : false;
 
     const hasPendingSub = userAccount
-      ? pendingSubmissions.some(s => s.bountyId === b.id && s.workerAddress && isSameNimiqAddress(s.workerAddress, userAccount))
+      ? pendingSubmissions.some(s => String(s.bountyId) === String(b.id) && s.workerAddress && isSameNimiqAddress(s.workerAddress, userAccount))
       : false;
 
     if (workerSubtab === 'active') {
@@ -1320,8 +1308,8 @@ function renderBounties() {
 
   grid.innerHTML = filtered.map(b => {
     const isPublisher = isSameNimiqAddress(b.posterAddress, userAccount);
-    const hasPendingSub = userAccount ? pendingSubmissions.some(s => s.bountyId === b.id && s.workerAddress && isSameNimiqAddress(s.workerAddress, userAccount) && s.status === 'pending') : false;
-    const hasApproved = userAccount ? approvedPayoutsHistory.some(p => p.bountyId === b.id && p.workerAddress && isSameNimiqAddress(p.workerAddress, userAccount)) : false;
+    const hasPendingSub = userAccount ? pendingSubmissions.some(s => String(s.bountyId) === String(b.id) && s.workerAddress && isSameNimiqAddress(s.workerAddress, userAccount) && s.status === 'pending') : false;
+    const hasApproved = userAccount ? approvedPayoutsHistory.some(p => String(p.bountyId) === String(b.id) && p.workerAddress && isSameNimiqAddress(p.workerAddress, userAccount)) : false;
 
     let btnLabel = 'Participate & Earn NIM &rarr;';
     let btnDisabled = false;
@@ -1442,9 +1430,34 @@ function previewScreenshot(event) {
   if (file) {
     const reader = new FileReader();
     reader.onload = function(e) {
-      uploadedImageDataUrl = e.target.result;
-      document.getElementById('image-preview-img').src = uploadedImageDataUrl;
-      document.getElementById('image-preview-box').style.display = 'flex';
+      const img = new Image();
+      img.onload = function() {
+        // Compress/resize screenshot to max 1000px and JPEG quality 0.75 (~75KB)
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        const maxDim = 1000;
+
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        uploadedImageDataUrl = canvas.toDataURL('image/jpeg', 0.75);
+        document.getElementById('image-preview-img').src = uploadedImageDataUrl;
+        document.getElementById('image-preview-box').style.display = 'flex';
+      };
+      img.src = e.target.result;
     };
     reader.readAsDataURL(file);
   }
