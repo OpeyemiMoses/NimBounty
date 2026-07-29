@@ -1175,18 +1175,57 @@ function renderBounties() {
   }).join('');
 }
 
+async function syncGlobalPublicBounties(updatedBounty = null) {
+  try {
+    const apiEndpoint = window.location.origin.includes('localhost') ? `${PRODUCTION_URL}/api/bounties` : `/api/bounties`;
+    await fetch(apiEndpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ newBounty: updatedBounty, bounties, pendingSubmissions, approvedPayoutsHistory, updatedAt: Date.now() })
+    });
+  } catch (e) {
+    // Silent graceful fallback
+  }
+}
+
 function openSubmitProofModal(bountyId) {
   if (!isRealWalletConnected()) {
-    showToastNotification('⛔ Wallet Required', 'Connect your Nimiq Pay wallet first!', true);
-    connectNimiqPayWallet();
+    showToastNotification('Wallet Required', 'Connect your Nimiq Pay wallet first!', true);
+    openDesktopConnectModal();
     return;
   }
 
   currentModalBountyId = bountyId;
   const bounty = bounties.find(b => b.id === bountyId) || INITIAL_SEED_BOUNTIES.find(b => b.id === bountyId);
-  if (bounty) {
-    document.getElementById('proof-modal-bounty-title').textContent = `Submit Proof: ${bounty.title}`;
+  if (!bounty) return;
+
+  if (isSameNimiqAddress(bounty.posterAddress, userAccount)) {
+    showToastNotification('Publisher Blocked', 'You are the publisher of this bounty pool!', true);
+    return;
   }
+
+  uploadedImageDataUrl = null;
+  const titleEl = document.getElementById('proof-modal-bounty-title');
+  const instEl = document.getElementById('proof-modal-bounty-instructions');
+
+  if (titleEl) titleEl.textContent = `Submit Proof: ${bounty.title}`;
+  if (instEl) instEl.textContent = `Task Instructions: ${bounty.instructions || bounty.description || 'Follow instructions and provide required proof.'}`;
+
+  const groupText = document.getElementById('group-proof-text');
+  const groupUrl = document.getElementById('group-proof-url');
+  const groupImage = document.getElementById('group-proof-image');
+
+  const pType = bounty.proofType || 'text';
+  if (groupText) groupText.style.display = (pType === 'text' || pType === 'image_text') ? 'flex' : 'none';
+  if (groupUrl) groupUrl.style.display = (pType === 'url') ? 'flex' : 'none';
+  if (groupImage) groupImage.style.display = (pType === 'image' || pType === 'image_text') ? 'flex' : 'none';
+
+  const previewBox = document.getElementById('image-preview-box');
+  if (previewBox) previewBox.style.display = 'none';
+
+  // Clear previous values
+  if (document.getElementById('proof-text-input')) document.getElementById('proof-text-input').value = '';
+  if (document.getElementById('proof-url-input')) document.getElementById('proof-url-input').value = '';
 
   startClaimTimer(15 * 60);
   document.getElementById('modal-submit-proof').style.display = 'flex';
@@ -1225,21 +1264,43 @@ function previewScreenshot(event) {
 }
 
 async function handleSubmitProof() {
-  const textInput = document.getElementById('proof-text-input');
-  const val = textInput ? textInput.value.trim() : '';
-
-  if (!val && !uploadedImageDataUrl) {
-    showToastNotification('⚠️ Proof Required', 'Please provide proof text or screenshot.', true);
-    return;
-  }
-
   const bounty = bounties.find(b => b.id === currentModalBountyId) || INITIAL_SEED_BOUNTIES.find(b => b.id === currentModalBountyId);
   if (!bounty) return;
 
-  const workerAddr = userAccount.replace(/\s+/g, '').toUpperCase();
-  const posterAddr = bounty.posterAddress.replace(/\s+/g, '').toUpperCase();
+  const pType = bounty.proofType || 'text';
+  let proofContent = '';
 
-  // Sign message off-chain
+  if (pType === 'text') {
+    proofContent = document.getElementById('proof-text-input')?.value.trim() || '';
+    if (!proofContent) {
+      showToastNotification('Proof Required', 'Please fill in your written proof details.', true);
+      return;
+    }
+  } else if (pType === 'url') {
+    proofContent = document.getElementById('proof-url-input')?.value.trim() || '';
+    if (!proofContent) {
+      showToastNotification('Proof Required', 'Please paste your proof URL link.', true);
+      return;
+    }
+  } else if (pType === 'image') {
+    proofContent = uploadedImageDataUrl || '';
+    if (!proofContent) {
+      showToastNotification('Proof Required', 'Please attach a screenshot proof file.', true);
+      return;
+    }
+  } else if (pType === 'image_text') {
+    const txt = document.getElementById('proof-text-input')?.value.trim() || '';
+    const img = uploadedImageDataUrl || '';
+    if (!txt && !img) {
+      showToastNotification('Proof Required', 'Please provide feedback text or attach a screenshot.', true);
+      return;
+    }
+    proofContent = JSON.stringify({ text: txt, image: img });
+  }
+
+  const workerAddr = userAccount.replace(/\s+/g, '').toUpperCase();
+  const posterAddr = (bounty.posterAddress || userAccount).replace(/\s+/g, '').toUpperCase();
+
   const timestamp = Date.now();
   const proofMessage = `NIMBOUNTY_PROOF_SIGNATURE | Bounty: ${bounty.id} | Worker: ${workerAddr} | Time: ${timestamp}`;
   let signature = `sig_${Date.now()}`;
@@ -1258,7 +1319,8 @@ async function handleSubmitProof() {
     bountyTitle: bounty.title,
     posterAddress: posterAddr,
     workerAddress: workerAddr,
-    content: uploadedImageDataUrl ? JSON.stringify({ text: val, image: uploadedImageDataUrl }) : val,
+    proofType: pType,
+    content: proofContent,
     signature: signature,
     submittedAt: new Date().toLocaleTimeString(),
     reward: bounty.reward,
@@ -1266,7 +1328,15 @@ async function handleSubmitProof() {
   };
 
   pendingSubmissions.unshift(newSub);
-  if (bounty.slotsRemaining > 0) bounty.slotsRemaining -= 1;
+
+  // If seed bounty was not yet in local bounties array, add it
+  if (!bounties.some(b => b.id === bounty.id)) {
+    bounties.push(bounty);
+  }
+  const targetBounty = bounties.find(b => b.id === bounty.id);
+  if (targetBounty && targetBounty.slotsRemaining > 0) {
+    targetBounty.slotsRemaining -= 1;
+  }
 
   localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions));
   localStorage.setItem(STORAGE_KEY_LOCAL_BOUNTIES, JSON.stringify(bounties));
@@ -1278,8 +1348,7 @@ async function handleSubmitProof() {
   renderSessionBar();
   triggerConfetti();
   playAudioFx('submit');
-  showToastNotification('✅ Proof Submitted!', 'Proof signed off-chain with 0 gas. Waiting for poster review.', false);
-  if (textInput) textInput.value = '';
+  showToastNotification('Proof Submitted!', 'Proof signed off-chain with 0 gas. Waiting for poster review.', false);
   uploadedImageDataUrl = null;
 }
 

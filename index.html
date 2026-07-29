@@ -746,18 +746,25 @@
   <div class="modal-overlay" id="modal-submit-proof" style="display:none;">
     <div class="modal-paper paper-card rise-in" style="max-width:460px;">
       <button class="modal-close" onclick="closeModal('modal-submit-proof')">&times;</button>
-      <h3 style="font-size:1.3rem; font-weight:800; margin-bottom:6px;" id="proof-modal-bounty-title">Submit Task Proof</h3>
-      <p style="font-size:0.82rem; color:var(--muted); margin-bottom:12px;" id="proof-modal-timer">⏱️ Lock Remaining: 15:00</p>
+      <h3 style="font-size:1.3rem; font-weight:800; margin-bottom:4px;" id="proof-modal-bounty-title">Submit Task Proof</h3>
+      <p style="font-size:0.82rem; color:var(--muted); margin-bottom:8px;" id="proof-modal-timer">⏱️ Lock Remaining: 15:00</p>
+      <p style="font-size:0.82rem; color:var(--ink); background:var(--bg-subtle); padding:10px; border-radius:10px; margin-bottom:14px;" id="proof-modal-bounty-instructions"></p>
       
       <form onsubmit="event.preventDefault(); handleSubmitProof();">
         <div style="display:flex; flex-direction:column; gap:14px;">
-          <div>
-            <label style="font-size:0.82rem; font-weight:700; color:var(--muted); display:block; margin-bottom:4px;">Proof Text / Written Details</label>
-            <textarea id="proof-text-input" rows="3" placeholder="Describe completed work or feedback..." style="width:100%; padding:10px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink);" required></textarea>
+          
+          <div id="group-proof-text" style="display:none; flex-direction:column;">
+            <label style="font-size:0.82rem; font-weight:700; color:var(--muted); display:block; margin-bottom:4px;">Written Feedback / Proof Details</label>
+            <textarea id="proof-text-input" rows="3" placeholder="Describe completed work or feedback..." style="width:100%; padding:10px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink);"></textarea>
           </div>
 
-          <div>
-            <label style="font-size:0.82rem; font-weight:700; color:var(--muted); display:block; margin-bottom:4px;">Attach Screenshot (Optional)</label>
+          <div id="group-proof-url" style="display:none; flex-direction:column;">
+            <label style="font-size:0.82rem; font-weight:700; color:var(--muted); display:block; margin-bottom:4px;">Proof Web Link / URL</label>
+            <input type="url" id="proof-url-input" placeholder="https://x.com/yourpost or link to proof..." style="width:100%; padding:10px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink);" />
+          </div>
+
+          <div id="group-proof-image" style="display:none; flex-direction:column;">
+            <label style="font-size:0.82rem; font-weight:700; color:var(--muted); display:block; margin-bottom:4px;">Attach Screenshot Proof</label>
             <input type="file" id="proof-image-file" accept="image/*" onchange="previewScreenshot(event)" style="font-size:0.8rem; color:var(--muted);" />
           </div>
 
