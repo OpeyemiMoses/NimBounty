@@ -992,19 +992,54 @@ function calculateTotalPool() { calculateTotalEscrow(); }
 // ==========================================
 // 7. PROFILE SYSTEM (Screenshot 1 Layout)
 // ==========================================
+// Image Compression Helper for Profile Avatar
+function compressImageFile(file, callback) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const img = new Image();
+    img.onload = function() {
+      const canvas = document.createElement('canvas');
+      let width = img.width;
+      let height = img.height;
+
+      const minDim = Math.min(width, height);
+      const startX = (width - minDim) / 2;
+      const startY = (height - minDim) / 2;
+
+      canvas.width = 200;
+      canvas.height = 200;
+
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, startX, startY, minDim, minDim, 0, 0, 200, 200);
+
+      const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      callback(compressedDataUrl);
+    };
+    img.onerror = function() {
+      callback(e.target.result);
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
 function uploadProfileAvatar(event) {
   const file = event.target.files[0];
   if (!file || !userAccount) return;
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    const profile = getProfile(userAccount);
-    profile.avatarUrl = e.target.result;
-    saveProfile(userAccount, profile);
-    showToastNotification('Photo Updated', 'Profile avatar updated!', false);
-    renderProfile();
-    updateWalletUI();
-  };
-  reader.readAsDataURL(file);
+
+  compressImageFile(file, function(compressedUrl) {
+    try {
+      const profile = getProfile(userAccount);
+      profile.avatarUrl = compressedUrl;
+      saveProfile(userAccount, profile);
+      showToastNotification('Photo Updated', 'Profile avatar updated!', false);
+      renderProfile();
+      updateWalletUI();
+    } catch (e) {
+      console.error("Avatar save error:", e);
+      showToastNotification('Photo Save Error', 'Failed to save image. Try a different file.', true);
+    }
+  });
 }
 
 function removeProfileAvatar() {
