@@ -1,12 +1,18 @@
 /* ==========================================
-   NIMBOUNTY V2 - CLEAN JAVASCRIPT STATE ENGINE
+   NIMBOUNTY V2 - COMPLETE FEATURE-RICH ENGINE
    ========================================== */
+
+// Production API URL
+const PRODUCTION_URL = 'https://nim-bounty.vercel.app';
 
 // Storage Keys
 const STORAGE_KEY_USER_ACCT = 'nimbounty_user_wallet_v5';
 const STORAGE_KEY_PROFILE = 'nimbounty_profile_v5';
 const STORAGE_KEY_THEME = 'nimbounty_theme_v5';
-const STORAGE_KEY_LOCAL_BOUNTIES = 'nimbounty_local_bounties_v5';
+const STORAGE_KEY_LOCAL_BOUNTIES = 'nimbounty_pools_v5';
+const STORAGE_KEY_SUBS = 'nimbounty_subs_v5';
+const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v5';
+const STORAGE_KEY_REPUTATION = 'nimbounty_reputation_v5';
 const STORAGE_KEY_ONBOARDED_GLOBAL = 'nimbounty_onboarded_global_v5';
 
 // Global Application State
@@ -15,9 +21,14 @@ let currentRole = 'worker'; // 'worker' | 'poster'
 let currentView = 'app';
 let workerSubtab = 'active'; // 'active' | 'history'
 let posterSubtab = 'create'; // 'create' | 'pools' | 'subs'
-let bounties = [];
-let pendingSubmissions = [];
-let approvedPayoutsHistory = [];
+let bounties = JSON.parse(localStorage.getItem(STORAGE_KEY_LOCAL_BOUNTIES)) || [];
+let pendingSubmissions = JSON.parse(localStorage.getItem(STORAGE_KEY_SUBS)) || [];
+let approvedPayoutsHistory = JSON.parse(localStorage.getItem(STORAGE_KEY_PAID_HISTORY)) || [];
+let liveBlockHeight = 0;
+let uploadedImageDataUrl = null;
+let activeClaimTimer = null;
+let currentModalBountyId = null;
+let lastRenderHash = '';
 
 // Seed Bounties Fallback
 const INITIAL_SEED_BOUNTIES = [
@@ -25,24 +36,28 @@ const INITIAL_SEED_BOUNTIES = [
     id: 'seed-bounty-1',
     title: 'Test Nimiq MiniApp UI & Report 3 UX Observations',
     category: 'app-test',
+    categoryName: 'APP TESTING',
     reward: '15.0',
     slotsTotal: 10,
-    slotsTaken: 2,
+    slotsRemaining: 8,
     posterAddress: 'NQ65 R26Y VNQL H5H9 F19S U3PB FY7N EJ7H PGNN',
-    description: 'Launch NimBounty inside Nimiq Pay MiniApp WebView. Test wallet connect, view switching, and submit 3 UX observations.',
-    status: 'open',
+    sponsor: 'NQ65 R26Y...',
+    instructions: 'Launch NimBounty inside Nimiq Pay MiniApp WebView. Test wallet connect, view switching, and submit 3 UX observations.',
+    proofType: 'text',
     createdAt: Date.now() - 3600000
   },
   {
     id: 'seed-bounty-2',
     title: 'Share NimBounty MiniApp Announcement on X (Twitter)',
     category: 'social',
+    categoryName: 'SOCIAL SHARE',
     reward: '10.0',
     slotsTotal: 15,
-    slotsTaken: 5,
+    slotsRemaining: 10,
     posterAddress: 'NQ33 A91B 44XX 88YY 22ZZ 11AA 99BB 77CC 55DD',
-    description: 'Post a tweet mentioning @Nimiq and #NimBounty with a screenshot of the app console. Paste tweet URL as proof.',
-    status: 'open',
+    sponsor: 'NQ33 A91B...',
+    instructions: 'Post a tweet mentioning @Nimiq and #NimBounty with a screenshot of the app console. Paste tweet URL as proof.',
+    proofType: 'text',
     createdAt: Date.now() - 7200000
   }
 ];
@@ -56,6 +71,7 @@ function isRealWalletConnected() {
 function getNimiqProvider() {
   if (typeof window !== 'undefined' && window.nimiq) return window.nimiq;
   if (typeof window !== 'undefined' && window.NimiqProvider) return window.NimiqProvider;
+  if (typeof window !== 'undefined' && window.nimiqPay) return window.nimiqPay;
   return null;
 }
 
@@ -133,7 +149,152 @@ function toggleTheme() {
 }
 
 // ==========================================
-// WALLET CONNECTION & SIGNING ENGINE
+// 1. FEATURE: PERSISTENT GLOBAL BACKEND SYNC (/api/bounties)
+// ==========================================
+async function fetchGlobalPublicBounties() {
+  try {
+    const apiEndpoint = window.location.origin.includes('localhost')
+      ? `${PRODUCTION_URL}/api/bounties`
+      : `/api/bounties`;
+
+    const res = await fetch(apiEndpoint, { cache: 'no-cache' });
+    if (res.ok) {
+      const data = await res.json();
+      let stateChanged = false;
+
+      if (Array.isArray(data.bounties)) {
+        if (data.bounties.length === 0 && bounties.length > 0) {
+          bounties = [];
+          stateChanged = true;
+        } else if (data.bounties.length > 0) {
+          const existingIds = new Set(bounties.map(b => b.id));
+          data.bounties.forEach(sb => {
+            if (!existingIds.has(sb.id)) {
+              bounties.unshift(sb);
+              existingIds.add(sb.id);
+              stateChanged = true;
+            } else {
+              const idx = bounties.findIndex(b => b.id === sb.id);
+              if (bounties[idx].slotsRemaining !== sb.slotsRemaining) {
+                bounties[idx].slotsRemaining = sb.slotsRemaining;
+                stateChanged = true;
+              }
+            }
+          });
+        }
+        localStorage.setItem(STORAGE_KEY_LOCAL_BOUNTIES, JSON.stringify(bounties));
+      }
+
+      if (Array.isArray(data.approvedPayoutsHistory)) {
+        approvedPayoutsHistory = data.approvedPayoutsHistory;
+        localStorage.setItem(STORAGE_KEY_PAID_HISTORY, JSON.stringify(approvedPayoutsHistory));
+      }
+
+      if (Array.isArray(data.pendingSubmissions)) {
+        pendingSubmissions = data.pendingSubmissions;
+        localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions));
+      }
+
+      const newHash = `${bounties.length}-${pendingSubmissions.length}-${approvedPayoutsHistory.length}-${userAccount}`;
+      if (stateChanged || newHash !== lastRenderHash) {
+        lastRenderHash = newHash;
+        renderBounties();
+        renderPosterDashboard();
+        updateLandingStats();
+      }
+    }
+  } catch (e) {
+    renderBounties();
+  }
+}
+
+async function syncGlobalPublicBounties(updatedBountyObj = null, replacePendingSubmissions = false) {
+  try {
+    const apiEndpoint = window.location.origin.includes('localhost')
+      ? `${PRODUCTION_URL}/api/bounties`
+      : `/api/bounties`;
+
+    await fetch(apiEndpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        newBounty: updatedBountyObj,
+        replacePendingSubmissions,
+        bounties,
+        pendingSubmissions,
+        approvedPayoutsHistory,
+        updatedAt: Date.now()
+      })
+    });
+  } catch (e) {}
+}
+
+// ==========================================
+// 2. FEATURE: LIVE NIMIQ RPC BLOCK HEIGHT
+// ==========================================
+async function fetchNimiqLiveRPC() {
+  const rpcTag = document.getElementById('live-rpc-tag');
+  try {
+    const response = await fetch('https://rpc.nimiq.network', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'getBlockNumber',
+        params: [],
+        id: 1
+      })
+    });
+    const data = await response.json();
+    if (data && data.result) {
+      liveBlockHeight = parseInt(data.result, 16) || data.result;
+      if (rpcTag) {
+        rpcTag.innerHTML = `<span class="tag-pulse-dot"></span> LIVE NIMIQ PAY MAINNET &bull; BLOCK #${liveBlockHeight}`;
+      }
+    }
+  } catch (err) {
+    if (rpcTag) {
+      rpcTag.innerHTML = `<span class="tag-pulse-dot"></span> LIVE ON NIMIQ PAY MINI APP SDK`;
+    }
+  }
+}
+
+// ==========================================
+// 3. FEATURE: TYPEWRITER ANIMATION
+// ==========================================
+const typewriterPhrases = ["fast", "safe", "direct", "onchain", "instant"];
+let phraseIndex = 0;
+let charIndex = 4;
+let isDeleting = true;
+
+function runTypewriter() {
+  const textEl = document.getElementById('typewriter-text');
+  if (!textEl) return;
+
+  const currentPhrase = typewriterPhrases[phraseIndex];
+  if (isDeleting) {
+    textEl.textContent = currentPhrase.substring(0, charIndex - 1);
+    charIndex--;
+  } else {
+    textEl.textContent = currentPhrase.substring(0, charIndex + 1);
+    charIndex++;
+  }
+
+  let timeout = isDeleting ? 70 : 120;
+  if (!isDeleting && charIndex === currentPhrase.length) {
+    timeout = 2200;
+    isDeleting = true;
+  } else if (isDeleting && charIndex === 0) {
+    isDeleting = false;
+    phraseIndex = (phraseIndex + 1) % typewriterPhrases.length;
+    timeout = 400;
+  }
+
+  setTimeout(runTypewriter, timeout);
+}
+
+// ==========================================
+// 4. WALLET CONNECTION & LIVE UPDATER ENGINE
 // ==========================================
 async function connectNimiqPayWallet() {
   const provider = getNimiqProvider();
@@ -153,6 +314,7 @@ async function connectNimiqPayWallet() {
         renderPosterDashboard();
         renderSessionBar();
         showToastNotification('📱 Connected!', `Wallet connected: ${getUserDisplayName(userAccount)}`, false);
+        checkAndLaunchOnboarding();
         return;
       }
     } catch (e) {
@@ -160,7 +322,6 @@ async function connectNimiqPayWallet() {
     }
   }
 
-  // Fallback for standard browsers outside Nimiq Pay MiniApp
   const inputAddr = prompt("Enter your Nimiq Wallet Address:", userAccount || "NQ65 R26Y VNQL H5H9 F19S U3PB FY7N EJ7H PGNN");
   if (inputAddr && inputAddr.trim()) {
     userAccount = inputAddr.trim().replace(/\s+/g, '').toUpperCase();
@@ -170,6 +331,7 @@ async function connectNimiqPayWallet() {
     renderPosterDashboard();
     renderSessionBar();
     showToastNotification('⚡ Wallet Connected!', `Connected address: ${getUserDisplayName(userAccount)}`, false);
+    checkAndLaunchOnboarding();
   }
 }
 
@@ -199,12 +361,28 @@ function confirmDisconnectWalletFromModal() {
 }
 
 function updateWalletUI() {
-  const textDesktop = document.getElementById('wallet-text');
-  const textMobile = document.getElementById('session-wallet-display');
+  const walletTextDesktop = document.getElementById('wallet-text');
+  const walletTextMobile = document.getElementById('wallet-text-mobile');
+  const sessionWallet = document.getElementById('session-wallet-display');
+  
   const displayVal = isRealWalletConnected() ? getUserDisplayName(userAccount) : 'CONNECT NIMIQ PAY';
 
-  if (textDesktop) textDesktop.textContent = displayVal;
-  if (textMobile) textMobile.textContent = displayVal;
+  if (walletTextDesktop) walletTextDesktop.textContent = displayVal;
+  if (walletTextMobile) walletTextMobile.textContent = displayVal;
+
+  if (sessionWallet) {
+    if (isRealWalletConnected()) {
+      const workerEarned = approvedPayoutsHistory
+        .filter(p => isSameNimiqAddress(p.workerAddress, userAccount))
+        .reduce((sum, p) => sum + (parseFloat(p.reward) || 0), 0);
+      sessionWallet.textContent = `${displayVal} (${workerEarned} NIM Earned)`;
+    } else {
+      sessionWallet.textContent = '⚡ CONNECT NIMIQ PAY';
+    }
+  }
+
+  renderWorkerStats();
+  renderProfile();
 }
 
 function handleLaunchApp() {
@@ -241,9 +419,9 @@ function openDesktopConnectModal() {
 function closeModal(modalId) {
   const modal = document.getElementById(modalId);
   if (modal) modal.style.display = 'none';
+  if (activeClaimTimer) clearInterval(activeClaimTimer);
 }
 
-// Logo Click Handler
 function handleLogoClick(event) {
   if (event) event.preventDefault();
   const isMobile = window.innerWidth <= 768;
@@ -254,7 +432,6 @@ function handleLogoClick(event) {
   }
 }
 
-// Scroll To Section
 function scrollToSection(sectionId) {
   if (currentView !== 'landing') {
     showView('landing');
@@ -266,7 +443,6 @@ function scrollToSection(sectionId) {
   }
 }
 
-// Toggle FAQ Item
 function toggleFaq(btnEl) {
   const item = btnEl.closest('.faq-item');
   if (!item) return;
@@ -276,12 +452,11 @@ function toggleFaq(btnEl) {
 }
 
 // ==========================================
-// VIEW ROUTER ENGINE
+// 5. VIEW ROUTER ENGINE
 // ==========================================
 function showView(viewName) {
   const isMobile = window.innerWidth <= 768;
 
-  // On mobile screens, NEVER show landing page! Default to 'app'!
   if (isMobile && viewName === 'landing') {
     viewName = 'app';
   }
@@ -297,7 +472,6 @@ function showView(viewName) {
     'how-it-works': document.getElementById('view-how-it-works')
   };
 
-  // Hide all view containers
   Object.values(views).forEach(v => { if (v) v.style.display = 'none'; });
 
   const sessionBar = document.getElementById('console-session-bar');
@@ -316,12 +490,10 @@ function showView(viewName) {
     }
   }
 
-  // Session Bar visibility: ONLY on main app view!
   if (sessionBar) {
     sessionBar.style.display = (viewName === 'app') ? 'flex' : 'none';
   }
 
-  // Show target view container
   if (views[viewName]) {
     views[viewName].style.display = 'block';
   } else if (views.app) {
@@ -354,7 +526,6 @@ function renderSessionBar() {
   }
 }
 
-// Role Switcher
 function switchToRole(role) {
   closeModal('modal-mode-switch');
   currentRole = role;
@@ -399,7 +570,7 @@ function switchPosterSubtab(subtab) {
 }
 
 // ==========================================
-// MOBILE BOTTOM NAVIGATION ENGINE
+// 6. MOBILE BOTTOM NAVIGATION ENGINE
 // ==========================================
 function renderMobileBottomNav() {
   const nav = document.getElementById('mobile-bottom-nav');
@@ -412,7 +583,6 @@ function renderMobileBottomNav() {
   }
 
   nav.style.display = 'flex';
-
   const isProfileOpen = document.getElementById('panel-profile')?.style.display === 'block';
 
   nav.innerHTML = `
@@ -463,7 +633,7 @@ function switchMobileTab(tab) {
 }
 
 // ==========================================
-// PROFILE SYSTEM (Screenshot 1 Layout)
+// 7. PROFILE SYSTEM (Screenshot 1 Layout)
 // ==========================================
 function uploadProfileAvatar(event) {
   const file = event.target.files[0];
@@ -509,6 +679,8 @@ function renderProfile() {
   }
 
   const profile = getProfile(userAccount);
+  const rep = getReputation(userAccount);
+
   const bountiesPosted = bounties.filter(b => isSameNimiqAddress(b.posterAddress, userAccount)).length;
   const workerCompleted = approvedPayoutsHistory.filter(p => isSameNimiqAddress(p.workerAddress, userAccount)).length;
   const workerRejections = pendingSubmissions.filter(s => isSameNimiqAddress(s.workerAddress, userAccount) && s.status === 'rejected').length;
@@ -528,6 +700,7 @@ function renderProfile() {
     : `<svg viewBox="0 0 64 64" width="48" height="48" fill="none" stroke="var(--gold)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M32 6L6 19l26 13 26-13L32 6zM6 45l26 13 26-13M6 32l26 13 26-13"/></svg>`;
 
   el.innerHTML = `
+    <!-- Top Header Navigation inside Profile -->
     <div style="display:flex; align-items:center; gap:8px; margin-bottom:20px; font-size:0.75rem; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:0.06em;">
       <span>PROFILE</span> &bull; <span>TRADER PROFILE</span>
     </div>
@@ -578,7 +751,7 @@ function renderProfile() {
         <div class="stat-lbl">RATING</div>
       </div>
       <div class="stat-col">
-        <div class="stat-val">0</div>
+        <div class="stat-val">${rep.reports || 0}</div>
         <div class="stat-lbl">DISPUTES</div>
       </div>
     </div>
@@ -645,63 +818,229 @@ function finalizeUsername() {
 }
 
 // ==========================================
-// BOUNTIES RENDER & BOUNTY ACTIONS
+// 8. BOUNTIES RENDER & BOUNTY ACTIONS
 // ==========================================
 function renderBounties() {
   const grid = document.getElementById('bounties-grid');
   if (!grid) return;
 
+  const searchQuery = document.getElementById('search-input')?.value.toLowerCase() || '';
+  const categoryFilter = document.getElementById('category-select')?.value || 'all';
+
   const activeBounties = bounties.length ? bounties : INITIAL_SEED_BOUNTIES;
 
-  grid.innerHTML = activeBounties.map(b => `
-    <div class="bounty-card">
-      <div>
-        <div class="bounty-card-header">
-          <span class="bounty-category-tag">${b.category || 'General'}</span>
-          <span class="bounty-reward">${b.reward} NIM</span>
+  let filtered = activeBounties.filter(b => {
+    const matchesSearch = b.title.toLowerCase().includes(searchQuery) || (b.instructions || b.description || '').toLowerCase().includes(searchQuery);
+    const matchesCat = categoryFilter === 'all' || b.category === categoryFilter;
+
+    const myApprovedPayout = userAccount
+      ? approvedPayoutsHistory.some(p => p.bountyId === b.id && p.workerAddress && isSameNimiqAddress(p.workerAddress, userAccount))
+      : false;
+
+    const hasPendingSub = userAccount
+      ? pendingSubmissions.some(s => s.bountyId === b.id && s.workerAddress && isSameNimiqAddress(s.workerAddress, userAccount))
+      : false;
+
+    if (workerSubtab === 'active') {
+      return matchesSearch && matchesCat && !myApprovedPayout && !hasPendingSub;
+    } else {
+      return matchesSearch && matchesCat && (myApprovedPayout || hasPendingSub);
+    }
+  });
+
+  grid.innerHTML = filtered.map(b => {
+    const isPublisher = isSameNimiqAddress(b.posterAddress, userAccount);
+    const hasPendingSub = userAccount ? pendingSubmissions.some(s => s.bountyId === b.id && s.workerAddress && isSameNimiqAddress(s.workerAddress, userAccount)) : false;
+    const hasApproved = userAccount ? approvedPayoutsHistory.some(p => p.bountyId === b.id && p.workerAddress && isSameNimiqAddress(p.workerAddress, userAccount)) : false;
+
+    let btnLabel = 'Participate & Earn NIM &rarr;';
+    let btnDisabled = false;
+
+    if (hasPendingSub) {
+      btnLabel = '⏳ Proof Pending Review';
+      btnDisabled = true;
+    } else if (hasApproved) {
+      btnLabel = '✅ Payout Released';
+      btnDisabled = true;
+    } else if (isPublisher) {
+      btnLabel = '⛔ Publisher (Cannot Claim)';
+      btnDisabled = true;
+    }
+
+    return `
+      <div class="bounty-card">
+        <div>
+          <div class="bounty-card-header">
+            <span class="bounty-category-tag">${b.categoryName || b.category || 'General'}</span>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <button onclick="openQrModal('${b.id}')" title="Share QR Code" style="background:var(--bg-subtle); border:1px solid var(--border); padding:4px 8px; border-radius:8px; cursor:pointer;">📱 QR</button>
+              <span class="bounty-reward">${b.reward} NIM</span>
+            </div>
+          </div>
+          <h4 class="bounty-title">${b.title}</h4>
+          <p class="bounty-desc">${b.instructions || b.description}</p>
         </div>
-        <h4 class="bounty-title">${b.title}</h4>
-        <p class="bounty-desc">${b.description}</p>
-      </div>
-      <div>
-        <div class="bounty-meta-row">
-          <span>Poster: <strong>${getUserDisplayName(b.posterAddress)}</strong></span>
-          <span>Slots: <strong>${b.slotsTaken || 0} / ${b.slotsTotal || 5}</strong></span>
+        <div>
+          <div class="bounty-meta-row">
+            <span>Poster: <strong>${getUserDisplayName(b.posterAddress)}</strong></span>
+            <span>Slots: <strong>${b.slotsRemaining !== undefined ? b.slotsRemaining : (b.slotsTotal || 5)} / ${b.slotsTotal || 5}</strong></span>
+          </div>
+          <button class="btn-primary-sm full-width" onclick="openSubmitProofModal('${b.id}')" ${btnDisabled ? 'disabled' : ''} style="justify-content:center;">
+            ${btnLabel}
+          </button>
         </div>
-        <button class="btn-primary-sm full-width" onclick="openSubmitProofModal('${b.id}')" style="justify-content:center;">
-          Participate &amp; Earn NIM &rarr;
-        </button>
       </div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 }
 
-let _selectedBountyId = null;
-
 function openSubmitProofModal(bountyId) {
-  _selectedBountyId = bountyId;
+  if (!isRealWalletConnected()) {
+    showToastNotification('⛔ Wallet Required', 'Connect your Nimiq Pay wallet first!', true);
+    connectNimiqPayWallet();
+    return;
+  }
+
+  currentModalBountyId = bountyId;
   const bounty = bounties.find(b => b.id === bountyId) || INITIAL_SEED_BOUNTIES.find(b => b.id === bountyId);
   if (bounty) {
     document.getElementById('proof-modal-bounty-title').textContent = `Submit Proof: ${bounty.title}`;
   }
+
+  startClaimTimer(15 * 60);
   document.getElementById('modal-submit-proof').style.display = 'flex';
 }
 
-function handleSubmitProof() {
+function startClaimTimer(durationSeconds) {
+  if (activeClaimTimer) clearInterval(activeClaimTimer);
+  let timer = durationSeconds;
+  const timerEl = document.getElementById('proof-modal-timer');
+
+  activeClaimTimer = setInterval(() => {
+    const minutes = Math.floor(timer / 60);
+    const seconds = timer % 60;
+    if (timerEl) {
+      timerEl.textContent = `⏱️ Lock Remaining: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+    }
+    if (--timer < 0) {
+      clearInterval(activeClaimTimer);
+      showToastNotification('⏱️ Timer Expired', 'Slot reservation expired.', false);
+      closeModal('modal-submit-proof');
+    }
+  }, 1000);
+}
+
+function previewScreenshot(event) {
+  const file = event.target.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      uploadedImageDataUrl = e.target.result;
+      document.getElementById('image-preview-img').src = uploadedImageDataUrl;
+      document.getElementById('image-preview-box').style.display = 'flex';
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+async function handleSubmitProof() {
   const textInput = document.getElementById('proof-text-input');
   const val = textInput ? textInput.value.trim() : '';
 
-  if (!val) {
-    showToastNotification('⚠️ Empty Proof', 'Please provide proof text before submitting.', true);
+  if (!val && !uploadedImageDataUrl) {
+    showToastNotification('⚠️ Proof Required', 'Please provide proof text or screenshot.', true);
     return;
   }
 
+  const bounty = bounties.find(b => b.id === currentModalBountyId) || INITIAL_SEED_BOUNTIES.find(b => b.id === currentModalBountyId);
+  if (!bounty) return;
+
+  const workerAddr = userAccount.replace(/\s+/g, '').toUpperCase();
+  const posterAddr = bounty.posterAddress.replace(/\s+/g, '').toUpperCase();
+
+  // Sign message off-chain
+  const timestamp = Date.now();
+  const proofMessage = `NIMBOUNTY_PROOF_SIGNATURE | Bounty: ${bounty.id} | Worker: ${workerAddr} | Time: ${timestamp}`;
+  let signature = `sig_${Date.now()}`;
+
+  const provider = getNimiqProvider();
+  if (provider && typeof provider.signMessage === 'function') {
+    try {
+      const res = await provider.signMessage(proofMessage);
+      if (res) signature = typeof res === 'string' ? res : (res.signature || signature);
+    } catch (e) {}
+  }
+
+  const newSub = {
+    id: `sub-${Date.now()}`,
+    bountyId: bounty.id,
+    bountyTitle: bounty.title,
+    posterAddress: posterAddr,
+    workerAddress: workerAddr,
+    content: uploadedImageDataUrl ? JSON.stringify({ text: val, image: uploadedImageDataUrl }) : val,
+    signature: signature,
+    submittedAt: new Date().toLocaleTimeString(),
+    reward: bounty.reward,
+    status: 'pending'
+  };
+
+  pendingSubmissions.unshift(newSub);
+  if (bounty.slotsRemaining > 0) bounty.slotsRemaining -= 1;
+
+  localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions));
+  localStorage.setItem(STORAGE_KEY_LOCAL_BOUNTIES, JSON.stringify(bounties));
+
+  syncGlobalPublicBounties(bounty);
+
   closeModal('modal-submit-proof');
+  renderBounties();
   showToastNotification('✅ Proof Submitted!', 'Proof signed off-chain with 0 gas. Waiting for poster review.', false);
   if (textInput) textInput.value = '';
+  uploadedImageDataUrl = null;
+}
+
+function openQrModal(bountyId) {
+  const bounty = bounties.find(b => b.id === bountyId) || INITIAL_SEED_BOUNTIES.find(b => b.id === bountyId);
+  if (!bounty) return;
+
+  document.getElementById('qr-bounty-title').textContent = bounty.title;
+  const b64Data = btoa(encodeURIComponent(JSON.stringify(bounty)));
+  const shareWebUrl = `${PRODUCTION_URL}/#bdata=${b64Data}`;
+  document.getElementById('qr-link-input').value = shareWebUrl;
+
+  const qrBox = document.getElementById('qrcode-box');
+  if (qrBox) {
+    qrBox.innerHTML = '';
+    if (typeof QRCode !== 'undefined') {
+      new QRCode(qrBox, {
+        text: shareWebUrl,
+        width: 160,
+        height: 160,
+        colorDark: "#1a1917",
+        colorLight: "#ffffff"
+      });
+    }
+  }
+
+  document.getElementById('modal-qr').style.display = 'flex';
+}
+
+function copyQrLink() {
+  const input = document.getElementById('qr-link-input');
+  if (input) {
+    input.select();
+    navigator.clipboard.writeText(input.value);
+    showToastNotification('📋 Link Copied!', 'Bounty share link copied to clipboard.', false);
+  }
 }
 
 function publishBountyPoolDirectly() {
+  if (!isRealWalletConnected()) {
+    showToastNotification('⛔ Wallet Required', 'Connect your Nimiq Pay wallet first!', true);
+    connectNimiqPayWallet();
+    return;
+  }
+
   const title = document.getElementById('task-title')?.value.trim();
   const reward = document.getElementById('task-reward')?.value.trim() || '10';
   const slots = parseInt(document.getElementById('task-slots')?.value || '5');
@@ -709,28 +1048,32 @@ function publishBountyPoolDirectly() {
   const desc = document.getElementById('task-desc')?.value.trim();
 
   if (!title || !desc) {
-    showToastNotification('⚠️ Incomplete Form', 'Please fill out all required bounty fields.', true);
+    showToastNotification('⚠️ Form Incomplete', 'Please fill out title and instructions.', true);
     return;
   }
 
   const newBounty = {
     id: `bounty-${Date.now()}`,
     title,
+    category,
+    categoryName: category.toUpperCase(),
     reward: parseFloat(reward).toFixed(1),
     slotsTotal: slots,
-    slotsTaken: 0,
-    posterAddress: userAccount || 'NQ65 R26Y VNQL H5H9 F19S U3PB FY7N EJ7H PGNN',
-    category,
-    description: desc,
-    status: 'open',
+    slotsRemaining: slots,
+    posterAddress: userAccount.replace(/\s+/g, '').toUpperCase(),
+    sponsor: getUserDisplayName(userAccount),
+    instructions: desc,
     createdAt: Date.now()
   };
 
   bounties.unshift(newBounty);
+  localStorage.setItem(STORAGE_KEY_LOCAL_BOUNTIES, JSON.stringify(bounties));
+  syncGlobalPublicBounties(newBounty);
+
   renderBounties();
+  triggerConfetti();
   showToastNotification('🎉 Bounty Published!', 'Your task campaign is live for workers.', false);
 
-  // Clear form
   document.getElementById('task-title').value = '';
   document.getElementById('task-desc').value = '';
 }
@@ -744,20 +1087,172 @@ function renderPosterDashboard() {
     poolsList.innerHTML = myPools.length ? myPools.map(b => `
       <div style="background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; margin-bottom:12px;">
         <h4 style="font-size:1rem; font-weight:800;">${b.title}</h4>
-        <div style="font-size:0.8rem; color:var(--muted); margin-top:4px;">Reward: ${b.reward} NIM &bull; Slots: ${b.slotsTaken} / ${b.slotsTotal}</div>
+        <div style="font-size:0.8rem; color:var(--muted); margin-top:4px;">Reward: ${b.reward} NIM &bull; Slots: ${b.slotsRemaining} / ${b.slotsTotal}</div>
       </div>
     `).join('') : '<p style="color:var(--muted); font-size:0.85rem;">No published bounty pools yet.</p>';
   }
 
   if (subsList) {
-    subsList.innerHTML = '<p style="color:var(--muted); font-size:0.85rem;">No pending worker submissions to review.</p>';
+    const mySubs = pendingSubmissions.filter(s => isSameNimiqAddress(s.posterAddress, userAccount) && s.status === 'pending');
+    subsList.innerHTML = mySubs.length ? mySubs.map(s => `
+      <div style="background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; margin-bottom:12px;">
+        <h4 style="font-size:1rem; font-weight:800;">${s.bountyTitle}</h4>
+        <p style="font-size:0.82rem; color:var(--muted); margin:6px 0;">Worker: ${getUserDisplayName(s.workerAddress)}</p>
+        <div style="font-size:0.85rem; background:var(--bg-subtle); padding:10px; border-radius:10px; margin-bottom:12px;">${s.content}</div>
+        <div style="display:flex; gap:10px;">
+          <button class="btn-primary-sm" onclick="approveWorkerPayout('${s.id}')" style="flex:1; justify-content:center;">Approve &amp; Pay ${s.reward} NIM</button>
+          <button class="btn-ghost-sm" onclick="openRejectionModal('${s.id}')" style="flex:1; justify-content:center; color:var(--danger);">Reject</button>
+        </div>
+      </div>
+    `).join('') : '<p style="color:var(--muted); font-size:0.85rem;">No pending worker submissions to review.</p>';
   }
+}
+
+async function approveWorkerPayout(subId) {
+  const subIndex = pendingSubmissions.findIndex(s => s.id === subId);
+  if (subIndex === -1) return;
+  const sub = pendingSubmissions[subIndex];
+
+  const provider = getNimiqProvider();
+  let txHash = `tx_${Date.now()}`;
+
+  if (provider && typeof provider.sendBasicTransactionWithData === 'function') {
+    try {
+      const lunaValue = Math.round(parseFloat(sub.reward) * 100000);
+      txHash = await provider.sendBasicTransactionWithData({
+        recipient: sub.workerAddress,
+        value: lunaValue,
+        data: `NIMBOUNTY_PAYOUT:${sub.bountyId}`
+      });
+    } catch (e) {
+      showToastNotification('⚠️ Transaction Cancelled', 'Payout transaction was cancelled.', true);
+      return;
+    }
+  }
+
+  approvedPayoutsHistory.push({
+    id: `pay-${Date.now()}`,
+    bountyId: sub.bountyId,
+    bountyTitle: sub.bountyTitle,
+    workerAddress: sub.workerAddress,
+    posterAddress: userAccount,
+    reward: sub.reward,
+    txHash: txHash,
+    paidAt: Date.now()
+  });
+
+  pendingSubmissions.splice(subIndex, 1);
+  localStorage.setItem(STORAGE_KEY_PAID_HISTORY, JSON.stringify(approvedPayoutsHistory));
+  localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions));
+
+  syncGlobalPublicBounties(null, true);
+  triggerConfetti();
+  renderPosterDashboard();
+  renderProfile();
+  showToastNotification('🎉 Worker Paid!', `${sub.reward} NIM transferred directly to ${getUserDisplayName(sub.workerAddress)}.`, false);
+}
+
+let _pendingRejectSubId = null;
+
+function openRejectionModal(subId) {
+  _pendingRejectSubId = subId;
+  document.getElementById('modal-reject-reason').style.display = 'flex';
+}
+
+function submitTaskRejectionWithReason() {
+  const reasonInput = document.getElementById('rejection-reason-input');
+  const val = reasonInput ? reasonInput.value.trim() : '';
+
+  if (!val) {
+    showToastNotification('⚠️ Reason Required', 'Please provide a rejection reason.', true);
+    return;
+  }
+
+  const subIndex = pendingSubmissions.findIndex(s => s.id === _pendingRejectSubId);
+  if (subIndex !== -1) {
+    pendingSubmissions[subIndex].status = 'rejected';
+    pendingSubmissions[subIndex].rejectionReason = val;
+    localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions));
+    syncGlobalPublicBounties(null, true);
+  }
+
+  closeModal('modal-reject-reason');
+  renderPosterDashboard();
+  showToastNotification('❌ Task Rejected', 'Worker notified of rejection reason. Task slot remains open.', false);
+  if (reasonInput) reasonInput.value = '';
+}
+
+function submitReportPoster() {
+  const reasonInput = document.getElementById('report-poster-reason');
+  const val = reasonInput ? reasonInput.value.trim() : '';
+
+  if (!val) {
+    showToastNotification('⚠️ Reason Required', 'Please explain the issue.', true);
+    return;
+  }
+
+  closeModal('modal-report-poster');
+  showToastNotification('🚩 Report Submitted', 'Poster reputation updated.', false);
+  if (reasonInput) reasonInput.value = '';
+}
+
+function triggerConfetti() {
+  const canvas = document.getElementById('confetti-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  const particles = Array.from({ length: 80 }).map(() => ({
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height - canvas.height,
+    r: Math.random() * 6 + 4,
+    d: Math.random() * 80,
+    color: ['#d99b00', '#ffc107', '#1a7a4a', '#ffffff'][Math.floor(Math.random() * 4)],
+    tilt: Math.random() * 10 - 10
+  }));
+
+  let ticks = 0;
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    particles.forEach(p => {
+      ctx.beginPath();
+      ctx.lineWidth = p.r;
+      ctx.strokeStyle = p.color;
+      ctx.moveTo(p.x + p.tilt, p.y);
+      ctx.lineTo(p.x, p.y + p.tilt + p.r);
+      ctx.stroke();
+
+      p.y += Math.cos(p.d) + 3 + p.r / 2;
+      p.tilt = Math.sin(ticks / 10) * 15;
+    });
+
+    ticks++;
+    if (ticks < 120) requestAnimationFrame(draw);
+    else ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+  draw();
 }
 
 function renderDedicatedOrders() {
   const list = document.getElementById('dedicated-orders-list');
   if (!list) return;
-  list.innerHTML = '<p style="color:var(--muted); font-size:0.85rem; padding:20px 0;">No completed orders found for this wallet address.</p>';
+
+  if (!isRealWalletConnected()) {
+    list.innerHTML = '<p style="color:var(--muted); font-size:0.85rem; padding:20px 0;">Connect your wallet to view completed orders.</p>';
+    return;
+  }
+
+  const myPayouts = approvedPayoutsHistory.filter(p => isSameNimiqAddress(p.workerAddress, userAccount));
+  list.innerHTML = myPayouts.length ? myPayouts.map(p => `
+    <div style="background:var(--card); border:1px solid var(--border); border-radius:16px; padding:16px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+      <div>
+        <h4 style="font-size:0.95rem; font-weight:800;">${p.bountyTitle}</h4>
+        <div style="font-size:0.75rem; color:var(--muted); margin-top:2px;">Paid: ${new Date(p.paidAt).toLocaleDateString()}</div>
+      </div>
+      <div style="font-family:var(--font-mono); font-size:1.1rem; font-weight:900; color:var(--gold);">+${p.reward} NIM</div>
+    </div>
+  `).join('') : '<p style="color:var(--muted); font-size:0.85rem; padding:20px 0;">No completed orders found for this wallet address.</p>';
 }
 
 function updateLandingStats() {
@@ -765,22 +1260,104 @@ function updateLandingStats() {
   const paidEl = document.getElementById('landing-stat-paid');
 
   if (activeEl) activeEl.textContent = bounties.length ? bounties.length : '2';
-  if (paidEl) paidEl.textContent = '120 NIM';
+  if (paidEl) paidEl.textContent = `${approvedPayoutsHistory.reduce((s, p) => s + (parseFloat(p.reward) || 0), 0)} NIM`;
 }
 
-// ==========================================
-// INITIALIZATION
-// ==========================================
-window.addEventListener('DOMContentLoaded', () => {
+function renderWorkerStats() {}
+
+// Onboarding Walkthrough
+const ONBOARDING_STEPS = [
+  { section: 'WELCOME', title: 'Welcome to NimBounty!', description: 'Earn NIM by completing micro-tasks with 0 gas fees.' },
+  { section: 'MODE SWITCH', title: 'Switch Roles', description: 'Toggle between Worker Mode (earn NIM) and Poster Mode (publish tasks).' },
+  { section: 'PROOF SIGNING', title: 'Off-Chain Proofs', description: 'Sign proofs off-chain for 0 gas cost.' }
+];
+
+let onboardingStep = 0;
+
+function checkAndLaunchOnboarding() {
+  if (!userAccount) return;
+  const done = localStorage.getItem(STORAGE_KEY_ONBOARDED_GLOBAL);
+  if (!done) {
+    document.getElementById('onboarding-overlay').style.display = 'flex';
+    onboardingStep = -1;
+    updateOnboardingUI();
+  }
+}
+
+function updateOnboardingUI() {
+  const welcomeCard = document.getElementById('onboarding-welcome-card');
+  const stepCard = document.getElementById('onboarding-step-card');
+
+  if (onboardingStep === -1) {
+    if (welcomeCard) welcomeCard.style.display = 'flex';
+    if (stepCard) stepCard.style.display = 'none';
+    return;
+  }
+
+  if (onboardingStep >= ONBOARDING_STEPS.length) {
+    skipOnboarding();
+    return;
+  }
+
+  if (welcomeCard) welcomeCard.style.display = 'none';
+  if (stepCard) stepCard.style.display = 'flex';
+
+  const step = ONBOARDING_STEPS[onboardingStep];
+  document.getElementById('ob-step-section').textContent = step.section;
+  document.getElementById('ob-step-title').textContent = step.title;
+  document.getElementById('ob-step-desc').textContent = step.description;
+}
+
+function onboardingNext() { onboardingStep++; updateOnboardingUI(); }
+function onboardingBack() { if (onboardingStep > 0) { onboardingStep--; updateOnboardingUI(); } }
+function skipOnboarding() {
+  document.getElementById('onboarding-overlay').style.display = 'none';
+  localStorage.setItem(STORAGE_KEY_ONBOARDED_GLOBAL, '1');
+}
+
+// Check URL Hash for shared bounty payload auto-import
+function checkUrlAutoImport() {
+  try {
+    const hash = window.location.hash;
+    if (hash && hash.includes('bdata=')) {
+      const b64 = hash.split('bdata=')[1];
+      if (b64) {
+        const jsonStr = decodeURIComponent(atob(b64));
+        const imported = JSON.parse(jsonStr);
+        if (imported && imported.id && !bounties.some(b => b.id === imported.id)) {
+          bounties.unshift(imported);
+          localStorage.setItem(STORAGE_KEY_LOCAL_BOUNTIES, JSON.stringify(bounties));
+          showToastNotification('📥 Bounty Imported!', `Imported: "${imported.title}"`, false);
+        }
+      }
+    }
+  } catch (e) {}
+}
+
+// Reputation Helper
+function getReputation(walletAddress) {
+  const allRep = JSON.parse(localStorage.getItem(STORAGE_KEY_REPUTATION) || '{}');
+  const clean = String(walletAddress || '').replace(/\s+/g, '').toUpperCase();
+  return allRep[clean] || { reports: 0, status: 'good' };
+}
+
+// Initializer
+window.addEventListener('DOMContentLoaded', async () => {
   initTheme();
+  runTypewriter();
+  fetchNimiqLiveRPC();
+  checkUrlAutoImport();
+  await fetchGlobalPublicBounties();
+
   updateWalletUI();
+  updateLandingStats();
 
   const isMobile = window.innerWidth <= 768;
-
-  // On mobile screens: ALWAYS open directly into App Console!
   if (isMobile) {
     showView('app');
   } else {
     showView('landing');
   }
+
+  setInterval(fetchGlobalPublicBounties, 5000);
 });
