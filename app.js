@@ -1479,10 +1479,8 @@ async function handleSubmitProof() {
   if (!bounties.some(b => b.id === bounty.id)) {
     bounties.push(bounty);
   }
-  const targetBounty = bounties.find(b => b.id === bounty.id);
-  if (targetBounty && targetBounty.slotsRemaining > 0) {
-    targetBounty.slotsRemaining -= 1;
-  }
+  // NOTE: slotsRemaining is only decremented when the poster APPROVES & pays.
+  // Do NOT decrement here on submission — that would double-count slots.
 
   localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions));
   localStorage.setItem(STORAGE_KEY_LOCAL_BOUNTIES, JSON.stringify(bounties));
