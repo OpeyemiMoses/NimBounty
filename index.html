@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NimBounty — Instant Micro-Task Engine on Nimiq Pay</title>
+  <meta name="description" content="Outcome-based micro-task bounties powered by Nimiq Pay. Free campaign creation, 0 gas off-chain proof signing, direct wallet payouts." />
+  
+  <!-- Favicon Links -->
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="apple-touch-icon" href="favicon.png" />
+
+  <!-- Google Fonts: Work Sans, Instrument Serif, Geist Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&family=Work+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,600&display=swap" rel="stylesheet">
+  
+  <!-- QRCode.js library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Fullscreen Confetti Canvas Layer -->
+  <canvas id="confetti-canvas"></canvas>
+
+  <!-- Floating Toast Notifications Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Navigation Bar -->
+  <nav class="navbar" id="navbar">
+    <div class="nav-container">
+      <a href="#" class="nav-logo" onclick="handleLogoClick(event)">
+        <svg class="logo-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+        </svg>
+        <span class="logo-text">nim<span class="logo-serif">Bounty</span></span>
+      </a>
+
+      <!-- Desktop Center Navigation Links (landing page only) -->
+      <div class="nav-center-links desktop-nav" id="landing-nav-links">
+        <button class="nav-link-btn" onclick="scrollToSection('how-it-works')">How It Works</button>
+        <button class="nav-link-btn" onclick="scrollToSection('features')">Protections</button>
+        <button class="nav-link-btn" onclick="scrollToSection('faq')">FAQ</button>
+      </div>
+
+      <!-- Right Actions -->
+      <div class="nav-right-actions">
+        <!-- Light / Dark Theme Switcher Button -->
+        <button class="btn-theme-toggle" onclick="toggleTheme()" id="theme-toggle-btn" title="Toggle Light/Dark Theme">
+          <svg class="theme-icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        </button>
+
+        <!-- Desktop: show text wallet connect button -->
+        <button class="btn-ghost-sm desktop-only" onclick="handleWalletButtonClick()" id="btn-connect-wallet">
+          <span class="wallet-dot"></span>
+          <span id="wallet-text">CONNECT NIMIQ PAY</span>
+        </button>
+
+        <!-- Mobile: show icon-only wallet connect button -->
+        <button class="btn-icon-only mobile-only" onclick="handleWalletButtonClick()" id="btn-connect-wallet-mobile" title="Connect Wallet">
+          <span class="wallet-dot-mobile"></span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+        </button>
+
+        <button class="btn-primary-sm desktop-only" onclick="handleLaunchApp()">
+          Launch App
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ========================================== -->
+  <!-- VIEW 1: LANDING PAGE (Desktop Default)     -->
+  <!-- ========================================== -->
+  <div id="view-landing" class="page-view">
+    <section class="hero-section">
+      <div class="hero-tag">
+        <span class="tag-pulse-dot"></span> LIVE ON NIMIQ PAY MINI APP SDK &bull; DIRECT POSTER PAYOUTS
+      </div>
+
+      <h1 class="hero-title">
+        Powering micro-tasks <br />
+        the <span class="serif-italic">direct</span> way
+      </h1>
+
+      <p class="hero-sub">
+        Outcome-based micro-task bounties powered by Nimiq Pay. Create task campaigns for free &bull; Workers sign proof off-chain for 0 gas &bull; Posters pay workers directly.
+      </p>
+
+      <div class="flow-pills-row">
+        <div class="flow-pill">1. Post Bounty Task &rarr;</div>
+        <div class="flow-pill highlight">🛡️ 2. Sign Proof Off-Chain &rarr;</div>
+        <div class="flow-pill">3. Approve &amp; Direct Payout</div>
+      </div>
+
+      <button class="btn-primary-lg" onclick="showView('app')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        Launch App Console
+      </button>
+    </section>
+
+    <div class="stats-grid-4col">
+      <div class="landing-stat-card">
+        <div class="stat-num" id="landing-stat-active">0</div>
+        <div class="stat-label">ACTIVE BOUNTIES</div>
+      </div>
+      <div class="landing-stat-card">
+        <div class="stat-num" id="landing-stat-paid">0 NIM</div>
+        <div class="stat-label">TOTAL REWARDS PAID</div>
+      </div>
+      <div class="landing-stat-card">
+        <div class="stat-num">100%</div>
+        <div class="stat-label">DIRECT WALLET PAYOUTS</div>
+      </div>
+      <div class="landing-stat-card">
+        <div class="stat-num">0 GAS</div>
+        <div class="stat-label">WORKER TRANSACTION COST</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- VIEW 2: APP CONSOLE (Main App View)        -->
+  <!-- ========================================== -->
+  <div id="view-app" class="page-view">
+    <main class="console-main">
+      
+      <!-- Session Bar -->
+      <div class="console-session-bar" id="console-session-bar">
+        <div class="session-info">
+          <div class="session-avatar-dot">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+          </div>
+          <div>
+            <div class="session-name" id="session-wallet-display" onclick="handleWalletButtonClick()" style="cursor:pointer;">CONNECT NIMIQ PAY</div>
+          </div>
+        </div>
+        <div class="session-mode-pill" id="session-mode-badge">Worker Mode</div>
+      </div>
+
+      <!-- Profile Panel (Rendered on mobile Profile tab) -->
+      <div id="panel-profile" style="display: none;">
+        <div id="profile-content"></div>
+      </div>
+
+      <!-- WORKER VIEW -->
+      <div id="view-worker">
+        <div class="subtab-bar">
+          <button class="subtab-btn active" id="btn-worker-tab-active" onclick="switchWorkerSubtab('active')">Active Bounties</button>
+          <button class="subtab-btn" id="btn-worker-tab-history" onclick="switchWorkerSubtab('history')">Completed &amp; Expired</button>
+        </div>
+
+        <div class="filter-card">
+          <div class="search-input-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="search-input" placeholder="Search bounties, keywords, or sponsors..." oninput="renderBounties()" />
+          </div>
+          <select class="select-filter" id="category-select" onchange="renderBounties()">
+            <option value="all">All Categories</option>
+            <option value="app-test">App Testing</option>
+            <option value="feedback">UI/UX Feedback</option>
+            <option value="social">Social Share</option>
+            <option value="bug">Bug Hunt</option>
+          </select>
+          <select class="select-filter" id="sort-select" onchange="renderBounties()">
+            <option value="newest">Newest First</option>
+            <option value="highest">Highest Reward</option>
+          </select>
+        </div>
+
+        <div class="bounties-grid" id="bounties-grid"></div>
+      </div>
+
+      <!-- POSTER VIEW -->
+      <div id="view-poster" style="display: none;">
+        <div class="subtab-bar">
+          <button class="subtab-btn active" id="btn-poster-tab-create" onclick="switchPosterSubtab('create')">Publish Bounty</button>
+          <button class="subtab-btn" id="btn-poster-tab-pools" onclick="switchPosterSubtab('pools')">Published Pools</button>
+          <button class="subtab-btn" id="btn-poster-tab-subs" onclick="switchPosterSubtab('subs')">Submissions (<span id="poster-badge-subs">0</span>)</button>
+        </div>
+
+        <div id="poster-subview-create">
+          <div class="paper-card" style="background:var(--card); border:1px solid var(--border); border-radius:20px; padding:24px;">
+            <h3 style="font-size:1.3rem; font-weight:800; margin-bottom:16px;">Publish New Bounty Campaign</h3>
+            <form onsubmit="event.preventDefault(); publishBountyPoolDirectly();">
+              <div style="display:flex; flex-direction:column; gap:14px;">
+                <div>
+                  <label style="font-size:0.85rem; font-weight:700; color:var(--muted); display:block; margin-bottom:4px;">Task Title</label>
+                  <input type="text" id="task-title" placeholder="e.g. Test Nimiq MiniApp & Submit Feedback" style="width:100%; padding:10px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink);" required />
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
+                  <div>
+                    <label style="font-size:0.85rem; font-weight:700; color:var(--muted); display:block; margin-bottom:4px;">Reward NIM / Worker</label>
+                    <input type="number" id="task-reward" min="1" step="1" value="10" style="width:100%; padding:10px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink);" required />
+                  </div>
+                  <div>
+                    <label style="font-size:0.85rem; font-weight:700; color:var(--muted); display:block; margin-bottom:4px;">Available Slots</label>
+                    <input type="number" id="task-slots" min="1" step="1" value="5" style="width:100%; padding:10px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink);" required />
+                  </div>
+                  <div>
+                    <label style="font-size:0.85rem; font-weight:700; color:var(--muted); display:block; margin-bottom:4px;">Category</label>
+                    <select id="task-category" style="width:100%; padding:10px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink);">
+                      <option value="app-test">App Testing</option>
+                      <option value="feedback">Feedback</option>
+                      <option value="social">Social Share</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label style="font-size:0.85rem; font-weight:700; color:var(--muted); display:block; margin-bottom:4px;">Task Description &amp; Requirements</label>
+                  <textarea id="task-desc" rows="3" placeholder="Provide step-by-step instructions for workers..." style="width:100%; padding:10px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink);" required></textarea>
+                </div>
+
+                <button class="btn-primary-lg full-width" type="submit" style="justify-content:center; margin-top:8px;">
+                  Publish Bounty &rarr;
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <div id="poster-subview-pools" style="display:none;">
+          <div id="poster-pools-list"></div>
+        </div>
+
+        <div id="poster-subview-subs" style="display:none;">
+          <div id="poster-subs-list"></div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- DEDICATED VIEW: ORDERS PAGE -->
+  <div id="view-orders" class="page-view" style="display: none;">
+    <main class="console-main">
+      <div class="paper-card" style="background:var(--card); border:1px solid var(--border); border-radius:20px; padding:24px;">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+          <button class="btn-ghost-sm" onclick="showView('app')" style="padding:6px 12px;">&larr; Back to App</button>
+          <h2 style="font-size:1.4rem; font-weight:800; color:var(--ink);">Your Orders &amp; Completed Tasks</h2>
+        </div>
+        <p style="font-size:0.85rem; color:var(--muted); margin-bottom:20px;">History of all tasks completed and rewards claimed by your connected wallet address.</p>
+        <div id="dedicated-orders-list"></div>
+      </div>
+    </main>
+  </div>
+
+  <!-- DEDICATED VIEW: FAQ PAGE -->
+  <div id="view-faq" class="page-view" style="display: none;">
+    <main class="console-main">
+      <div class="paper-card" style="background:var(--card); border:1px solid var(--border); border-radius:20px; padding:24px;">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:24px;">
+          <button class="btn-ghost-sm" onclick="showView('app')" style="padding:6px 12px;">&larr; Back</button>
+          <h2 style="font-size:1.4rem; font-weight:800; color:var(--ink);">Frequently Asked Questions</h2>
+        </div>
+        <div class="faq-accordion-list">
+          <div class="faq-item">
+            <button class="faq-question-btn" onclick="toggleFaq(this)">
+              <span>How do workers get paid on NimBounty?</span>
+              <span class="faq-icon">&plus;</span>
+            </button>
+            <div class="faq-answer-panel">
+              <p>Posters review your submitted proof. When approved, the reward NIM is transferred directly from the poster's wallet to your wallet address with zero intermediary fees.</p>
+            </div>
+          </div>
+          <div class="faq-item">
+            <button class="faq-question-btn" onclick="toggleFaq(this)">
+              <span>Are there gas fees for workers submitting task proof?</span>
+              <span class="faq-icon">&plus;</span>
+            </button>
+            <div class="faq-answer-panel">
+              <p>No! Workers sign task proofs off-chain using their Nimiq wallet key signature. Cryptographic signing costs zero gas fees.</p>
+            </div>
+          </div>
+          <div class="faq-item">
+            <button class="faq-question-btn" onclick="toggleFaq(this)">
+              <span>What if a poster refuses to pay or acts in bad faith?</span>
+              <span class="faq-icon">&plus;</span>
+            </button>
+            <div class="faq-answer-panel">
+              <p>Workers can report bad-faith posters using the Report Poster button. Reported posters get flagged, and repeated offenders get permanently suspended from posting new bounties.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- DEDICATED VIEW: PROTECTIONS PAGE -->
+  <div id="view-protections" class="page-view" style="display: none;">
+    <main class="console-main">
+      <div class="paper-card" style="background:var(--card); border:1px solid var(--border); border-radius:20px; padding:24px;">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+          <button class="btn-ghost-sm" onclick="showView('app')" style="padding:6px 12px;">&larr; Back</button>
+          <h2 style="font-size:1.4rem; font-weight:800; color:var(--ink);">Built-in Protections</h2>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:16px; margin-top:20px;">
+          <div style="background:var(--bg-subtle); padding:16px; border-radius:14px; border:1px solid var(--border);">
+            <h4 style="font-weight:700; color:var(--gold); margin-bottom:6px;">🛡️ Cryptographic Proof Signatures</h4>
+            <p style="font-size:0.85rem; color:var(--muted); line-height:1.5;">Every submission is signed off-chain with your wallet's private key, proving device identity and preventing bot spam.</p>
+          </div>
+          <div style="background:var(--bg-subtle); padding:16px; border-radius:14px; border:1px solid var(--border);">
+            <h4 style="font-weight:700; color:var(--gold); margin-bottom:6px;">🚩 Poster Reputation &amp; Reporting</h4>
+            <p style="font-size:0.85rem; color:var(--muted); line-height:1.5;">Workers can report bad-faith posters. Posters with 3+ reports get flagged, and 6+ reports get permanently suspended.</p>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- DEDICATED VIEW: HOW IT WORKS PAGE -->
+  <div id="view-how-it-works" class="page-view" style="display: none;">
+    <main class="console-main">
+      <div class="paper-card" style="background:var(--card); border:1px solid var(--border); border-radius:20px; padding:24px;">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+          <button class="btn-ghost-sm" onclick="showView('app')" style="padding:6px 12px;">&larr; Back</button>
+          <h2 style="font-size:1.4rem; font-weight:800; color:var(--ink);">How NimBounty Works</h2>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:16px; margin-top:20px;">
+          <div style="display:flex; gap:14px; align-items:flex-start;">
+            <div style="width:36px; height:36px; background:var(--gold-tint); color:var(--gold); border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:800; flex-shrink:0;">1</div>
+            <div>
+              <h4 style="font-weight:700; color:var(--ink); margin-bottom:4px;">Post a Bounty Task</h4>
+              <p style="font-size:0.85rem; color:var(--muted);">Posters define task instructions, reward per worker, available slots, and proof requirements.</p>
+            </div>
+          </div>
+          <div style="display:flex; gap:14px; align-items:flex-start;">
+            <div style="width:36px; height:36px; background:var(--gold-tint); color:var(--gold); border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:800; flex-shrink:0;">2</div>
+            <div>
+              <h4 style="font-weight:700; color:var(--ink); margin-bottom:4px;">Sign Proof Off-Chain</h4>
+              <p style="font-size:0.85rem; color:var(--muted);">Workers complete the task and submit text, URL, or screenshot proof signed with zero gas fee.</p>
+            </div>
+          </div>
+          <div style="display:flex; gap:14px; align-items:flex-start;">
+            <div style="width:36px; height:36px; background:var(--gold-tint); color:var(--gold); border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:800; flex-shrink:0;">3</div>
+            <div>
+              <h4 style="font-weight:700; color:var(--ink); margin-bottom:4px;">Direct Wallet Payout</h4>
+              <p style="font-size:0.85rem; color:var(--muted);">Poster verifies proof and releases NIM directly to the worker's wallet address.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- MODE SWITCH MODAL -->
+  <div class="modal-overlay" id="modal-mode-switch" style="display:none;">
+    <div class="modal-paper" style="max-width:400px; text-align:center;">
+      <button class="modal-close" onclick="closeModal('modal-mode-switch')">&times;</button>
+      <h3 style="font-size:1.3rem; font-weight:800; margin-bottom:12px;">Switch Role Mode</h3>
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        <button class="btn-primary-lg" id="mode-modal-btn-worker" onclick="switchToRole('worker')">Worker Mode (Earn NIM)</button>
+        <button class="btn-ghost-sm" id="mode-modal-btn-poster" onclick="switchToRole('poster')" style="justify-content:center; padding:14px;">Poster Mode (Publish Bounties)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DESKTOP CONNECT QR MODAL -->
+  <div class="modal-overlay" id="modal-desktop-connect" style="display:none;">
+    <div class="modal-paper" style="max-width:420px; text-align:center;">
+      <button class="modal-close" onclick="closeModal('modal-desktop-connect')">&times;</button>
+      <h3 style="font-size:1.3rem; font-weight:800; margin-bottom:8px;">Connect via Nimiq Pay</h3>
+      <p style="font-size:0.85rem; color:var(--muted); margin-bottom:20px;">Scan this QR code using your mobile phone camera or open inside Nimiq Pay app.</p>
+      <div id="desktop-connect-qr-box" style="display:flex; justify-content:center; margin-bottom:20px; padding:16px; background:#fff; border-radius:16px; border:1px solid var(--border);"></div>
+      <button class="btn-primary-sm full-width" onclick="connectNimiqPayWallet()" style="justify-content:center; padding:12px;">Direct Connect &rarr;</button>
+    </div>
+  </div>
+
+  <!-- WALLET MANAGEMENT MODAL -->
+  <div class="modal-overlay" id="modal-wallet" style="display:none;">
+    <div class="modal-paper" style="max-width:400px; text-align:center;">
+      <button class="modal-close" onclick="closeModal('modal-wallet')">&times;</button>
+      <h3 style="font-size:1.3rem; font-weight:800; margin-bottom:6px;">Connected Wallet</h3>
+      <p style="font-size:0.75rem; color:var(--muted); font-family:var(--font-mono); word-break:break-all; background:var(--bg-subtle); padding:10px 14px; border-radius:10px; margin-bottom:20px;" id="modal-wallet-address">NQ...</p>
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <button class="btn-primary-sm full-width" onclick="showView('orders'); closeModal('modal-wallet');" style="justify-content:center;">View Completed Orders History</button>
+        <button class="btn-ghost-sm full-width" onclick="confirmDisconnectWalletFromModal()" style="justify-content:center; color:var(--danger); border-color:var(--danger);">Disconnect Wallet</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SUBMIT PROOF MODAL -->
+  <div class="modal-overlay" id="modal-submit-proof" style="display:none;">
+    <div class="modal-paper" style="max-width:460px;">
+      <button class="modal-close" onclick="closeModal('modal-submit-proof')">&times;</button>
+      <h3 style="font-size:1.3rem; font-weight:800; margin-bottom:6px;" id="proof-modal-bounty-title">Submit Task Proof</h3>
+      <p style="font-size:0.82rem; color:var(--muted); margin-bottom:16px;">Slot locked for 15 minutes. Submit proof signed off-chain with 0 gas fee.</p>
+      <form onsubmit="event.preventDefault(); handleSubmitProof();">
+        <div style="display:flex; flex-direction:column; gap:14px;">
+          <div>
+            <label style="font-size:0.82rem; font-weight:700; color:var(--muted); display:block; margin-bottom:4px;">Proof Text / Details / Feedback</label>
+            <textarea id="proof-text-input" rows="3" placeholder="Describe completed work or feedback..." style="width:100%; padding:10px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink);" required></textarea>
+          </div>
+          <button class="btn-primary-lg full-width" type="submit" style="justify-content:center;">Submit Signed Proof &rarr;</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- SET USERNAME MODAL -->
+  <div class="modal-overlay" id="modal-set-username" style="display:none;">
+    <div class="modal-paper" style="max-width:400px; text-align:center;">
+      <button class="modal-close" onclick="closeModal('modal-set-username')">&times;</button>
+      <h3 style="font-size:1.3rem; font-weight:800; margin-bottom:8px;">Set Username</h3>
+      <p style="font-size:0.85rem; color:var(--muted); margin-bottom:16px;">Choose a permanent username linked to your wallet address.</p>
+      <input type="text" id="username-input" placeholder="e.g. YEMIGRAFFIX" style="width:100%; padding:12px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink); font-weight:700; text-align:center; text-transform:uppercase; margin-bottom:16px;" />
+      <button class="btn-primary-lg full-width" onclick="confirmSetUsername()" style="justify-content:center;">Set Username &rarr;</button>
+    </div>
+  </div>
+
+  <!-- CONFIRM USERNAME MODAL -->
+  <div class="modal-overlay" id="modal-confirm-username" style="display:none;">
+    <div class="modal-paper" style="max-width:400px; text-align:center;">
+      <button class="modal-close" onclick="closeModal('modal-confirm-username')">&times;</button>
+      <h3 style="font-size:1.2rem; font-weight:800; margin-bottom:8px;">Confirm Permanent Username</h3>
+      <p style="font-size:0.85rem; color:var(--muted); margin-bottom:16px;">Once set, your username cannot be changed.</p>
+      <div style="font-size:1.5rem; font-weight:900; color:var(--gold); font-family:var(--font-mono); padding:14px; background:var(--bg-subtle); border-radius:12px; margin-bottom:20px;" id="username-confirm-display">USERNAME</div>
+      <div style="display:flex; gap:10px;">
+        <button class="btn-ghost-sm" onclick="closeModal('modal-confirm-username')" style="flex:1;">Go Back</button>
+        <button class="btn-primary-sm" onclick="finalizeUsername()" style="flex:1;">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MOBILE BOTTOM NAVIGATION CONTAINER -->
+  <div class="mobile-bottom-nav" id="mobile-bottom-nav"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
