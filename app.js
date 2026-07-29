@@ -176,7 +176,7 @@ async function fetchGlobalPublicBounties() {
             existingIds.add(sb.id);
             stateChanged = true;
           } else {
-            const idx = bounties.findIndex(b => b.id === sb.id);
+            const idx = bounties.findIndex(b => String(b.id) === String(sb.id));
       // Merge slots: only accept the server value if it is LOWER (i.e. more consumed).
           // Never let a stale server read inflate slotsRemaining back up after a local deduction.
           const localSlots = bounties[idx].slotsRemaining;
@@ -1387,7 +1387,7 @@ function openSubmitProofModal(bountyId) {
   }
 
   currentModalBountyId = bountyId;
-  const bounty = bounties.find(b => b.id === bountyId) || INITIAL_SEED_BOUNTIES.find(b => b.id === bountyId);
+  const bounty = bounties.find(b => String(b.id) === String(bountyId));
   if (!bounty) return;
 
   if (isSameNimiqAddress(bounty.posterAddress, userAccount)) {
@@ -1480,7 +1480,7 @@ function previewScreenshot(event) {
 }
 
 async function handleSubmitProof() {
-  const bounty = bounties.find(b => b.id === currentModalBountyId) || INITIAL_SEED_BOUNTIES.find(b => b.id === currentModalBountyId);
+  const bounty = bounties.find(b => String(b.id) === String(currentModalBountyId));
   if (!bounty) return;
 
   const pType = bounty.proofType || 'text';
@@ -1546,12 +1546,10 @@ async function handleSubmitProof() {
   pendingSubmissions.unshift(newSub);
 
   // If seed bounty was not yet in local bounties array, add it
-  if (!bounties.some(b => b.id === bounty.id)) {
+  if (!bounties.some(b => String(b.id) === String(bounty.id))) {
     bounties.push(bounty);
   }
-  // Slot is consumed the moment a worker claims & submits proof.
-  // Poster approval is just payment confirmation — no further slot change.
-  const targetBounty = bounties.find(b => b.id === bounty.id);
+  const targetBounty = bounties.find(b => String(b.id) === String(bounty.id));
   if (targetBounty && targetBounty.slotsRemaining > 0) {
     targetBounty.slotsRemaining -= 1;
   }
@@ -1573,7 +1571,7 @@ async function handleSubmitProof() {
 }
 
 function openQrModal(bountyId) {
-  const bounty = bounties.find(b => b.id === bountyId) || INITIAL_SEED_BOUNTIES.find(b => b.id === bountyId);
+  const bounty = bounties.find(b => String(b.id) === String(bountyId));
   if (!bounty) return;
 
   document.getElementById('qr-bounty-title').textContent = bounty.title;
