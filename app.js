@@ -53,10 +53,17 @@ function isSameNimiqAddress(addr1, addr2) {
 
 // Helper: Get User Profile Data
 function getProfile(walletAddress) {
-  if (!walletAddress) return { username: null, avatarUrl: null };
+  if (!walletAddress) return { username: null, avatarUrl: null, joinedAt: null };
   const clean = String(walletAddress).replace(/\s+/g, '').toUpperCase();
   const allProfiles = JSON.parse(localStorage.getItem(STORAGE_KEY_PROFILE) || '{}');
-  return allProfiles[clean] || { username: null, avatarUrl: null };
+  if (!allProfiles[clean]) {
+    allProfiles[clean] = { username: null, avatarUrl: null, joinedAt: Date.now() };
+    localStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(allProfiles));
+  } else if (!allProfiles[clean].joinedAt) {
+    allProfiles[clean].joinedAt = Date.now();
+    localStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(allProfiles));
+  }
+  return allProfiles[clean];
 }
 
 // Helper: Save User Profile Data
@@ -958,6 +965,9 @@ function renderProfile() {
 
   const displayUsername = profile.username ? profile.username.toUpperCase() : 'SET USERNAME';
   const hasCustomAvatar = !!profile.avatarUrl;
+  const joinedDateStr = profile.joinedAt
+    ? new Date(profile.joinedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    : new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
   const avatarSvg = hasCustomAvatar
     ? `<img src="${profile.avatarUrl}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;" />`
@@ -985,7 +995,11 @@ function renderProfile() {
         <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
           <div>
             <h3 style="font-size:1.3rem; font-weight:900; color:var(--ink); margin:0; letter-spacing:-0.02em;">${displayUsername}</h3>
-            ${hasCustomAvatar ? `<button onclick="removeProfileAvatar()" style="background:none; border:none; color:var(--muted); font-size:0.75rem; cursor:pointer; padding:0; margin-top:2px;">Remove photo</button>` : ''}
+            <div style="font-size:0.75rem; color:var(--muted); font-weight:600; margin-top:4px; display:flex; align-items:center; gap:4px;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              Joined ${joinedDateStr}
+            </div>
+            ${hasCustomAvatar ? `<button onclick="removeProfileAvatar()" style="background:none; border:none; color:var(--muted); font-size:0.75rem; cursor:pointer; padding:0; margin-top:4px;">Remove photo</button>` : ''}
           </div>
 
           <div class="address-pill-copy" onclick="navigator.clipboard.writeText('${userAccount}'); showToastNotification('📋 Copied!', 'Address copied to clipboard.', false);">
@@ -1684,9 +1698,48 @@ function renderWorkerStats() {}
 
 // Onboarding Walkthrough
 const ONBOARDING_STEPS = [
-  { section: 'WELCOME', title: 'Welcome to NimBounty!', description: 'Earn NIM by completing micro-tasks with 0 gas fees.' },
-  { section: 'MODE SWITCH', title: 'Switch Roles', description: 'Toggle between Worker Mode (earn NIM) and Poster Mode (publish tasks).' },
-  { section: 'PROOF SIGNING', title: 'Off-Chain Proofs', description: 'Sign proofs off-chain for 0 gas cost.' }
+  {
+    section: 'WELCOME',
+    title: 'Welcome to NimBounty!',
+    description: 'Outcome-based micro-task bounties powered by Nimiq Pay. Earn NIM by completing tasks or publish task pools for instant execution.',
+    icon: `<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="var(--gold)" stroke-width="2.2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>`,
+    targetId: 'console-session-bar'
+  },
+  {
+    section: 'MODE SWITCH',
+    title: 'Switch Roles (Worker vs Poster)',
+    description: 'Tap the Mode button or badge to switch between Worker Mode (earn NIM rewards) and Poster Mode (publish & manage bounties).',
+    icon: `<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="var(--gold)" stroke-width="2.2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>`,
+    targetId: 'session-mode-badge'
+  },
+  {
+    section: 'ACTIVE BOUNTIES',
+    title: 'Browse & Claim Tasks',
+    description: 'Explore active bounties, review detailed instructions, and claim open slots to start earning instant NIM rewards.',
+    icon: `<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="var(--gold)" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>`,
+    targetId: 'bounties-grid'
+  },
+  {
+    section: 'PUBLISH TASK POOLS',
+    title: 'Create & Escrow Bounties',
+    description: 'Publish your own micro-task campaign, customize worker proof requirements, and deposit NIM rewards into live escrow.',
+    icon: `<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="var(--gold)" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>`,
+    targetId: 'btn-poster-tab-create'
+  },
+  {
+    section: 'ZERO-GAS PROOFS',
+    title: 'Off-Chain Proof Signing',
+    description: 'Submit text, link, or screenshot proof packages directly from your Nimiq Pay wallet with 0 gas fees and cryptographic signing.',
+    icon: `<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="var(--gold)" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`,
+    targetId: 'session-wallet-display'
+  },
+  {
+    section: 'ORDER HISTORY',
+    title: 'Payout Orders & History',
+    description: 'Track your pending reviews, completed task history, and direct wallet payout transfers in real-time.',
+    icon: `<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="var(--gold)" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`,
+    targetId: 'worker-orders-list'
+  }
 ];
 
 let onboardingStep = 0;
@@ -1701,7 +1754,15 @@ function checkAndLaunchOnboarding() {
   }
 }
 
+function removeTourHighlights() {
+  document.querySelectorAll('.tour-highlight').forEach(el => {
+    el.classList.remove('tour-highlight');
+  });
+}
+
 function updateOnboardingUI() {
+  removeTourHighlights();
+
   const welcomeCard = document.getElementById('onboarding-welcome-card');
   const stepCard = document.getElementById('onboarding-step-card');
 
@@ -1723,11 +1784,35 @@ function updateOnboardingUI() {
   document.getElementById('ob-step-section').textContent = step.section;
   document.getElementById('ob-step-title').textContent = step.title;
   document.getElementById('ob-step-desc').textContent = step.description;
+
+  const iconCircle = document.getElementById('ob-step-icon');
+  if (iconCircle && step.icon) {
+    iconCircle.innerHTML = step.icon;
+  }
+
+  // Update Progress Dots
+  const dotsContainer = document.getElementById('ob-step-dots');
+  if (dotsContainer) {
+    dotsContainer.innerHTML = ONBOARDING_STEPS.map((_, idx) => `
+      <div style="width:${idx === onboardingStep ? '18px' : '8px'}; height:8px; border-radius:4px; background:${idx === onboardingStep ? 'var(--gold)' : 'var(--border)'}; transition:all 0.2s ease;"></div>
+    `).join('');
+  }
+
+  // Highlight Target App Section
+  if (step.targetId) {
+    const targetEl = document.getElementById(step.targetId);
+    if (targetEl) {
+      targetEl.classList.add('tour-highlight');
+      targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
 }
 
 function onboardingNext() { onboardingStep++; updateOnboardingUI(); }
 function onboardingBack() { if (onboardingStep > 0) { onboardingStep--; updateOnboardingUI(); } }
+
 function skipOnboarding() {
+  removeTourHighlights();
   document.getElementById('onboarding-overlay').style.display = 'none';
   localStorage.setItem(STORAGE_KEY_ONBOARDED_GLOBAL, '1');
 }
