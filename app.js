@@ -294,7 +294,24 @@ async function pushNewSubmission(newSub, updatedBounty = null) {
   }
 }
 
-async function syncGlobalPublicBounties(updatedBountyObj = null, replacePendingSubmissions = false) {
+async function pushApprovedPayout(approvedItem) {
+  try {
+    const apiEndpoint = window.location.origin.includes('localhost')
+      ? `${PRODUCTION_URL}/api/bounties`
+      : `/api/bounties`;
+
+    await fetch(apiEndpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        approvedPayoutsHistory: [approvedItem],
+        updatedAt: Date.now()
+      })
+    });
+  } catch (e) {}
+}
+
+async function syncGlobalPublicBounties(updatedBountyObj = null) {
   try {
     const apiEndpoint = window.location.origin.includes('localhost')
       ? `${PRODUCTION_URL}/api/bounties`
@@ -304,10 +321,6 @@ async function syncGlobalPublicBounties(updatedBountyObj = null, replacePendingS
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         newBounty: updatedBountyObj,
-        replacePendingSubmissions,
-        bounties,
-        pendingSubmissions,
-        approvedPayoutsHistory,
         updatedAt: Date.now()
       })
     });
@@ -1455,39 +1468,25 @@ function startClaimTimer(durationSeconds) {
   }, 1000);
 }
 
-// Compress image to a tiny thumbnail suitable for server storage (~4KB base64)
-async function compressImageForServer(dataUrl, maxDim = 180, quality = 0.5) {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = function() {
-      try {
-        const canvas = document.createElement('canvas');
-        let w = img.width, h = img.height;
-        if (w > maxDim || h > maxDim) {
-          if (w > h) { h = Math.round((h * maxDim) / w); w = maxDim; }
-          else { w = Math.round((w * maxDim) / h); h = maxDim; }
-        }
-        canvas.width = w; canvas.height = h;
-        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL('image/jpeg', quality));
-      } catch (e) { resolve(dataUrl); }
-    };
-    img.onerror = () => resolve(dataUrl);
-    img.src = dataUrl;
-  });
-}
-
 async function processImageFileToDataUrl(file) {
   return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target.result);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(file);
+    }, 2000);
+
     const reader = new FileReader();
     reader.onload = function(e) {
       const rawDataUrl = e.target.result;
       const img = new Image();
       img.onload = function() {
+        clearTimeout(timer);
         try {
           const canvas = document.createElement('canvas');
           let width = img.width, height = img.height;
-          const maxDim = 600;
+          const maxDim = 500;
           if (width > maxDim || height > maxDim) {
             if (width > height) { height = Math.round((height * maxDim) / width); width = maxDim; }
             else { width = Math.round((width * maxDim) / height); height = maxDim; }
@@ -1497,10 +1496,10 @@ async function processImageFileToDataUrl(file) {
           resolve(canvas.toDataURL('image/jpeg', 0.6));
         } catch (err) { resolve(rawDataUrl); }
       };
-      img.onerror = () => resolve(rawDataUrl);
+      img.onerror = () => { clearTimeout(timer); resolve(rawDataUrl); };
       img.src = rawDataUrl;
     };
-    reader.onerror = () => resolve(null);
+    reader.onerror = () => { clearTimeout(timer); resolve(null); };
     reader.readAsDataURL(file);
   });
 }
@@ -1523,7 +1522,6 @@ async function handleSubmitProof() {
   const pType = bounty.proofType || 'text';
   let proofContent = '';
 
-  // Ensure image is loaded before validation
   if (pType === 'image' || pType === 'image_text') {
     const fileInput = document.getElementById('proof-image-file');
     if (!uploadedImageDataUrl && fileInput && fileInput.files && fileInput.files[0]) {
@@ -1544,19 +1542,19 @@ async function handleSubmitProof() {
       return;
     }
   } else if (pType === 'image') {
-    if (!uploadedImageDataUrl) {
+    proofContent = uploadedImageDataUrl || '';
+    if (!proofContent) {
       showToastNotification('Proof Required', 'Please attach a screenshot proof file.', true);
       return;
     }
-    // Poster gets a tiny thumbnail; full image stored in localStorage
-    proofContent = uploadedImageDataUrl; // will be replaced with thumbnail for server below
   } else if (pType === 'image_text') {
     const txt = document.getElementById('proof-text-input')?.value.trim() || '';
-    if (!txt && !uploadedImageDataUrl) {
+    const img = uploadedImageDataUrl || '';
+    if (!txt && !img) {
       showToastNotification('Proof Required', 'Please provide feedback text or attach a screenshot.', true);
       return;
     }
-    proofContent = JSON.stringify({ text: txt, image: uploadedImageDataUrl || '' });
+    proofContent = JSON.stringify({ text: txt, image: img });
   }
 
   const workerAddr = userAccount.replace(/\s+/g, '').toUpperCase();
@@ -1578,25 +1576,6 @@ async function handleSubmitProof() {
 
   const subId = `sub-${Date.now()}`;
 
-  // Save the full-resolution image in localStorage keyed by submission ID
-  if (uploadedImageDataUrl && (pType === 'image' || pType === 'image_text')) {
-    try { localStorage.setItem(`nimbounty_img_${subId}`, uploadedImageDataUrl); } catch(e) {}
-  }
-
-  // Build tiny thumbnail for server (keeps JSONBlob small — ~4KB vs 200KB+)
-  let serverContent = proofContent;
-  if (uploadedImageDataUrl && (pType === 'image' || pType === 'image_text')) {
-    const thumb = await compressImageForServer(uploadedImageDataUrl, 180, 0.5);
-    if (pType === 'image') {
-      serverContent = thumb;
-    } else {
-      try {
-        const parsed = JSON.parse(proofContent);
-        serverContent = JSON.stringify({ text: parsed.text || '', image: thumb });
-      } catch(e) { serverContent = proofContent; }
-    }
-  }
-
   const newSub = {
     id: subId,
     bountyId: bounty.id,
@@ -1604,38 +1583,22 @@ async function handleSubmitProof() {
     posterAddress: posterAddr,
     workerAddress: workerAddr,
     proofType: pType,
-    content: proofContent,      // full image in local state
+    content: proofContent,
     signature: signature,
     submittedAt: new Date().toLocaleTimeString(),
     reward: bounty.reward,
     status: 'pending'
   };
 
-  // For the in-memory pendingSubmissions, store the full image so poster can see it locally
   pendingSubmissions.unshift(newSub);
 
-  // If seed bounty was not yet in local bounties array, add it
   if (!bounties.some(b => String(b.id) === String(bounty.id))) bounties.push(bounty);
   const targetBounty = bounties.find(b => String(b.id) === String(bounty.id));
   if (targetBounty && targetBounty.slotsRemaining > 0) {
     targetBounty.slotsRemaining -= 1;
   }
 
-  // Store image separately in localStorage to avoid QuotaExceededError
-  // The main subs array keeps a lightweight placeholder so localStorage doesn't overflow
-  
-  // Build a storage-safe array (no base64 blobs)
   const safeSubsForStorage = pendingSubmissions.map(s => {
-    // If content is an object (stringified)
-    if (s.content && s.content.startsWith('{')) {
-        try {
-            const p = JSON.parse(s.content);
-            if (p.image && p.image.startsWith('data:image')) {
-                return { ...s, content: JSON.stringify({...p, image: `[LOCAL_IMG:${s.id}]`}) };
-            }
-        } catch(e) {}
-    }
-    // If content is just an image
     if (s.content && s.content.startsWith('data:image')) {
       return { ...s, content: `[LOCAL_IMG:${s.id}]` };
     }
@@ -1644,20 +1607,16 @@ async function handleSubmitProof() {
 
   try {
     localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(safeSubsForStorage));
-  } catch(e) {
-    // If still too large, store without content
-    try { localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(safeSubsForStorage.map(s => ({...s, content: ''})))); } catch(e2) {}
-  }
+  } catch(e) {}
   localStorage.setItem(STORAGE_KEY_LOCAL_BOUNTIES, JSON.stringify(bounties));
 
-  // Push server copy (tiny thumbnail only — ~4KB)
-  const serverSub = { ...newSub, content: serverContent };
-  pushNewSubmission(serverSub, targetBounty || bounty);
+  pushNewSubmission(newSub, targetBounty || bounty);
 
   closeModal('modal-submit-proof');
   renderPosterDashboard();
   renderBounties();
   renderSessionBar();
+  triggerConfetti();
   triggerConfetti();
   playAudioFx('submit');
   showToastNotification('Proof Submitted!', 'Proof signed off-chain with 0 gas. Waiting for poster review.', false);
