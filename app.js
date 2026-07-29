@@ -473,10 +473,9 @@ function toggleFaq(btnEl) {
 // 5. VIEW ROUTER ENGINE
 // ==========================================
 function showView(viewName) {
-  const isMobile = window.innerWidth <= 768;
   const isNimiqApp = typeof window !== 'undefined' && (!!window.nimiq || !!window.NimiqProvider || !!window.nimiqPay || !!window.NimiqPay || !!window.miniApp);
 
-  if ((isMobile || isNimiqApp) && viewName === 'landing') {
+  if (isNimiqApp && viewName === 'landing') {
     viewName = 'app';
   }
 
@@ -1417,10 +1416,9 @@ window.addEventListener('DOMContentLoaded', async () => {
   calculateTotalEscrow();
   updateLandingStats();
 
-  const isMobile = window.innerWidth <= 768;
   const isNimiqApp = typeof window !== 'undefined' && (!!window.nimiq || !!window.NimiqProvider || !!window.nimiqPay || !!window.NimiqPay || !!window.miniApp);
 
-  if (isMobile || isNimiqApp) {
+  if (isNimiqApp) {
     showView('app');
   } else {
     showView('landing');
