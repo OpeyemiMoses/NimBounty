@@ -1611,27 +1611,51 @@ async function handleSubmitProof() {
     status: 'pending'
   };
 
-  // Server copy uses tiny thumbnail so JSONBlob doesn't overflow
-  const serverSub = { ...newSub, content: serverContent };
-
+  // For the in-memory pendingSubmissions, store the full image so poster can see it locally
   pendingSubmissions.unshift(newSub);
 
   // If seed bounty was not yet in local bounties array, add it
-  if (!bounties.some(b => String(b.id) === String(bounty.id))) {
-    bounties.push(bounty);
-  }
+  if (!bounties.some(b => String(b.id) === String(bounty.id))) bounties.push(bounty);
   const targetBounty = bounties.find(b => String(b.id) === String(bounty.id));
   if (targetBounty && targetBounty.slotsRemaining > 0) {
     targetBounty.slotsRemaining -= 1;
   }
 
-  localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions));
+  // Store image separately in localStorage to avoid QuotaExceededError
+  // The main subs array keeps a lightweight placeholder so localStorage doesn't overflow
+  
+  // Build a storage-safe array (no base64 blobs)
+  const safeSubsForStorage = pendingSubmissions.map(s => {
+    // If content is an object (stringified)
+    if (s.content && s.content.startsWith('{')) {
+        try {
+            const p = JSON.parse(s.content);
+            if (p.image && p.image.startsWith('data:image')) {
+                return { ...s, content: JSON.stringify({...p, image: `[LOCAL_IMG:${s.id}]`}) };
+            }
+        } catch(e) {}
+    }
+    // If content is just an image
+    if (s.content && s.content.startsWith('data:image')) {
+      return { ...s, content: `[LOCAL_IMG:${s.id}]` };
+    }
+    return s;
+  });
+
+  try {
+    localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(safeSubsForStorage));
+  } catch(e) {
+    // If still too large, store without content
+    try { localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(safeSubsForStorage.map(s => ({...s, content: ''})))); } catch(e2) {}
+  }
   localStorage.setItem(STORAGE_KEY_LOCAL_BOUNTIES, JSON.stringify(bounties));
 
-  // Push server copy (with tiny thumbnail) — won't overflow JSONBlob
+  // Push server copy (tiny thumbnail only — ~4KB)
+  const serverSub = { ...newSub, content: serverContent };
   pushNewSubmission(serverSub, targetBounty || bounty);
 
   closeModal('modal-submit-proof');
+  renderPosterDashboard();
   renderBounties();
   renderSessionBar();
   triggerConfetti();
