@@ -37,7 +37,7 @@ const INITIAL_SEED_BOUNTIES = [
     title: 'Test Nimiq MiniApp UI & Report 3 UX Observations',
     category: 'app-test',
     categoryName: 'APP TESTING',
-    reward: '15.0',
+    reward: '50.0',
     slotsTotal: 10,
     slotsRemaining: 8,
     posterAddress: 'NQ65 R26Y VNQL H5H9 F19S U3PB FY7N EJ7H PGNN',
@@ -51,7 +51,7 @@ const INITIAL_SEED_BOUNTIES = [
     title: 'Share NimBounty MiniApp Announcement on X (Twitter)',
     category: 'social',
     categoryName: 'SOCIAL SHARE',
-    reward: '10.0',
+    reward: '25.0',
     slotsTotal: 15,
     slotsRemaining: 10,
     posterAddress: 'NQ33 A91B 44XX 88YY 22ZZ 11AA 99BB 77CC 55DD',
@@ -69,9 +69,9 @@ function isRealWalletConnected() {
 
 // Helper: Get Nimiq SDK Provider
 function getNimiqProvider() {
-  if (typeof window !== 'undefined' && window.nimiq) return window.nimiq;
-  if (typeof window !== 'undefined' && window.NimiqProvider) return window.NimiqProvider;
-  if (typeof window !== 'undefined' && window.nimiqPay) return window.nimiqPay;
+  if (typeof window !== 'undefined') {
+    return window.nimiq || window.NimiqProvider || window.nimiqPay || window.NimiqPay || window.miniApp || null;
+  }
   return null;
 }
 
@@ -109,6 +109,24 @@ function getUserDisplayName(walletAddress) {
   }
   const clean = String(walletAddress).replace(/\s+/g, '').toUpperCase();
   return `${clean.substring(0, 6)}...${clean.substring(clean.length - 4)}`;
+}
+
+// Live Escrow Budget Calculator for Publish Campaign Form
+function calculateTotalEscrow() {
+  const rewardInput = document.getElementById('task-reward');
+  const slotsInput = document.getElementById('task-slots');
+
+  const reward = parseFloat(rewardInput?.value || 0);
+  const slots = parseInt(slotsInput?.value || 0);
+  const total = reward * slots;
+
+  const singleEl = document.getElementById('calc-single');
+  const slotsEl = document.getElementById('calc-slots-count');
+  const totalEl = document.getElementById('calc-total');
+
+  if (singleEl) singleEl.textContent = `${reward} NIM`;
+  if (slotsEl) slotsEl.textContent = `${slots}`;
+  if (totalEl) totalEl.textContent = `${total} NIM`;
 }
 
 // Toast Notifications
@@ -456,8 +474,9 @@ function toggleFaq(btnEl) {
 // ==========================================
 function showView(viewName) {
   const isMobile = window.innerWidth <= 768;
+  const isNimiqApp = typeof window !== 'undefined' && (!!window.nimiq || !!window.NimiqProvider || !!window.nimiqPay || !!window.NimiqPay || !!window.miniApp);
 
-  if (isMobile && viewName === 'landing') {
+  if ((isMobile || isNimiqApp) && viewName === 'landing') {
     viewName = 'app';
   }
 
@@ -570,7 +589,7 @@ function switchPosterSubtab(subtab) {
 }
 
 // ==========================================
-// 6. MOBILE BOTTOM NAVIGATION ENGINE
+// 6. MOBILE BOTTOM NAVIGATION ENGINE (DYNAMIC ROLE ICONS)
 // ==========================================
 function renderMobileBottomNav() {
   const nav = document.getElementById('mobile-bottom-nav');
@@ -585,28 +604,58 @@ function renderMobileBottomNav() {
   nav.style.display = 'flex';
   const isProfileOpen = document.getElementById('panel-profile')?.style.display === 'block';
 
-  nav.innerHTML = `
-    <button class="mobile-bottom-tab ${currentView === 'app' && workerSubtab === 'active' && !isProfileOpen ? 'active' : ''}" onclick="switchMobileTab('active')">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-      Active
-    </button>
-    <button class="mobile-bottom-tab ${currentView === 'app' && workerSubtab === 'history' && !isProfileOpen ? 'active' : ''}" onclick="switchMobileTab('history')">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 16 14"/></svg>
-      History
-    </button>
-    <button class="mobile-bottom-tab mode-center-tab" onclick="document.getElementById('modal-mode-switch').style.display='flex';">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M7 16V4M7 4L3 8M7 4L11 8M17 8V20M17 20L21 16M17 20L13 16"/></svg>
-      Mode
-    </button>
-    <button class="mobile-bottom-tab ${currentView === 'orders' ? 'active' : ''}" onclick="switchMobileTab('orders')">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-      Orders
-    </button>
-    <button class="mobile-bottom-tab ${isProfileOpen ? 'active' : ''}" onclick="switchMobileTab('profile')">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-      Profile
-    </button>
-  `;
+  const stackLogo = `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>`;
+
+  if (currentRole === 'worker') {
+    nav.innerHTML = `
+      <button class="mobile-bottom-tab ${currentView === 'app' && workerSubtab === 'active' && !isProfileOpen ? 'active' : ''}" onclick="switchMobileTab('active')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        Active
+      </button>
+      <button class="mobile-bottom-tab ${currentView === 'app' && workerSubtab === 'history' && !isProfileOpen ? 'active' : ''}" onclick="switchMobileTab('history')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 16 14"/></svg>
+        History
+      </button>
+      <button class="mobile-bottom-tab mode-center-tab" onclick="document.getElementById('modal-mode-switch').style.display='flex';">
+        ${stackLogo}
+        Mode
+      </button>
+      <button class="mobile-bottom-tab ${currentView === 'orders' ? 'active' : ''}" onclick="switchMobileTab('orders')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Orders
+      </button>
+      <button class="mobile-bottom-tab ${isProfileOpen ? 'active' : ''}" onclick="switchMobileTab('profile')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        Profile
+      </button>
+    `;
+  } else {
+    // Poster Mode Bottom Nav
+    const pendingCount = pendingSubmissions.filter(s => isSameNimiqAddress(s.posterAddress, userAccount) && s.status === 'pending').length;
+
+    nav.innerHTML = `
+      <button class="mobile-bottom-tab ${currentView === 'app' && posterSubtab === 'create' && !isProfileOpen ? 'active' : ''}" onclick="switchMobileTab('publish')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        Publish
+      </button>
+      <button class="mobile-bottom-tab ${currentView === 'app' && posterSubtab === 'pools' && !isProfileOpen ? 'active' : ''}" onclick="switchMobileTab('pools')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+        My Pools
+      </button>
+      <button class="mobile-bottom-tab mode-center-tab" onclick="document.getElementById('modal-mode-switch').style.display='flex';">
+        ${stackLogo}
+        Mode
+      </button>
+      <button class="mobile-bottom-tab ${currentView === 'app' && posterSubtab === 'subs' && !isProfileOpen ? 'active' : ''}" onclick="switchMobileTab('subs')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>
+        Submissions ${pendingCount > 0 ? `<span style="background:var(--gold); color:#1a1917; padding:2px 6px; border-radius:10px; font-size:0.65rem; font-weight:800; margin-left:2px;">${pendingCount}</span>` : ''}
+      </button>
+      <button class="mobile-bottom-tab ${isProfileOpen ? 'active' : ''}" onclick="switchMobileTab('profile')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        Profile
+      </button>
+    `;
+  }
 }
 
 function switchMobileTab(tab) {
@@ -621,6 +670,21 @@ function switchMobileTab(tab) {
     renderProfile();
   } else if (tab === 'orders') {
     showView('orders');
+  } else if (tab === 'publish') {
+    showView('app');
+    if (profilePanel) profilePanel.style.display = 'none';
+    currentRole = 'poster';
+    switchPosterSubtab('create');
+  } else if (tab === 'pools') {
+    showView('app');
+    if (profilePanel) profilePanel.style.display = 'none';
+    currentRole = 'poster';
+    switchPosterSubtab('pools');
+  } else if (tab === 'subs') {
+    showView('app');
+    if (profilePanel) profilePanel.style.display = 'none';
+    currentRole = 'poster';
+    switchPosterSubtab('subs');
   } else {
     showView('app');
     if (profilePanel) profilePanel.style.display = 'none';
@@ -1042,8 +1106,8 @@ function publishBountyPoolDirectly() {
   }
 
   const title = document.getElementById('task-title')?.value.trim();
-  const reward = document.getElementById('task-reward')?.value.trim() || '10';
-  const slots = parseInt(document.getElementById('task-slots')?.value || '5');
+  const reward = document.getElementById('task-reward')?.value.trim() || '50';
+  const slots = parseInt(document.getElementById('task-slots')?.value || '10');
   const category = document.getElementById('task-category')?.value || 'app-test';
   const desc = document.getElementById('task-desc')?.value.trim();
 
@@ -1350,10 +1414,13 @@ window.addEventListener('DOMContentLoaded', async () => {
   await fetchGlobalPublicBounties();
 
   updateWalletUI();
+  calculateTotalEscrow();
   updateLandingStats();
 
   const isMobile = window.innerWidth <= 768;
-  if (isMobile) {
+  const isNimiqApp = typeof window !== 'undefined' && (!!window.nimiq || !!window.NimiqProvider || !!window.nimiqPay || !!window.NimiqPay || !!window.miniApp);
+
+  if (isMobile || isNimiqApp) {
     showView('app');
   } else {
     showView('landing');
