@@ -6,14 +6,14 @@
 const PRODUCTION_URL = 'https://nim-bounty.vercel.app';
 
 // Storage Keys
-const STORAGE_KEY_USER_ACCT = 'nimbounty_user_wallet_v5';
-const STORAGE_KEY_PROFILE = 'nimbounty_profile_v5';
-const STORAGE_KEY_THEME = 'nimbounty_theme_v5';
-const STORAGE_KEY_LOCAL_BOUNTIES = 'nimbounty_pools_v5';
-const STORAGE_KEY_SUBS = 'nimbounty_subs_v5';
-const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v5';
-const STORAGE_KEY_REPUTATION = 'nimbounty_reputation_v5';
-const STORAGE_KEY_ONBOARDED_GLOBAL = 'nimbounty_onboarded_global_v5';
+const STORAGE_KEY_USER_ACCT = 'nimbounty_user_wallet_v6';
+const STORAGE_KEY_PROFILE = 'nimbounty_profile_v6';
+const STORAGE_KEY_THEME = 'nimbounty_theme_v6';
+const STORAGE_KEY_LOCAL_BOUNTIES = 'nimbounty_pools_v6';
+const STORAGE_KEY_SUBS = 'nimbounty_subs_v6';
+const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v6';
+const STORAGE_KEY_REPUTATION = 'nimbounty_reputation_v6';
+const STORAGE_KEY_ONBOARDED_GLOBAL = 'nimbounty_onboarded_global_v6';
 
 // Global Application State
 let userAccount = localStorage.getItem(STORAGE_KEY_USER_ACCT) || null;
