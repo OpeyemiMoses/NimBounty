@@ -149,7 +149,7 @@ function toggleTheme() {
   const next = current === 'light' ? 'dark' : 'light';
   document.documentElement.setAttribute('data-theme', next);
   localStorage.setItem(STORAGE_KEY_THEME, next);
-  showToastNotification('🎨 Theme Toggled', `Switched to ${next} theme.`, false);
+  showToastNotification('Theme Toggled', `Switched to ${next} theme.`, false);
 }
 
 // ==========================================
@@ -318,7 +318,7 @@ async function connectNimiqPayWallet() {
 
   if (provider && typeof provider.listAccounts === 'function') {
     try {
-      showToastNotification('⌛ Connecting Nimiq Pay...', 'Opening wallet accounts...', false);
+      showToastNotification('Connecting Nimiq Pay', 'Opening wallet accounts...', false);
       const accounts = await provider.listAccounts();
       if (accounts && accounts.length) {
         const rawAcct = accounts[0];
@@ -331,7 +331,7 @@ async function connectNimiqPayWallet() {
         renderBounties();
         renderPosterDashboard();
         renderSessionBar();
-        showToastNotification('📱 Connected!', `Wallet connected: ${getUserDisplayName(userAccount)}`, false);
+        showToastNotification('Wallet Connected', `Wallet connected: ${getUserDisplayName(userAccount)}`, false);
         checkAndLaunchOnboarding();
         return;
       }
@@ -349,7 +349,7 @@ async function connectNimiqPayWallet() {
     renderBounties();
     renderPosterDashboard();
     renderSessionBar();
-    showToastNotification('⚡ Wallet Connected!', `Connected address: ${getUserDisplayName(userAccount)}`, false);
+    showToastNotification('Wallet Connected', `Connected address: ${getUserDisplayName(userAccount)}`, false);
     checkAndLaunchOnboarding();
   }
 }
@@ -381,7 +381,7 @@ function confirmDisconnectWalletFromModal() {
   renderBounties();
   renderPosterDashboard();
   renderSessionBar();
-  showToastNotification('🔌 Wallet Disconnected', 'Your wallet session has been disconnected.', false);
+  showToastNotification('Wallet Disconnected', 'Your wallet session has been disconnected.', false);
 }
 
 function updateWalletUI() {
@@ -780,6 +780,12 @@ function renderMobileBottomNav() {
     return;
   }
 
+  if (!isRealWalletConnected()) {
+    nav.classList.add('nav-blur-locked');
+  } else {
+    nav.classList.remove('nav-blur-locked');
+  }
+
   const isProfileOpen = currentView === 'app' && document.getElementById('panel-profile')?.style.display === 'block';
   const stackLogo = `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>`;
 
@@ -914,7 +920,7 @@ function uploadProfileAvatar(event) {
     const profile = getProfile(userAccount);
     profile.avatarUrl = e.target.result;
     saveProfile(userAccount, profile);
-    showToastNotification('📸 Photo Updated', 'Profile avatar updated!', false);
+    showToastNotification('Photo Updated', 'Profile avatar updated!', false);
     renderProfile();
     updateWalletUI();
   };
@@ -926,7 +932,7 @@ function removeProfileAvatar() {
   const profile = getProfile(userAccount);
   delete profile.avatarUrl;
   saveProfile(userAccount, profile);
-  showToastNotification('🗑️ Photo Removed', 'Profile photo reset to default avatar.', false);
+  showToastNotification('Photo Removed', 'Profile photo reset to default avatar.', false);
   renderProfile();
   updateWalletUI();
 }
@@ -1002,7 +1008,7 @@ function renderProfile() {
             ${hasCustomAvatar ? `<button onclick="removeProfileAvatar()" style="background:none; border:none; color:var(--muted); font-size:0.75rem; cursor:pointer; padding:0; margin-top:4px;">Remove photo</button>` : ''}
           </div>
 
-          <div class="address-pill-copy" onclick="navigator.clipboard.writeText('${userAccount}'); showToastNotification('📋 Copied!', 'Address copied to clipboard.', false);">
+          <div class="address-pill-copy" onclick="navigator.clipboard.writeText('${userAccount}'); showToastNotification('Address Copied', 'Address copied to clipboard.', false);">
             <span>${userAccount.substring(0,6)}...${userAccount.substring(userAccount.length-4)}</span>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
           </div>
@@ -1073,7 +1079,7 @@ function confirmSetUsername() {
   const input = document.getElementById('username-input');
   const val = input ? input.value.trim().toUpperCase() : '';
   if (!val || val.length < 3) {
-    showToastNotification('⚠️ Invalid Username', 'Username must be at least 3 characters.', true);
+    showToastNotification('Invalid Username', 'Username must be at least 3 characters.', true);
     return;
   }
   _pendingUsernameChoice = val;
@@ -1103,7 +1109,7 @@ function finalizeUsername() {
   renderBounties();
   renderPosterDashboard();
   renderDedicatedOrders();
-  showToastNotification('✅ Username Set!', `Permanent username set: ${_pendingUsernameChoice}`, false);
+  showToastNotification('Username Set', `Permanent username set: ${_pendingUsernameChoice}`, false);
 }
 
 // ==========================================
@@ -1413,7 +1419,7 @@ function copyQrLink() {
   if (input) {
     input.select();
     navigator.clipboard.writeText(input.value);
-    showToastNotification('📋 Link Copied!', 'Bounty share link copied to clipboard.', false);
+    showToastNotification('Link Copied', 'Bounty share link copied to clipboard.', false);
   }
 }
 
@@ -1535,7 +1541,7 @@ async function approveWorkerPayout(subId) {
         data: `NIMBOUNTY_PAYOUT:${sub.bountyId}`
       });
     } catch (e) {
-      showToastNotification('⚠️ Transaction Cancelled', 'Payout transaction was cancelled.', true);
+      showToastNotification('Transaction Cancelled', 'Payout transaction was cancelled.', true);
       return;
     }
   }
@@ -1571,7 +1577,7 @@ async function approveWorkerPayout(subId) {
   renderSessionBar();
   updateWalletUI();
   triggerConfetti();
-  showToastNotification('🎉 Worker Paid!', `${sub.reward} NIM transferred directly to ${getUserDisplayName(sub.workerAddress)}.`, false);
+  showToastNotification('Worker Paid', `${sub.reward} NIM transferred directly to ${getUserDisplayName(sub.workerAddress)}.`, false);
 }
 
 let _pendingRejectSubId = null;
@@ -1587,7 +1593,7 @@ function submitTaskRejectionWithReason() {
   const val = reasonInput ? reasonInput.value.trim() : '';
 
   if (!val) {
-    showToastNotification('⚠️ Reason Required', 'Please provide a rejection reason.', true);
+    showToastNotification('Reason Required', 'Please provide a rejection reason.', true);
     return;
   }
 
@@ -1601,7 +1607,7 @@ function submitTaskRejectionWithReason() {
 
   closeModal('modal-reject-reason');
   renderPosterDashboard();
-  showToastNotification('❌ Task Rejected', 'Worker notified of rejection reason. Task slot remains open.', false);
+  showToastNotification('Task Rejected', 'Worker notified of rejection reason. Task slot remains open.', false);
   if (reasonInput) reasonInput.value = '';
 }
 
@@ -1610,12 +1616,12 @@ function submitReportPoster() {
   const val = reasonInput ? reasonInput.value.trim() : '';
 
   if (!val) {
-    showToastNotification('⚠️ Reason Required', 'Please explain the issue.', true);
+    showToastNotification('Reason Required', 'Please explain the issue.', true);
     return;
   }
 
   closeModal('modal-report-poster');
-  showToastNotification('🚩 Report Submitted', 'Poster reputation updated.', false);
+  showToastNotification('Report Submitted', 'Poster reputation updated.', false);
   if (reasonInput) reasonInput.value = '';
 }
 
@@ -1861,6 +1867,16 @@ window.addEventListener('DOMContentLoaded', async () => {
     showView('app');
   } else {
     showView('landing');
+  }
+
+  if (!isRealWalletConnected()) {
+    setTimeout(() => {
+      if (!isRealWalletConnected()) {
+        if (isNimiqApp) {
+          connectNimiqPayWallet();
+        }
+      }
+    }, 800);
   }
 
   setInterval(fetchGlobalPublicBounties, 5000);

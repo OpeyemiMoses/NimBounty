@@ -1339,3 +1339,39 @@ textarea {
   color: var(--gold);
   border-color: var(--gold-border);
 }
+
+/* Bottom Navigation Blur & Lock State when Wallet is Disconnected */
+.nav-blur-locked {
+  filter: blur(5px) grayscale(0.4) !important;
+  opacity: 0.5 !important;
+  pointer-events: none !important;
+  user-select: none !important;
+  transition: filter 0.3s ease, opacity 0.3s ease;
+}
+
+/* Guided Onboarding Tour Target Element Highlighting */
+.tour-highlight {
+  position: relative;
+  z-index: 100002 !important;
+  filter: none !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  outline: 3px solid var(--gold) !important;
+  outline-offset: 4px;
+  border-radius: 12px;
+  box-shadow: 0 0 25px rgba(255, 199, 44, 0.9), 0 0 50px rgba(255, 199, 44, 0.5) !important;
+  animation: tourPulse 1.8s infinite ease-in-out;
+  transition: all 0.3s ease;
+}
+
+@keyframes tourPulse {
+  0% {
+    box-shadow: 0 0 20px rgba(255, 199, 44, 0.6), 0 0 40px rgba(255, 199, 44, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 35px rgba(255, 199, 44, 0.95), 0 0 65px rgba(255, 199, 44, 0.5);
+  }
+  100% {
+    box-shadow: 0 0 20px rgba(255, 199, 44, 0.6), 0 0 40px rgba(255, 199, 44, 0.2);
+  }
+}
