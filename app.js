@@ -1323,8 +1323,12 @@ function renderBounties() {
       ? pendingSubmissions.some(s => String(s.bountyId) === String(b.id) && s.workerAddress && isSameNimiqAddress(s.workerAddress, userAccount))
       : false;
 
+    const isPublisher = userAccount
+      ? isSameNimiqAddress(b.posterAddress, userAccount)
+      : false;
+
     if (workerSubtab === 'active') {
-      return matchesSearch && matchesCat && (b.slotsRemaining === undefined || b.slotsRemaining > 0) && !myApprovedPayout && !hasPendingSub;
+      return matchesSearch && matchesCat && (b.slotsRemaining === undefined || b.slotsRemaining > 0) && !myApprovedPayout && !hasPendingSub && !isPublisher;
     } else {
       return matchesSearch && matchesCat && (myApprovedPayout || hasPendingSub || (b.slotsRemaining !== undefined && b.slotsRemaining <= 0));
     }
