@@ -1607,21 +1607,108 @@ function renderPosterDashboard() {
 
   if (subsList) {
     const mySubs = pendingSubmissions.filter(s => isSameNimiqAddress(s.posterAddress, userAccount) && s.status === 'pending');
-    subsList.innerHTML = mySubs.length ? mySubs.map(s => `
-      <div style="background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; margin-bottom:12px;">
-        <h4 style="font-size:1rem; font-weight:800;">${s.bountyTitle}</h4>
-        <p style="font-size:0.82rem; color:var(--muted); margin:6px 0;">Worker: ${getUserDisplayName(s.workerAddress)}</p>
-        <div style="font-size:0.85rem; background:var(--bg-subtle); padding:10px; border-radius:10px; margin-bottom:12px;">${s.content}</div>
-        <div style="display:flex; gap:10px;">
-          <button class="btn-primary-sm" onclick="approveWorkerPayout('${s.id}')" style="flex:1; justify-content:center;">Approve &amp; Pay ${s.reward} NIM</button>
-          <button class="btn-ghost-sm" onclick="openRejectionModal('${s.id}')" style="flex:1; justify-content:center; color:var(--danger);">Reject</button>
-        </div>
-      </div>
-    `).join('') : createEmptyStateHTML(
+    subsList.innerHTML = mySubs.length ? mySubs.map(s => {
+
+      // Detect proof type and content
+      let proofHTML = '';
+      const content = s.content || '';
+      let imageUrl = null;
+      let textContent = '';
+      let linkContent = '';
+
+      if (content.startsWith('data:image')) {
+        // Direct screenshot
+        imageUrl = content;
+      } else if (content.startsWith('{')) {
+        // Combined text + image (feedback type)
+        try {
+          const parsed = JSON.parse(content);
+          imageUrl = parsed.image || null;
+          textContent = parsed.text || '';
+        } catch (e) {
+          textContent = content;
+        }
+      } else if (content.startsWith('http://') || content.startsWith('https://')) {
+        linkContent = content;
+      } else {
+        textContent = content;
+      }
+
+      if (imageUrl) {
+        proofHTML += `
+          <div style="margin-bottom:12px;">
+            <div style="font-size:0.75rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:6px;">Screenshot Proof</div>
+            <div style="position:relative; display:inline-block; cursor:pointer; border-radius:12px; overflow:hidden; border:2px solid var(--border); max-width:100%;"
+                 onclick="openScreenshotLightbox('${s.id}')" title="Click to view full screenshot">
+              <img src="${imageUrl}" alt="Proof screenshot" style="display:block; max-width:100%; max-height:180px; width:100%; object-fit:cover; border-radius:10px;" />
+              <div style="position:absolute; inset:0; background:rgba(0,0,0,0.28); display:flex; align-items:center; justify-content:center; border-radius:10px; opacity:0; transition:opacity 0.18s;"
+                   onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+              </div>
+              <div style="position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.55); color:#fff; font-size:0.68rem; font-weight:700; padding:3px 8px; border-radius:6px; letter-spacing:0.04em;">TAP TO VIEW</div>
+            </div>
+          </div>`;
+      }
+      if (textContent) {
+        proofHTML += `<div style="font-size:0.85rem; background:var(--bg-subtle); padding:10px 14px; border-radius:10px; margin-bottom:12px; line-height:1.5; white-space:pre-wrap;">${textContent}</div>`;
+      }
+      if (linkContent) {
+        proofHTML += `<div style="margin-bottom:12px;"><a href="${linkContent}" target="_blank" rel="noopener noreferrer" style="font-size:0.85rem; color:var(--gold); word-break:break-all; text-decoration:underline;">${linkContent}</a></div>`;
+      }
+      if (!proofHTML) {
+        proofHTML = `<div style="font-size:0.85rem; color:var(--muted); padding:10px; background:var(--bg-subtle); border-radius:10px; margin-bottom:12px;">No proof content attached.</div>`;
+      }
+
+      return `
+        <div style="background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; margin-bottom:12px;" data-sub-id="${s.id}">
+          <h4 style="font-size:1rem; font-weight:800; margin-bottom:4px;">${s.bountyTitle}</h4>
+          <p style="font-size:0.82rem; color:var(--muted); margin:0 0 12px;">Worker: <strong>${getUserDisplayName(s.workerAddress)}</strong></p>
+          ${proofHTML}
+          <div style="display:flex; gap:10px;">
+            <button class="btn-primary-sm" onclick="approveWorkerPayout('${s.id}')" style="flex:1; justify-content:center;">Approve &amp; Pay ${s.reward} NIM</button>
+            <button class="btn-ghost-sm" onclick="openRejectionModal('${s.id}')" style="flex:1; justify-content:center; color:var(--danger);">Reject</button>
+          </div>
+        </div>`;
+    }).join('') : createEmptyStateHTML(
       'No Pending Submissions',
       'When workers complete your published bounties and submit proof packages, they will appear here for 1-click review and payout.',
       `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>`
     );
+  }
+}
+
+function openScreenshotLightbox(subId) {
+  const sub = pendingSubmissions.find(s => s.id === subId);
+  if (!sub) return;
+
+  let imageUrl = null;
+  const content = sub.content || '';
+
+  if (content.startsWith('data:image')) {
+    imageUrl = content;
+  } else if (content.startsWith('{')) {
+    try { imageUrl = JSON.parse(content).image || null; } catch (e) {}
+  }
+
+  if (!imageUrl) return;
+
+  const modal = document.getElementById('modal-screenshot-lightbox');
+  const img = document.getElementById('lightbox-img');
+  const title = document.getElementById('lightbox-title');
+  const dlBtn = document.getElementById('lightbox-download-btn');
+
+  if (!modal || !img) return;
+
+  img.src = imageUrl;
+  if (title) title.textContent = sub.bountyTitle || 'Proof Screenshot';
+  if (dlBtn) dlBtn.href = imageUrl;
+  modal.style.display = 'flex';
+}
+
+function closeLightboxOnBackdrop(event) {
+  // Close only when clicking the dark backdrop itself, not the image/card
+  if (event.target === event.currentTarget) {
+    document.getElementById('modal-screenshot-lightbox').style.display = 'none';
   }
 }
 
