@@ -1479,8 +1479,12 @@ async function handleSubmitProof() {
   if (!bounties.some(b => b.id === bounty.id)) {
     bounties.push(bounty);
   }
-  // NOTE: slotsRemaining is only decremented when the poster APPROVES & pays.
-  // Do NOT decrement here on submission — that would double-count slots.
+  // Slot is consumed the moment a worker claims & submits proof.
+  // Poster approval is just payment confirmation — no further slot change.
+  const targetBounty = bounties.find(b => b.id === bounty.id);
+  if (targetBounty && targetBounty.slotsRemaining > 0) {
+    targetBounty.slotsRemaining -= 1;
+  }
 
   localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions));
   localStorage.setItem(STORAGE_KEY_LOCAL_BOUNTIES, JSON.stringify(bounties));
@@ -1747,9 +1751,7 @@ async function approveWorkerPayout(subId) {
   });
 
   const bIndex = bounties.findIndex(b => b.id === sub.bountyId);
-  if (bIndex !== -1 && bounties[bIndex].slotsRemaining > 0) {
-    bounties[bIndex].slotsRemaining -= 1;
-  }
+  // Slot was already decremented when the worker submitted. Don't decrement again here.
 
   localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions));
   localStorage.setItem(STORAGE_KEY_PAID_HISTORY, JSON.stringify(approvedPayoutsHistory));
