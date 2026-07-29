@@ -30,43 +30,6 @@ let activeClaimTimer = null;
 let currentModalBountyId = null;
 let lastRenderHash = '';
 
-// Seed Bounties Fallback
-const INITIAL_SEED_BOUNTIES = [
-  {
-    id: 'seed-bounty-1',
-    title: 'Test Nimiq MiniApp UI & Report 3 UX Observations',
-    category: 'app-test',
-    categoryName: 'APP TESTING',
-    reward: '50.0',
-    slotsTotal: 10,
-    slotsRemaining: 8,
-    posterAddress: 'NQ65 R26Y VNQL H5H9 F19S U3PB FY7N EJ7H PGNN',
-    sponsor: 'NQ65 R26Y...',
-    instructions: 'Launch NimBounty inside Nimiq Pay MiniApp WebView. Test wallet connect, view switching, and submit 3 UX observations.',
-    proofType: 'text',
-    createdAt: Date.now() - 3600000
-  },
-  {
-    id: 'seed-bounty-2',
-    title: 'Share NimBounty MiniApp Announcement on X (Twitter)',
-    category: 'social',
-    categoryName: 'SOCIAL SHARE',
-    reward: '25.0',
-    slotsTotal: 15,
-    slotsRemaining: 10,
-    posterAddress: 'NQ33 A91B 44XX 88YY 22ZZ 11AA 99BB 77CC 55DD',
-    sponsor: 'NQ33 A91B...',
-    instructions: 'Post a tweet mentioning @Nimiq and #NimBounty with a screenshot of the app console. Paste tweet URL as proof.',
-    proofType: 'text',
-    createdAt: Date.now() - 7200000
-  }
-];
-
-if (!bounties || bounties.length === 0) {
-  bounties = [...INITIAL_SEED_BOUNTIES];
-  localStorage.setItem(STORAGE_KEY_LOCAL_BOUNTIES, JSON.stringify(bounties));
-}
-
 // Helper: Check Real Wallet Connection
 function isRealWalletConnected() {
   return !!(userAccount && typeof userAccount === 'string' && userAccount.trim().length > 0);
@@ -1009,7 +972,7 @@ function renderProfile() {
     <div class="profile-stats-bar-4col">
       <div class="stat-col">
         <div class="stat-val">${bountiesPosted}</div>
-        <div class="stat-lbl">DEALS</div>
+        <div class="stat-lbl">MY BOUNTIES</div>
       </div>
       <div class="stat-col">
         <div class="stat-val">${workerCompleted}</div>
@@ -1021,7 +984,7 @@ function renderProfile() {
       </div>
       <div class="stat-col">
         <div class="stat-val">${rep.reports || 0}</div>
-        <div class="stat-lbl">DISPUTES</div>
+        <div class="stat-lbl">REPORTS</div>
       </div>
     </div>
 
@@ -1096,7 +1059,7 @@ function renderBounties() {
   const searchQuery = document.getElementById('search-input')?.value.toLowerCase() || '';
   const categoryFilter = document.getElementById('category-select')?.value || 'all';
 
-  const activeBounties = bounties.length ? bounties : INITIAL_SEED_BOUNTIES;
+  const activeBounties = bounties;
 
   let filtered = activeBounties.filter(b => {
     const matchesSearch = b.title.toLowerCase().includes(searchQuery) || (b.instructions || b.description || '').toLowerCase().includes(searchQuery);
@@ -1159,9 +1122,8 @@ function renderBounties() {
           <div class="bounty-card-header">
             <span class="bounty-category-tag">${b.categoryName || b.category || 'General'}</span>
             <div style="display:flex; align-items:center; gap:8px;">
-              <button onclick="openQrModal('${b.id}')" title="Share QR Code" style="background:var(--bg-subtle); border:1px solid var(--border); padding:4px 8px; border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; gap:4px; font-size:0.75rem; font-weight:700; color:var(--ink);">
+              <button onclick="openQrModal('${b.id}')" title="Share QR Code" style="background:var(--bg-subtle); border:1px solid var(--border); padding:6px; border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; color:var(--ink);">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-                QR
               </button>
               <span class="bounty-reward">${b.reward} NIM</span>
             </div>
