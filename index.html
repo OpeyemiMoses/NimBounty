@@ -247,51 +247,51 @@
 
       <div class="faq-container">
         <div class="faq-item">
-          <button class="faq-question-btn" onclick="toggleFaq(this)">
+          <button class="faq-question" onclick="toggleFaq(this)">
             <span>What is NimBounty?</span>
-            <span class="faq-icon">&plus;</span>
+            <span class="faq-toggle">+</span>
           </button>
-          <div class="faq-answer-panel">
+          <div class="faq-answer">
             <p>NimBounty is a micro-task and crowd-testing platform built on the Nimiq Pay Mini Apps Framework. It allows builders to post bounties for user feedback, app testing, and social campaigns while workers earn instant NIM payouts with zero transaction fees.</p>
           </div>
         </div>
 
         <div class="faq-item">
-          <button class="faq-question-btn" onclick="toggleFaq(this)">
+          <button class="faq-question" onclick="toggleFaq(this)">
             <span>Do workers pay gas fees to submit proof?</span>
-            <span class="faq-icon">&plus;</span>
+            <span class="faq-toggle">+</span>
           </button>
-          <div class="faq-answer-panel">
+          <div class="faq-answer">
             <p>No! Workers do not pay any gas or transaction fees. They sign their submission proof message off-chain via Nimiq Pay keys for free.</p>
           </div>
         </div>
 
         <div class="faq-item">
-          <button class="faq-question-btn" onclick="toggleFaq(this)">
+          <button class="faq-question" onclick="toggleFaq(this)">
             <span>How does anti-sybil and multi-account protection work?</span>
-            <span class="faq-icon">&plus;</span>
+            <span class="faq-toggle">+</span>
           </button>
-          <div class="faq-answer-panel">
+          <div class="faq-answer">
             <p>NimBounty uses Nimiq Pay's hardware-bound <code>requestDeviceIdentifier</code> API. Each physical device generates a unique 64-character SHA-256 identifier, preventing a single user from creating multiple fake accounts to farm task slots.</p>
           </div>
         </div>
 
         <div class="faq-item">
-          <button class="faq-question-btn" onclick="toggleFaq(this)">
+          <button class="faq-question" onclick="toggleFaq(this)">
             <span>How do worker payouts work?</span>
             <span class="faq-toggle">+</span>
           </button>
-          <div class="faq-answer-panel">
+          <div class="faq-answer">
             <p>When a task poster reviews and approves a worker's submitted proof, NIM is transferred directly from the poster's connected wallet to the worker's wallet inside Nimiq Pay with zero middleman fees.</p>
           </div>
         </div>
 
         <div class="faq-item">
-          <button class="faq-question-btn" onclick="toggleFaq(this)">
+          <button class="faq-question" onclick="toggleFaq(this)">
             <span>Which tokens and networks are supported?</span>
             <span class="faq-toggle">+</span>
           </button>
-          <div class="faq-answer-panel">
+          <div class="faq-answer">
             <p>NimBounty supports native Nimiq (NIM) payments as well as EVM tokens (USDT on Polygon, Mainnet, Base, Arbitrum) through Nimiq Pay's dual-provider engine.</p>
           </div>
         </div>
