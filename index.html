@@ -45,12 +45,12 @@
   <!-- Navigation Bar -->
   <nav class="navbar" id="navbar">
     <div class="nav-container">
-      <a href="#" class="nav-logo" onclick="handleLogoClick(event)">
+      <div class="nav-logo" onclick="handleLogoClick(event)" style="cursor:pointer;">
         <svg class="logo-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
         </svg>
         <span class="logo-text">nim<span class="logo-serif">Bounty</span></span>
-      </a>
+      </div>
 
       <!-- Desktop Center Navigation Links (landing page only) -->
       <div class="nav-center-links desktop-nav" id="landing-nav-links">
@@ -316,7 +316,7 @@
       <div class="banner-content">
         <h2>Ready to launch micro-tasks or earn NIM?</h2>
         <p>Open the app console to browse bounties or publish your first task pool in seconds.</p>
-        <button class="btn-primary-lg" onclick="showView('app')">
+        <button class="btn-primary-lg" onclick="handleLaunchApp()">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:8px;"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
           Launch App Console &rarr;
         </button>

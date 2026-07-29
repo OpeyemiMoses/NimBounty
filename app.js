@@ -503,12 +503,8 @@ function closeModal(modalId) {
 
 function handleLogoClick(event) {
   if (event) event.preventDefault();
-  const isMobile = window.innerWidth <= 768;
-  if (isMobile) {
-    showView('app');
-  } else {
-    showView('landing');
-  }
+  if (currentView === 'landing') return;
+  showView('app');
 }
 
 function scrollToSection(sectionId) {
