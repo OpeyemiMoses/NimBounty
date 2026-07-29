@@ -204,6 +204,11 @@ body {
   justify-content: center;
 }
 
+textarea {
+  resize: none !important;
+  font-family: inherit;
+}
+
 .btn-primary-sm {
   font-size: 0.82rem;
   font-weight: 700;

@@ -625,7 +625,7 @@
 
                 <div>
                   <label style="font-size:0.85rem; font-weight:700; color:var(--muted); display:block; margin-bottom:6px;">Detailed Task Instructions</label>
-                  <textarea id="task-instructions" rows="4" placeholder="Describe exactly what the worker needs to do and what proof to submit..." style="width:100%; padding:12px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink); outline:none;" required></textarea>
+                  <textarea id="task-instructions" rows="4" placeholder="Describe exactly what the worker needs to do and what proof to submit..." style="width:100%; padding:12px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink); outline:none; resize:none;" required></textarea>
                 </div>
 
                 <!-- Summary Box -->
@@ -755,7 +755,7 @@
           
           <div id="group-proof-text" style="display:none; flex-direction:column;">
             <label style="font-size:0.82rem; font-weight:700; color:var(--muted); display:block; margin-bottom:4px;">Written Feedback / Proof Details</label>
-            <textarea id="proof-text-input" rows="3" placeholder="Describe completed work or feedback..." style="width:100%; padding:10px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink);"></textarea>
+            <textarea id="proof-text-input" rows="3" placeholder="Describe completed work or feedback..." style="width:100%; padding:10px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink); resize:none;"></textarea>
           </div>
 
           <div id="group-proof-url" style="display:none; flex-direction:column;">
@@ -801,7 +801,7 @@
         <div style="display:flex; flex-direction:column; gap:14px;">
           <div>
             <label style="font-size:0.82rem; font-weight:700; color:var(--muted); display:block; margin-bottom:4px;">Rejection Reason &amp; Feedback</label>
-            <textarea id="rejection-reason-input" rows="3" placeholder="e.g. Screenshot URL is broken or proof details are missing bullet 3..." style="width:100%; padding:10px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink);" required></textarea>
+            <textarea id="rejection-reason-input" rows="3" placeholder="e.g. Screenshot URL is broken or proof details are missing bullet 3..." style="width:100%; padding:10px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink); resize:none;" required></textarea>
           </div>
           <button class="btn-primary-lg full-width" type="submit" style="justify-content:center; background:var(--danger); color:#fff;">Submit Rejection &rarr;</button>
         </div>
@@ -819,7 +819,7 @@
         <div style="display:flex; flex-direction:column; gap:14px;">
           <div>
             <label style="font-size:0.82rem; font-weight:700; color:var(--muted); display:block; margin-bottom:4px;">Report Issue Details</label>
-            <textarea id="report-poster-reason" rows="3" placeholder="Describe shady behavior or invalid rejection..." style="width:100%; padding:10px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink);" required></textarea>
+            <textarea id="report-poster-reason" rows="3" placeholder="Describe shady behavior or invalid rejection..." style="width:100%; padding:10px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink); resize:none;" required></textarea>
           </div>
           <button class="btn-primary-lg full-width" type="submit" style="justify-content:center; background:var(--danger); color:#fff;">Submit Report &rarr;</button>
         </div>
