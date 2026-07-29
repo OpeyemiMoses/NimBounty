@@ -1442,6 +1442,28 @@ function startClaimTimer(durationSeconds) {
   }, 1000);
 }
 
+// Compress image to a tiny thumbnail suitable for server storage (~4KB base64)
+async function compressImageForServer(dataUrl, maxDim = 180, quality = 0.5) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = function() {
+      try {
+        const canvas = document.createElement('canvas');
+        let w = img.width, h = img.height;
+        if (w > maxDim || h > maxDim) {
+          if (w > h) { h = Math.round((h * maxDim) / w); w = maxDim; }
+          else { w = Math.round((w * maxDim) / h); h = maxDim; }
+        }
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      } catch (e) { resolve(dataUrl); }
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
 async function processImageFileToDataUrl(file) {
   return new Promise((resolve) => {
     const reader = new FileReader();
@@ -1451,30 +1473,16 @@ async function processImageFileToDataUrl(file) {
       img.onload = function() {
         try {
           const canvas = document.createElement('canvas');
-          let width = img.width;
-          let height = img.height;
+          let width = img.width, height = img.height;
           const maxDim = 600;
-
           if (width > maxDim || height > maxDim) {
-            if (width > height) {
-              height = Math.round((height * maxDim) / width);
-              width = maxDim;
-            } else {
-              width = Math.round((width * maxDim) / height);
-              height = maxDim;
-            }
+            if (width > height) { height = Math.round((height * maxDim) / width); width = maxDim; }
+            else { width = Math.round((width * maxDim) / height); height = maxDim; }
           }
-
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, width, height);
-
-          const compressed = canvas.toDataURL('image/jpeg', 0.6);
-          resolve(compressed || rawDataUrl);
-        } catch (err) {
-          resolve(rawDataUrl);
-        }
+          canvas.width = width; canvas.height = height;
+          canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.6));
+        } catch (err) { resolve(rawDataUrl); }
       };
       img.onerror = () => resolve(rawDataUrl);
       img.src = rawDataUrl;
@@ -1502,6 +1510,7 @@ async function handleSubmitProof() {
   const pType = bounty.proofType || 'text';
   let proofContent = '';
 
+  // Ensure image is loaded before validation
   if (pType === 'image' || pType === 'image_text') {
     const fileInput = document.getElementById('proof-image-file');
     if (!uploadedImageDataUrl && fileInput && fileInput.files && fileInput.files[0]) {
@@ -1522,19 +1531,19 @@ async function handleSubmitProof() {
       return;
     }
   } else if (pType === 'image') {
-    proofContent = uploadedImageDataUrl || '';
-    if (!proofContent) {
+    if (!uploadedImageDataUrl) {
       showToastNotification('Proof Required', 'Please attach a screenshot proof file.', true);
       return;
     }
+    // Poster gets a tiny thumbnail; full image stored in localStorage
+    proofContent = uploadedImageDataUrl; // will be replaced with thumbnail for server below
   } else if (pType === 'image_text') {
     const txt = document.getElementById('proof-text-input')?.value.trim() || '';
-    const img = uploadedImageDataUrl || '';
-    if (!txt && !img) {
+    if (!txt && !uploadedImageDataUrl) {
       showToastNotification('Proof Required', 'Please provide feedback text or attach a screenshot.', true);
       return;
     }
-    proofContent = JSON.stringify({ text: txt, image: img });
+    proofContent = JSON.stringify({ text: txt, image: uploadedImageDataUrl || '' });
   }
 
   const workerAddr = userAccount.replace(/\s+/g, '').toUpperCase();
@@ -1554,19 +1563,43 @@ async function handleSubmitProof() {
     } catch (e) {}
   }
 
+  const subId = `sub-${Date.now()}`;
+
+  // Save the full-resolution image in localStorage keyed by submission ID
+  if (uploadedImageDataUrl && (pType === 'image' || pType === 'image_text')) {
+    try { localStorage.setItem(`nimbounty_img_${subId}`, uploadedImageDataUrl); } catch(e) {}
+  }
+
+  // Build tiny thumbnail for server (keeps JSONBlob small — ~4KB vs 200KB+)
+  let serverContent = proofContent;
+  if (uploadedImageDataUrl && (pType === 'image' || pType === 'image_text')) {
+    const thumb = await compressImageForServer(uploadedImageDataUrl, 180, 0.5);
+    if (pType === 'image') {
+      serverContent = thumb;
+    } else {
+      try {
+        const parsed = JSON.parse(proofContent);
+        serverContent = JSON.stringify({ text: parsed.text || '', image: thumb });
+      } catch(e) { serverContent = proofContent; }
+    }
+  }
+
   const newSub = {
-    id: `sub-${Date.now()}`,
+    id: subId,
     bountyId: bounty.id,
     bountyTitle: bounty.title,
     posterAddress: posterAddr,
     workerAddress: workerAddr,
     proofType: pType,
-    content: proofContent,
+    content: proofContent,      // full image in local state
     signature: signature,
     submittedAt: new Date().toLocaleTimeString(),
     reward: bounty.reward,
     status: 'pending'
   };
+
+  // Server copy uses tiny thumbnail so JSONBlob doesn't overflow
+  const serverSub = { ...newSub, content: serverContent };
 
   pendingSubmissions.unshift(newSub);
 
@@ -1582,9 +1615,8 @@ async function handleSubmitProof() {
   localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions));
   localStorage.setItem(STORAGE_KEY_LOCAL_BOUNTIES, JSON.stringify(bounties));
 
-  // Push ONLY the new submission + updated bounty slots to the server.
-  // Never replace the full array — other users' submissions must be preserved.
-  pushNewSubmission(newSub, targetBounty || bounty);
+  // Push server copy (with tiny thumbnail) — won't overflow JSONBlob
+  pushNewSubmission(serverSub, targetBounty || bounty);
 
   closeModal('modal-submit-proof');
   renderBounties();
