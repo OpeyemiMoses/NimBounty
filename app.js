@@ -159,36 +159,49 @@ async function fetchGlobalPublicBounties() {
       const data = await res.json();
       let stateChanged = false;
 
-      if (Array.isArray(data.bounties)) {
-        if (data.bounties.length === 0 && bounties.length > 0) {
-          bounties = [];
-          stateChanged = true;
-        } else if (data.bounties.length > 0) {
-          const existingIds = new Set(bounties.map(b => b.id));
-          data.bounties.forEach(sb => {
-            if (!existingIds.has(sb.id)) {
-              bounties.unshift(sb);
-              existingIds.add(sb.id);
+      // Merge bounties safely without wiping local items
+      if (Array.isArray(data.bounties) && data.bounties.length > 0) {
+        const existingIds = new Set(bounties.map(b => b.id));
+        data.bounties.forEach(sb => {
+          if (!existingIds.has(sb.id)) {
+            bounties.unshift(sb);
+            existingIds.add(sb.id);
+            stateChanged = true;
+          } else {
+            const idx = bounties.findIndex(b => b.id === sb.id);
+            if (bounties[idx].slotsRemaining !== sb.slotsRemaining) {
+              bounties[idx].slotsRemaining = sb.slotsRemaining;
               stateChanged = true;
-            } else {
-              const idx = bounties.findIndex(b => b.id === sb.id);
-              if (bounties[idx].slotsRemaining !== sb.slotsRemaining) {
-                bounties[idx].slotsRemaining = sb.slotsRemaining;
-                stateChanged = true;
-              }
             }
-          });
-        }
+          }
+        });
         localStorage.setItem(STORAGE_KEY_LOCAL_BOUNTIES, JSON.stringify(bounties));
       }
 
-      if (Array.isArray(data.approvedPayoutsHistory)) {
-        approvedPayoutsHistory = data.approvedPayoutsHistory;
+      // Merge approved payouts history safely without wiping local history
+      if (Array.isArray(data.approvedPayoutsHistory) && data.approvedPayoutsHistory.length > 0) {
+        const existingPayIds = new Set(approvedPayoutsHistory.map(p => p.id || `${p.bountyId}-${p.workerAddress}`));
+        data.approvedPayoutsHistory.forEach(sp => {
+          const key = sp.id || `${sp.bountyId}-${sp.workerAddress}`;
+          if (!existingPayIds.has(key)) {
+            approvedPayoutsHistory.unshift(sp);
+            existingPayIds.add(key);
+            stateChanged = true;
+          }
+        });
         localStorage.setItem(STORAGE_KEY_PAID_HISTORY, JSON.stringify(approvedPayoutsHistory));
       }
 
-      if (Array.isArray(data.pendingSubmissions)) {
-        pendingSubmissions = data.pendingSubmissions;
+      // Merge pending submissions safely without wiping local queue
+      if (Array.isArray(data.pendingSubmissions) && data.pendingSubmissions.length > 0) {
+        const existingSubIds = new Set(pendingSubmissions.map(s => s.id));
+        data.pendingSubmissions.forEach(ss => {
+          if (!existingSubIds.has(ss.id)) {
+            pendingSubmissions.unshift(ss);
+            existingSubIds.add(ss.id);
+            stateChanged = true;
+          }
+        });
         localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions));
       }
 
@@ -197,11 +210,11 @@ async function fetchGlobalPublicBounties() {
         lastRenderHash = newHash;
         renderBounties();
         renderPosterDashboard();
-        updateLandingStats();
+        renderSessionBar();
       }
     }
   } catch (e) {
-    renderBounties();
+    // Silent graceful fallback
   }
 }
 
@@ -742,7 +755,7 @@ function renderMobileBottomNav() {
     return;
   }
 
-  const isProfileOpen = document.getElementById('panel-profile')?.style.display === 'block';
+  const isProfileOpen = currentView === 'app' && document.getElementById('panel-profile')?.style.display === 'block';
   const stackLogo = `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>`;
 
   if (currentRole === 'worker') {
@@ -812,9 +825,10 @@ function switchMobileTab(tab) {
   if (ordersView)   ordersView.style.display   = 'none';
 
   if (tab === 'orders') {
-    if (appView)    appView.style.display    = 'none';
-    if (ordersView) ordersView.style.display = 'block';
-    if (sessionBar) sessionBar.style.display = 'none';
+    if (appView)      appView.style.display      = 'none';
+    if (profilePanel) profilePanel.style.display = 'none';
+    if (ordersView)   ordersView.style.display   = 'block';
+    if (sessionBar)   sessionBar.style.display   = 'none';
     currentView = 'orders';
     renderDedicatedOrders();
   } else {
