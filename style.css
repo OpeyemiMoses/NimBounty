@@ -1398,20 +1398,30 @@ textarea {
 
 #onboarding-overlay .modal-paper {
   position: fixed !important;
-  top: 75px !important;
+  top: 50% !important;
   left: 50% !important;
-  transform: translateX(-50%) !important;
+  transform: translate(-50%, -50%) !important;
   width: calc(100% - 32px) !important;
   max-width: 440px !important;
   z-index: 300005 !important;
   box-shadow: 0 16px 50px rgba(0, 0, 0, 0.4), 0 0 0 2px var(--gold-border) !important;
   pointer-events: auto !important;
+  transition: top 0.38s cubic-bezier(0.4,0,0.2,1) !important;
 }
 
 @media (max-width: 768px) {
   #onboarding-overlay .modal-paper {
-    top: 70px !important;
-  }
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  width: calc(100% - 32px) !important;
+  max-width: 440px !important;
+  z-index: 300005 !important;
+  box-shadow: 0 16px 50px rgba(0, 0, 0, 0.4), 0 0 0 2px var(--gold-border) !important;
+  pointer-events: auto !important;
+  transition: top 0.38s cubic-bezier(0.4,0,0.2,1) !important;
+}
 }
 
 /* Remove extra bottom space on landing view */

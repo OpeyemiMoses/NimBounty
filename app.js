@@ -1876,10 +1876,19 @@ function updateOnboardingUI() {
 
   const welcomeCard = document.getElementById('onboarding-welcome-card');
   const stepCard = document.getElementById('onboarding-step-card');
+  const modal = document.querySelector('#onboarding-overlay .modal-paper');
 
   if (onboardingStep === -1) {
     if (welcomeCard) welcomeCard.style.display = 'flex';
     if (stepCard) stepCard.style.display = 'none';
+    // Welcome step: centre the modal
+    if (modal) {
+      modal.style.position = 'fixed';
+      modal.style.top = '50%';
+      modal.style.left = '50%';
+      modal.style.transform = 'translate(-50%, -50%)';
+      modal.style.transition = 'top 0.35s cubic-bezier(0.4,0,0.2,1), left 0.35s cubic-bezier(0.4,0,0.2,1)';
+    }
     return;
   }
 
@@ -1909,12 +1918,66 @@ function updateOnboardingUI() {
     `).join('');
   }
 
-  // Highlight Target App Section
+  // Highlight Target App Section & smartly reposition modal away from it
   if (step.targetId) {
     const targetEl = document.getElementById(step.targetId);
     if (targetEl) {
       targetEl.classList.add('tour-highlight');
       targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+      // After scroll settles, compute where to dock the modal
+      setTimeout(() => {
+        if (!modal) return;
+
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const modalH = modal.offsetHeight || 340;
+        const modalW = Math.min(440, vw - 32);
+        const padding = 16; // gap between modal edge and target
+
+        const rect = targetEl.getBoundingClientRect();
+        const targetTop = rect.top;
+        const targetBottom = rect.bottom;
+
+        // Space available above and below the target
+        const spaceAbove = targetTop - padding;
+        const spaceBelow = vh - targetBottom - padding;
+
+        let top;
+
+        if (spaceBelow >= modalH + padding) {
+          // Enough room below — dock below target
+          top = targetBottom + padding;
+        } else if (spaceAbove >= modalH + padding) {
+          // Enough room above — dock above target
+          top = targetTop - modalH - padding;
+        } else if (spaceBelow >= spaceAbove) {
+          // More room below, but tight — push as high as still visible
+          top = Math.max(8, vh - modalH - 8);
+        } else {
+          // More room above — push to top
+          top = 8;
+        }
+
+        // Clamp within viewport
+        top = Math.max(8, Math.min(top, vh - modalH - 8));
+
+        modal.style.position = 'fixed';
+        modal.style.top = top + 'px';
+        modal.style.left = '50%';
+        modal.style.transform = 'translateX(-50%)';
+        modal.style.transition = 'top 0.38s cubic-bezier(0.4,0,0.2,1), left 0.38s cubic-bezier(0.4,0,0.2,1)';
+        modal.style.width = modalW + 'px';
+      }, 420); // wait for scroll to settle
+    }
+  } else {
+    // No target — centre the modal
+    if (modal) {
+      modal.style.position = 'fixed';
+      modal.style.top = '50%';
+      modal.style.left = '50%';
+      modal.style.transform = 'translate(-50%, -50%)';
+      modal.style.transition = 'top 0.35s cubic-bezier(0.4,0,0.2,1)';
     }
   }
 }
