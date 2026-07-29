@@ -1445,34 +1445,46 @@ function previewScreenshot(event) {
   if (file) {
     const reader = new FileReader();
     reader.onload = function(e) {
+      const rawDataUrl = e.target.result;
+      // Set value immediately so uploadedImageDataUrl is never null or delayed
+      uploadedImageDataUrl = rawDataUrl;
+      const previewImg = document.getElementById('image-preview-img');
+      const previewBox = document.getElementById('image-preview-box');
+      if (previewImg) previewImg.src = rawDataUrl;
+      if (previewBox) previewBox.style.display = 'flex';
+
+      // Compress to lightweight 500px JPEG (~20KB) for instant network sync
       const img = new Image();
       img.onload = function() {
-        // Compress/resize screenshot to max 1000px and JPEG quality 0.75 (~75KB)
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
-        const maxDim = 1000;
+        try {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          const maxDim = 500;
 
-        if (width > maxDim || height > maxDim) {
-          if (width > height) {
-            height = Math.round((height * maxDim) / width);
-            width = maxDim;
-          } else {
-            width = Math.round((width * maxDim) / height);
-            height = maxDim;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
           }
-        }
 
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
 
-        uploadedImageDataUrl = canvas.toDataURL('image/jpeg', 0.75);
-        document.getElementById('image-preview-img').src = uploadedImageDataUrl;
-        document.getElementById('image-preview-box').style.display = 'flex';
+          const compressed = canvas.toDataURL('image/jpeg', 0.55);
+          if (compressed && compressed.length < rawDataUrl.length) {
+            uploadedImageDataUrl = compressed;
+            if (previewImg) previewImg.src = compressed;
+          }
+        } catch (err) {}
       };
-      img.src = e.target.result;
+      img.src = rawDataUrl;
     };
     reader.readAsDataURL(file);
   }
