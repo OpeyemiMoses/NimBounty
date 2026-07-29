@@ -1984,24 +1984,27 @@ function getReputation(walletAddress) {
 
 // Initializer
 window.addEventListener('DOMContentLoaded', async () => {
-  initTheme();
-  runTypewriter();
-  fetchNimiqLiveRPC();
-  checkUrlAutoImport();
-  await fetchGlobalPublicBounties();
+  // 1. Immediately switch view synchronously BEFORE any network fetches
+  const isNimiqApp = typeof window !== 'undefined' && (!!window.nimiq || !!window.NimiqProvider || !!window.nimiqPay || !!window.NimiqPay || !!window.miniApp || (navigator.userAgent && navigator.userAgent.indexOf('Nimiq') !== -1));
+  const hasWallet = isRealWalletConnected();
 
-  updateWalletUI();
-  calculateTotalEscrow();
-  updateLandingStats();
-
-  const isNimiqApp = typeof window !== 'undefined' && (!!window.nimiq || !!window.NimiqProvider || !!window.nimiqPay || !!window.NimiqPay || !!window.miniApp);
-
-  if (isNimiqApp) {
+  if (isNimiqApp || hasWallet) {
     showView('app');
   } else {
     showView('landing');
   }
 
+  // 2. Initialize local UI components
+  initTheme();
+  runTypewriter();
+  fetchNimiqLiveRPC();
+  checkUrlAutoImport();
+  updateWalletUI();
+  calculateTotalEscrow();
+  updateLandingStats();
   checkWalletConnectionGate();
+
+  // 3. Background async network fetches
+  await fetchGlobalPublicBounties();
   setInterval(fetchGlobalPublicBounties, 5000);
 });

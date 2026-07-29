@@ -16,8 +16,22 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&family=Work+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,600&display=swap" rel="stylesheet">
   
-  <!-- QRCode.js library -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <!-- Instant View Hydration Script to prevent Landing Page flicker in Nimiq Pay App -->
+  <script>
+    (function() {
+      try {
+        var isNimiqApp = typeof window !== 'undefined' && (!!window.nimiq || !!window.NimiqProvider || !!window.nimiqPay || !!window.NimiqPay || !!window.miniApp || (navigator.userAgent && navigator.userAgent.indexOf('Nimiq') !== -1));
+        var hasWallet = !!localStorage.getItem('nimbounty_user_wallet_v6');
+        if (isNimiqApp || hasWallet) {
+          document.documentElement.classList.add('init-app-view');
+        }
+      } catch(e) {}
+    })();
+  </script>
+  <style>
+    html.init-app-view #view-landing { display: none !important; }
+    html.init-app-view #view-app { display: block !important; }
+  </style>
 
   <link rel="stylesheet" href="style.css" />
 </head>
