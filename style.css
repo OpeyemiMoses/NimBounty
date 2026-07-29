@@ -810,6 +810,20 @@ body {
   border-color: var(--ink);
 }
 
+.tab-badge-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gold);
+  color: #1a1917;
+  border-radius: 10px;
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  margin-left: 4px;
+  min-width: 18px;
+}
+
 /* Filter Paper Card & Search Bar */
 .filter-paper-card, .filter-card {
   background: var(--card);

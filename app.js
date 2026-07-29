@@ -734,37 +734,57 @@ function renderMobileBottomNav() {
 
 function switchMobileTab(tab) {
   const profilePanel = document.getElementById('panel-profile');
-  const workerView = document.getElementById('view-worker');
-  const posterView = document.getElementById('view-poster');
+  const workerView   = document.getElementById('view-worker');
+  const posterView   = document.getElementById('view-poster');
+  const appView      = document.getElementById('view-app');
+  const ordersView   = document.getElementById('view-orders');
+  const landingView  = document.getElementById('view-landing');
+  const sessionBar   = document.getElementById('console-session-bar');
+  const mobileNav    = document.getElementById('mobile-bottom-nav');
 
-  // Always ensure we're in the app view first
-  if (tab !== 'orders') showView('app');
+  // Hide landing and orders; always show app wrapper
+  if (landingView)  landingView.style.display  = 'none';
+  if (ordersView)   ordersView.style.display   = 'none';
 
-  if (tab === 'profile') {
-    if (profilePanel) profilePanel.style.display = 'block';
-    if (workerView) workerView.style.display = 'none';
-    if (posterView) posterView.style.display = 'none';
-    renderProfile();
-  } else if (tab === 'orders') {
-    if (profilePanel) profilePanel.style.display = 'none';
-    showView('orders');
-  } else if (tab === 'publish' || tab === 'pools' || tab === 'subs') {
-    currentRole = 'poster';
-    if (profilePanel) profilePanel.style.display = 'none';
-    if (workerView) workerView.style.display = 'none';
-    if (posterView) posterView.style.display = 'block';
-    if (tab === 'publish') switchPosterSubtab('create');
-    else if (tab === 'pools') switchPosterSubtab('pools');
-    else switchPosterSubtab('subs');
-  } else if (tab === 'active' || tab === 'history') {
-    currentRole = 'worker';
-    if (profilePanel) profilePanel.style.display = 'none';
-    if (workerView) workerView.style.display = 'block';
-    if (posterView) posterView.style.display = 'none';
-    switchWorkerSubtab(tab);
+  if (tab === 'orders') {
+    if (appView)    appView.style.display    = 'none';
+    if (ordersView) ordersView.style.display = 'block';
+    if (sessionBar) sessionBar.style.display = 'none';
+    currentView = 'orders';
+    renderDedicatedOrders();
+  } else {
+    // Make the app wrapper visible
+    if (appView)    appView.style.display    = 'block';
+    if (sessionBar) sessionBar.style.display = 'flex';
+    currentView = 'app';
+
+    if (tab === 'profile') {
+      if (profilePanel) profilePanel.style.display = 'block';
+      if (workerView)   workerView.style.display   = 'none';
+      if (posterView)   posterView.style.display   = 'none';
+      renderProfile();
+
+    } else if (tab === 'publish' || tab === 'pools' || tab === 'subs') {
+      currentRole = 'poster';
+      if (profilePanel) profilePanel.style.display = 'none';
+      if (workerView)   workerView.style.display   = 'none';
+      if (posterView)   posterView.style.display   = 'block';
+      if (tab === 'publish') switchPosterSubtab('create');
+      else if (tab === 'pools') switchPosterSubtab('pools');
+      else switchPosterSubtab('subs');
+
+    } else if (tab === 'active' || tab === 'history') {
+      currentRole = 'worker';
+      if (profilePanel) profilePanel.style.display = 'none';
+      if (workerView)   workerView.style.display   = 'block';
+      if (posterView)   posterView.style.display   = 'none';
+      switchWorkerSubtab(tab);
+    }
   }
+
   renderSessionBar();
   renderMobileBottomNav();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function calculateTotalEscrow() {

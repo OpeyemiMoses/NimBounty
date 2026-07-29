@@ -519,6 +519,18 @@
       <!-- WORKER VIEW -->
       <div id="view-worker">
 
+        <!-- Worker Sub-Tabs Navigation Bar -->
+        <div class="subtab-bar">
+          <button class="subtab-btn active" id="btn-worker-tab-active" onclick="switchWorkerSubtab('active')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+            Active &amp; Open Bounties
+          </button>
+          <button class="subtab-btn" id="btn-worker-tab-history" onclick="switchWorkerSubtab('history')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 16 14"/></svg>
+            Completed &amp; Expired
+          </button>
+        </div>
+
         <div class="filter-paper-card">
           <div class="filter-row">
             <div class="search-box">
@@ -539,6 +551,7 @@
               <select id="sort-select" onchange="renderBounties()">
                 <option value="newest">Newest First</option>
                 <option value="highest">Highest Reward</option>
+                <option value="slots">Most Slots Open</option>
               </select>
             </div>
           </div>
@@ -548,7 +561,23 @@
       </div>
 
       <!-- POSTER VIEW -->
-<div id="view-poster" style="display: none;">
+      <div id="view-poster" style="display: none;">
+
+        <!-- Poster Sub-Tabs Navigation Bar -->
+        <div class="subtab-bar">
+          <button class="subtab-btn active" id="btn-poster-tab-create" onclick="switchPosterSubtab('create')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+            Publish New Bounty
+          </button>
+          <button class="subtab-btn" id="btn-poster-tab-pools" onclick="switchPosterSubtab('pools')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+            Your Published Pools
+          </button>
+          <button class="subtab-btn" id="btn-poster-tab-subs" onclick="switchPosterSubtab('subs')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>
+            Pending Submissions <span class="tab-badge-count" id="poster-badge-subs">0</span>
+          </button>
+        </div>
 
         <div id="poster-subview-create">
           <div class="paper-card" style="background:var(--card); border:1px solid var(--border); border-radius:20px; padding:24px; max-width:780px; margin:0 auto;">
