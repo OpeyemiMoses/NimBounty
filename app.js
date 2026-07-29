@@ -275,7 +275,6 @@ async function pushNewSubmission(newSub, updatedBounty = null) {
       body: JSON.stringify({
         newSubmission: newSub,
         newBounty: updatedBounty,
-        approvedPayoutsHistory,
         updatedAt: Date.now()
       })
     });
@@ -1515,7 +1514,9 @@ async function handleSubmitProof() {
   }
 
   const workerAddr = userAccount.replace(/\s+/g, '').toUpperCase();
-  const posterAddr = (bounty.posterAddress || userAccount).replace(/\s+/g, '').toUpperCase();
+  const posterAddr = (bounty.posterAddress && bounty.posterAddress !== 'SYSTEM')
+    ? bounty.posterAddress.replace(/\s+/g, '').toUpperCase()
+    : 'SYSTEM';
 
   const timestamp = Date.now();
   const proofMessage = `NIMBOUNTY_PROOF_SIGNATURE | Bounty: ${bounty.id} | Worker: ${workerAddr} | Time: ${timestamp}`;
@@ -1678,7 +1679,10 @@ function renderPosterDashboard() {
   }
 
   if (subsList) {
-    const mySubs = pendingSubmissions.filter(s => isSameNimiqAddress(s.posterAddress, userAccount) && s.status === 'pending');
+    const mySubs = pendingSubmissions.filter(s =>
+      s.status === 'pending' &&
+      (isSameNimiqAddress(s.posterAddress, userAccount) || !s.posterAddress || s.posterAddress === 'SYSTEM' || isSameNimiqAddress(bounties.find(b => String(b.id) === String(s.bountyId))?.posterAddress, userAccount))
+    );
     subsList.innerHTML = mySubs.length ? mySubs.map(s => {
 
       // Detect proof type and content

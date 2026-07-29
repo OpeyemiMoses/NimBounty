@@ -119,6 +119,13 @@ export default async function handler(req, res) {
 
       // 3. Sync Pending Submissions
       if (body.newSubmission && body.newSubmission.id) {
+        const subKey = String(body.newSubmission.bountyId) + '_' + (body.newSubmission.workerAddress || '').toUpperCase().replace(/\s+/g,'');
+        // Remove any old approved record for this specific worker+bounty so new proof is unblocked
+        approvedPayoutsHistory = approvedPayoutsHistory.filter(p => {
+          const pKey = String(p.bountyId) + '_' + (p.workerAddress || '').toUpperCase().replace(/\s+/g,'');
+          return pKey !== subKey;
+        });
+
         const alreadyExists = pendingSubmissions.some(s => s.id === body.newSubmission.id);
         if (!alreadyExists) {
           pendingSubmissions.unshift(body.newSubmission);
