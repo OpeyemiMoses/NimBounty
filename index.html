@@ -77,50 +77,239 @@
   <!-- VIEW 1: LANDING PAGE (Desktop Default)     -->
   <!-- ========================================== -->
   <div id="view-landing" class="page-view">
+    
+    <!-- Hero Section -->
     <section class="hero-section">
-      <div class="hero-tag" id="live-rpc-tag">
-        <span class="tag-pulse-dot"></span> LIVE ON NIMIQ PAY MAINNET &bull; DIRECT POSTER PAYOUTS
+      <div class="hero-container">
+        
+        <div class="hero-tag slide-in" id="live-rpc-tag">
+          <span class="tag-pulse-dot"></span> LIVE ON NIMIQ PAY MAINNET &bull; DIRECT POSTER PAYOUTS
+        </div>
+
+        <h1 class="hero-title rise-in">
+          Powering micro-tasks <br />
+          the <span class="typewriter-box"><span id="typewriter-text" class="serif-italic">fast</span><span class="typewriter-cursor">|</span></span> way
+        </h1>
+
+        <p class="hero-sub fade-in">
+          Outcome-based micro-task bounties powered by Nimiq Pay. 
+          Create task campaigns for free &bull; Workers sign proof off-chain for 0 gas &bull; Posters pay workers directly.
+        </p>
+
+        <!-- Process Flow Pills Row -->
+        <div class="flow-pills-row rise-in">
+          <div class="flow-pill">
+            <span class="pill-dot"></span> 1. Post Bounty Task
+          </div>
+          <span class="flow-arrow">&rarr;</span>
+          <div class="flow-pill active">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            2. Sign Proof Off-Chain
+          </div>
+          <span class="flow-arrow">&rarr;</span>
+          <div class="flow-pill">
+            <span class="pill-dot"></span> 3. Approve &amp; Direct Payout
+          </div>
+        </div>
+
+        <!-- Hero Action Buttons -->
+        <div class="hero-ctas rise-in">
+          <button class="btn-primary-lg" onclick="handleLaunchApp()">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:8px;"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            Launch App Console
+          </button>
+          <button class="btn-secondary-lg hide-on-mobile" onclick="scrollToSection('how-it-works')">
+            Explore Architecture
+          </button>
+        </div>
+
+        <!-- Stats Card Ribbon Container -->
+        <div class="stats-card-container rise-in">
+          <div class="stat-item">
+            <div class="stat-number" id="landing-stat-bounties">0</div>
+            <div class="stat-label">ACTIVE BOUNTIES</div>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-item">
+            <div class="stat-number" id="landing-stat-payouts">0 NIM</div>
+            <div class="stat-label">TOTAL REWARDS PAID</div>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-item">
+            <div class="stat-number">100%</div>
+            <div class="stat-label">DIRECT WALLET PAYOUTS</div>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-item">
+            <div class="stat-number">0 GAS</div>
+            <div class="stat-label">WORKER TRANSACTION COST</div>
+          </div>
+        </div>
+
+        <p class="stats-subcaption">&bull; Powered by Nimiq Pay Mini App SDK &bull; refreshes live</p>
+
       </div>
-
-      <h1 class="hero-title">
-        Powering micro-tasks <br />
-        the <span class="serif-italic" id="typewriter-text">fast</span> way
-      </h1>
-
-      <p class="hero-sub">
-        Outcome-based micro-task bounties powered by Nimiq Pay. Create task campaigns for free &bull; Workers sign proof off-chain for 0 gas &bull; Posters pay workers directly.
-      </p>
-
-      <div class="flow-pills-row">
-        <div class="flow-pill">1. Post Bounty Task &rarr;</div>
-        <div class="flow-pill highlight">🛡️ 2. Sign Proof Off-Chain &rarr;</div>
-        <div class="flow-pill">3. Approve &amp; Direct Payout</div>
-      </div>
-
-      <button class="btn-primary-lg" onclick="showView('app')">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-        Launch App Console
-      </button>
     </section>
 
-    <div class="stats-grid-4col">
-      <div class="landing-stat-card">
-        <div class="stat-num" id="landing-stat-active">0</div>
-        <div class="stat-label">ACTIVE BOUNTIES</div>
+    <!-- How It Works Section (5 Step Cards Grid) -->
+    <section class="section-padded" id="how-it-works">
+      <div class="section-header">
+        <h2 class="section-title">How it works</h2>
+        <p class="section-sub">From bounty creation to direct worker payout in five simple steps</p>
       </div>
-      <div class="landing-stat-card">
-        <div class="stat-num" id="landing-stat-paid">0 NIM</div>
-        <div class="stat-label">TOTAL REWARDS PAID</div>
+
+      <div class="steps-grid">
+        <div class="step-card">
+          <div class="step-badge">1</div>
+          <div class="step-tag">CREATE</div>
+          <h3 class="step-title">Post Bounty Task</h3>
+          <p class="step-desc">Poster creates a task, sets reward per completion, and specifies worker slots. Instant &amp; free to publish.</p>
+        </div>
+
+        <div class="step-card">
+          <div class="step-badge">2</div>
+          <div class="step-tag">PROTECT</div>
+          <h3 class="step-title">Device Lock &amp; Claim</h3>
+          <p class="step-desc">Workers claim tasks bound by Nimiq device ID to eliminate multi-accounting and bot farming.</p>
+        </div>
+
+        <div class="step-card">
+          <div class="step-badge">3</div>
+          <div class="step-tag">SIGN</div>
+          <h3 class="step-title">Complete &amp; Sign Proof</h3>
+          <p class="step-desc">Worker executes feedback or testing and signs submission proof message off-chain with zero gas fees.</p>
+        </div>
+
+        <div class="step-card">
+          <div class="step-badge">4</div>
+          <div class="step-tag">VERIFY</div>
+          <h3 class="step-title">Review Proof</h3>
+          <p class="step-desc">Poster reviews worker's submitted proof package with 1-click approval or rejection safeguard.</p>
+        </div>
+
+        <div class="step-card">
+          <div class="step-badge">5</div>
+          <div class="step-tag">SETTLE</div>
+          <h3 class="step-title">Direct Instant Payout</h3>
+          <p class="step-desc">NIM reward transfers directly from poster's connected wallet to worker's wallet with zero middleman cuts.</p>
+        </div>
       </div>
-      <div class="landing-stat-card">
-        <div class="stat-num">100%</div>
-        <div class="stat-label">DIRECT WALLET PAYOUTS</div>
+    </section>
+
+    <!-- Built-in Protections Grid (2x2 SVG Icon Cards) -->
+    <section class="section-padded bg-subtle" id="features">
+      <div class="section-header">
+        <h2 class="section-title">Built-in Protections</h2>
+        <p class="section-sub">Every task pool ships with these safeguards</p>
       </div>
-      <div class="landing-stat-card">
-        <div class="stat-num">0 GAS</div>
-        <div class="stat-label">WORKER TRANSACTION COST</div>
+
+      <div class="protections-grid">
+        <div class="protection-card">
+          <div class="icon-box icon-emerald">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <h3 class="prot-title">Anti-Sybil Device Caps</h3>
+          <p class="prot-desc">Hardware-bound 64-hex device signatures via Nimiq SDK ensure 1 physical device cannot farm multiple bounty slots.</p>
+        </div>
+
+        <div class="protection-card">
+          <div class="icon-box icon-emerald">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 16 14"/></svg>
+          </div>
+          <h3 class="prot-title">Direct Wallet Payouts</h3>
+          <p class="prot-desc">Posters approve proof and transfer NIM directly to workers via Nimiq Pay native settlement.</p>
+        </div>
+
+        <div class="protection-card">
+          <div class="icon-box icon-purple">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+          </div>
+          <h3 class="prot-title">Zero Worker Gas Costs</h3>
+          <p class="prot-desc">Workers sign proof messages off-chain via Nimiq Pay keys with 0 transaction or gas fees.</p>
+        </div>
+
+        <div class="protection-card">
+          <div class="icon-box icon-gold">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          </div>
+          <h3 class="prot-title">Non-Custodial Direct Payments</h3>
+          <p class="prot-desc">Funds remain in user wallets until poster approves proof and triggers payout directly to worker.</p>
+        </div>
       </div>
-    </div>
+    </section>
+
+    <!-- FAQ Accordion Section -->
+    <section class="section-padded" id="faq">
+      <div class="section-header">
+        <h2 class="section-title">FAQ</h2>
+        <p class="section-sub">Common questions about NimBounty</p>
+      </div>
+
+      <div class="faq-container">
+        <div class="faq-item">
+          <button class="faq-question-btn" onclick="toggleFaq(this)">
+            <span>What is NimBounty?</span>
+            <span class="faq-icon">&plus;</span>
+          </button>
+          <div class="faq-answer-panel">
+            <p>NimBounty is a micro-task and crowd-testing platform built on the Nimiq Pay Mini Apps Framework. It allows builders to post bounties for user feedback, app testing, and social campaigns while workers earn instant NIM payouts with zero transaction fees.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question-btn" onclick="toggleFaq(this)">
+            <span>Do workers pay gas fees to submit proof?</span>
+            <span class="faq-icon">&plus;</span>
+          </button>
+          <div class="faq-answer-panel">
+            <p>No! Workers do not pay any gas or transaction fees. They sign their submission proof message off-chain via Nimiq Pay keys for free.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question-btn" onclick="toggleFaq(this)">
+            <span>How does anti-sybil and multi-account protection work?</span>
+            <span class="faq-icon">&plus;</span>
+          </button>
+          <div class="faq-answer-panel">
+            <p>NimBounty uses Nimiq Pay's hardware-bound <code>requestDeviceIdentifier</code> API. Each physical device generates a unique 64-character SHA-256 identifier, preventing a single user from creating multiple fake accounts to farm task slots.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question-btn" onclick="toggleFaq(this)">
+            <span>How do worker payouts work?</span>
+            <span class="faq-toggle">+</span>
+          </button>
+          <div class="faq-answer-panel">
+            <p>When a task poster reviews and approves a worker's submitted proof, NIM is transferred directly from the poster's connected wallet to the worker's wallet inside Nimiq Pay with zero middleman fees.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question-btn" onclick="toggleFaq(this)">
+            <span>Which tokens and networks are supported?</span>
+            <span class="faq-toggle">+</span>
+          </button>
+          <div class="faq-answer-panel">
+            <p>NimBounty supports native Nimiq (NIM) payments as well as EVM tokens (USDT on Polygon, Mainnet, Base, Arbitrum) through Nimiq Pay's dual-provider engine.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Bottom CTA Banner -->
+    <section class="bottom-cta-banner">
+      <div class="banner-content">
+        <h2>Ready to launch micro-tasks or earn NIM?</h2>
+        <p>Open the app console to browse bounties or publish your first task pool in seconds.</p>
+        <button class="btn-primary-lg" onclick="showView('app')">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:8px;"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+          Launch App Console &rarr;
+        </button>
+      </div>
+    </section>
+
   </div>
 
   <!-- ========================================== -->
