@@ -116,6 +116,17 @@ function getUserDisplayName(walletAddress) {
   return `${clean.substring(0, 6)}...${clean.substring(clean.length - 4)}`;
 }
 
+// Helper: Create Empty State HTML Component
+function createEmptyStateHTML(title, description, svgIcon = '') {
+  return `
+    <div style="grid-column:1/-1; text-align:center; padding:40px 20px; background:var(--card); border:1px dashed var(--border); border-radius:16px; margin:10px 0;">
+      ${svgIcon ? `<div style="margin-bottom:10px; display:flex; justify-content:center;">${svgIcon}</div>` : ''}
+      <h4 style="font-size:1.05rem; font-weight:800; color:var(--ink); margin-bottom:6px;">${title}</h4>
+      <p style="font-size:0.85rem; color:var(--muted); margin:0; max-width:440px; margin-left:auto; margin-right:auto;">${description}</p>
+    </div>
+  `;
+}
+
 // Live Escrow Budget Calculator for Publish Campaign Form
 function calculateTotalEscrow() {
   const rewardInput = document.getElementById('task-reward');
@@ -663,11 +674,11 @@ function switchToRole(role) {
   if (role === 'worker') {
     if (workerView) workerView.style.display = 'block';
     if (posterView) posterView.style.display = 'none';
-    renderBounties();
+    switchWorkerSubtab(workerSubtab || 'active');
   } else {
     if (workerView) workerView.style.display = 'none';
     if (posterView) posterView.style.display = 'block';
-    renderPosterDashboard();
+    switchPosterSubtab(posterSubtab || 'create');
   }
   renderSessionBar();
   renderMobileBottomNav();
@@ -763,15 +774,12 @@ function renderMobileBottomNav() {
   const nav = document.getElementById('mobile-bottom-nav');
   if (!nav) return;
 
-  const isMobile = window.innerWidth <= 768;
-  if (!isMobile || currentView === 'landing') {
+  if (currentView === 'landing') {
     nav.style.display = 'none';
     return;
   }
 
-  nav.style.display = 'flex';
   const isProfileOpen = document.getElementById('panel-profile')?.style.display === 'block';
-
   const stackLogo = `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>`;
 
   if (currentRole === 'worker') {
@@ -816,7 +824,7 @@ function renderMobileBottomNav() {
       </button>
       <button class="mobile-bottom-tab ${currentView === 'app' && posterSubtab === 'subs' && !isProfileOpen ? 'active' : ''}" onclick="switchMobileTab('subs')">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>
-        Submissions ${pendingCount > 0 ? `<span style="background:var(--gold); color:#1a1917; padding:2px 6px; border-radius:10px; font-size:0.65rem; font-weight:800; margin-left:2px;">${pendingCount}</span>` : ''}
+        Submissions ${pendingCount > 0 ? `<span class="tab-badge-count" style="margin-left:2px;">${pendingCount}</span>` : ''}
       </button>
       <button class="mobile-bottom-tab ${isProfileOpen ? 'active' : ''}" onclick="switchMobileTab('profile')">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
