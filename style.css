@@ -1003,12 +1003,44 @@ body {
   width: 100%;
 }
 
+.btn-icon-only {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--ink);
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.btn-icon-only:hover {
+  background: var(--gold-tint);
+  border-color: var(--gold-border);
+  color: var(--gold);
+}
+
+.wallet-dot-mobile {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 7px;
+  height: 7px;
+  background: var(--emerald);
+  border-radius: 50%;
+  box-shadow: 0 0 6px var(--emerald);
+}
+
 /* Mobile Media Queries */
 @media (max-width: 768px) {
   .desktop-only, .desktop-nav {
     display: none !important;
   }
-  .mobile-only {
+  .mobile-only, .btn-icon-only.mobile-only {
     display: flex !important;
   }
   .mobile-bottom-nav {

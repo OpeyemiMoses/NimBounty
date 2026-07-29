@@ -548,13 +548,16 @@
       </div>
 
       <!-- POSTER VIEW -->
-      <div id="view-poster" style="display: none;">
+<div id="view-poster" style="display: none;">
 
         <div id="poster-subview-create">
           <div class="paper-card" style="background:var(--card); border:1px solid var(--border); border-radius:20px; padding:24px; max-width:780px; margin:0 auto;">
             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
               <h3 style="font-size:1.3rem; font-weight:800; color:var(--ink); margin:0;">Publish New Bounty Campaign</h3>
-              <span style="background:var(--gold-tint); color:var(--gold); padding:4px 10px; border-radius:8px; font-weight:700; font-size:0.78rem;">⚡ Direct Poster Wallet Payouts</span>
+              <span style="background:var(--gold-tint); color:var(--gold); padding:4px 10px; border-radius:8px; font-weight:700; font-size:0.78rem; display:inline-flex; align-items:center; gap:6px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                Direct Poster Wallet Payouts
+              </span>
             </div>
 
             <form onsubmit="event.preventDefault(); publishBountyPoolDirectly();">
@@ -579,50 +582,37 @@
                   <div>
                     <label style="font-size:0.85rem; font-weight:700; color:var(--muted); display:block; margin-bottom:6px;">Required Proof Type</label>
                     <select id="task-proof-type" style="width:100%; padding:12px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink);">
-                      <option value="text">Text Review / Written Feedback</option>
-                      <option value="url">Web Link / URL Proof</option>
-                      <option value="image">Screenshot Upload</option>
-                      <option value="image_text">Screenshot + Written Feedback</option>
+                      <option value="url-screenshot">Live URL &amp; Screenshot Proof</option>
+                      <option value="feedback-text">Structured Feedback / Review</option>
+                      <option value="tx-hash">Transaction Hash / Wallet Proof</option>
                     </select>
                   </div>
                 </div>
 
                 <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px;">
                   <div>
-                    <label style="font-size:0.85rem; font-weight:700; color:var(--muted); display:block; margin-bottom:6px;">Reward per Worker (NIM)</label>
+                    <label style="font-size:0.85rem; font-weight:700; color:var(--muted); display:block; margin-bottom:6px;">Reward per Completion (NIM)</label>
                     <input type="number" id="task-reward" min="1" step="1" value="50" oninput="calculateTotalEscrow()" style="width:100%; padding:12px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink);" required />
                   </div>
 
                   <div>
-                    <label style="font-size:0.85rem; font-weight:700; color:var(--muted); display:block; margin-bottom:6px;">Worker Slots</label>
-                    <input type="number" id="task-slots" min="1" step="1" value="10" oninput="calculateTotalEscrow()" style="width:100%; padding:12px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink);" required />
+                    <label style="font-size:0.85rem; font-weight:700; color:var(--muted); display:block; margin-bottom:6px;">Max Worker Slots</label>
+                    <input type="number" id="task-slots" min="1" max="1000" value="5" oninput="calculateTotalEscrow()" style="width:100%; padding:12px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink);" required />
                   </div>
 
                   <div>
-                    <label style="font-size:0.85rem; font-weight:700; color:var(--muted); display:block; margin-bottom:6px;">Campaign Duration</label>
+                    <label style="font-size:0.85rem; font-weight:700; color:var(--muted); display:block; margin-bottom:6px;">Duration (Days)</label>
                     <select id="task-duration" style="width:100%; padding:12px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink);">
-                      <option value="24">24 Hours (1 Day Flash)</option>
-                      <option value="72">3 Days (Short)</option>
-                      <option value="168">7 Days (1 Week)</option>
-                      <option value="336" selected>14 Days (2 Weeks Default)</option>
-                      <option value="720">30 Days (Monthly)</option>
+                      <option value="3">3 Days</option>
+                      <option value="7" selected>7 Days</option>
+                      <option value="14">14 Days</option>
+                      <option value="30">30 Days</option>
                     </select>
                   </div>
                 </div>
 
                 <div>
                   <label style="font-size:0.85rem; font-weight:700; color:var(--muted); display:block; margin-bottom:6px;">Detailed Task Instructions</label>
-                  <textarea id="task-instructions" rows="4" placeholder="Provide step-by-step instructions for workers..." style="width:100%; padding:12px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink);" required></textarea>
-                </div>
-
-                <!-- Live Budget Summary Box -->
-                <div style="background:var(--bg-subtle); border:1px solid var(--border); border-radius:14px; padding:16px; display:flex; flex-direction:column; gap:8px;">
-                  <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:var(--muted);">
-                    <span>Reward per worker:</span>
-                    <strong id="calc-single" style="color:var(--ink);">50 NIM</strong>
-                  </div>
-                  <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:var(--muted);">
-                    <span>Worker slots:</span>
                     <strong id="calc-slots-count" style="color:var(--ink);">10</strong>
                   </div>
                   <div style="border-top:1px dashed var(--border); margin:4px 0;"></div>
