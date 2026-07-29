@@ -176,10 +176,18 @@ async function fetchGlobalPublicBounties() {
             stateChanged = true;
           } else {
             const idx = bounties.findIndex(b => b.id === sb.id);
-            if (bounties[idx].slotsRemaining !== sb.slotsRemaining) {
-              bounties[idx].slotsRemaining = sb.slotsRemaining;
+      // Merge slots: only accept the server value if it is LOWER (i.e. more consumed).
+          // Never let a stale server read inflate slotsRemaining back up after a local deduction.
+          const localSlots = bounties[idx].slotsRemaining;
+          const serverSlots = sb.slotsRemaining;
+          if (serverSlots !== undefined && serverSlots !== localSlots) {
+            if (serverSlots < localSlots) {
+              // Server has consumed more slots — accept it
+              bounties[idx].slotsRemaining = serverSlots;
               stateChanged = true;
             }
+            // else: local value is lower (more consumed) — keep local, don't revert
+          }
           }
         });
         localStorage.setItem(STORAGE_KEY_LOCAL_BOUNTIES, JSON.stringify(bounties));
