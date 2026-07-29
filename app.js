@@ -496,12 +496,31 @@ function showView(viewName) {
     'how-it-works': document.getElementById('view-how-it-works')
   };
 
+  // Hide all views
   Object.values(views).forEach(v => { if (v) v.style.display = 'none'; });
 
   const sessionBar = document.getElementById('console-session-bar');
   const profilePanel = document.getElementById('panel-profile');
   const workerView = document.getElementById('view-worker');
   const posterView = document.getElementById('view-poster');
+  const mobileNav = document.getElementById('mobile-bottom-nav');
+
+  // Handle profile: show view-app but only the profile panel
+  if (viewName === 'profile') {
+    if (views.app) views.app.style.display = 'block';
+    if (workerView) workerView.style.display = 'none';
+    if (posterView) posterView.style.display = 'none';
+    if (profilePanel) {
+      profilePanel.style.display = 'block';
+      renderProfile();
+    }
+    if (sessionBar) sessionBar.style.display = 'flex';
+    if (mobileNav && window.innerWidth <= 768) mobileNav.style.setProperty('display', 'flex', 'important');
+    renderMobileBottomNav();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    renderSessionBar();
+    return;
+  }
 
   if (viewName === 'app') {
     if (profilePanel) profilePanel.style.display = 'none';
@@ -514,8 +533,18 @@ function showView(viewName) {
     }
   }
 
+  // Session bar only visible in app view
   if (sessionBar) {
     sessionBar.style.display = (viewName === 'app') ? 'flex' : 'none';
+  }
+
+  // Info pages: hide bottom nav
+  const infoPages = ['how-it-works', 'protections', 'faq'];
+  if (infoPages.includes(viewName)) {
+    if (mobileNav) mobileNav.style.setProperty('display', 'none', 'important');
+    if (views[viewName]) views[viewName].style.display = 'block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    return;
   }
 
   if (views[viewName]) {
@@ -827,7 +856,7 @@ function renderProfile() {
 
     <!-- Menu Action Cards -->
     <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:24px;">
-      <div class="menu-action-card" onclick="scrollToSection('how-it-works')">
+      <div class="menu-action-card" onclick="showView('how-it-works')">
         <div class="menu-action-icon">📖</div>
         <div style="flex:1;">
           <div class="menu-action-title">How It Works</div>
@@ -836,7 +865,7 @@ function renderProfile() {
         <span class="menu-action-arrow">&rarr;</span>
       </div>
 
-      <div class="menu-action-card" onclick="scrollToSection('features')">
+      <div class="menu-action-card" onclick="showView('protections')">
         <div class="menu-action-icon">🛡️</div>
         <div style="flex:1;">
           <div class="menu-action-title">Built-in Protections</div>
@@ -845,7 +874,7 @@ function renderProfile() {
         <span class="menu-action-arrow">&rarr;</span>
       </div>
 
-      <div class="menu-action-card" onclick="scrollToSection('faq')">
+      <div class="menu-action-card" onclick="showView('faq')">
         <div class="menu-action-icon">❓</div>
         <div style="flex:1;">
           <div class="menu-action-title">Frequently Asked Questions</div>
