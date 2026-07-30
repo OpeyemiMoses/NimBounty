@@ -1915,25 +1915,36 @@ async function approveWorkerPayout(subId) {
   sub.approvedAt = Date.now();
   sub.txHash = txHash;
 
-  approvedPayoutsHistory.unshift({
+  const approvedItem = {
     id: `pay-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
     bountyId: sub.bountyId,
     bountyTitle: sub.bountyTitle,
-    workerAddress: sub.workerAddress,
-    posterAddress: sub.posterAddress,
+    workerAddress: (sub.workerAddress || '').toUpperCase().replace(/\s+/g, ''),
+    posterAddress: (sub.posterAddress || '').toUpperCase().replace(/\s+/g, ''),
     reward: sub.reward,
     paidAt: Date.now(),
     txHash: txHash
-  });
+  };
+
+  approvedPayoutsHistory.unshift(approvedItem);
 
   // Remove approved submission from pendingSubmissions queue
   pendingSubmissions = pendingSubmissions.filter(s => s.id !== subId);
 
-  localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions));
+  // Save to localStorage safely
+  const safeSubsForStorage = pendingSubmissions.map(s => {
+    if (s.content && s.content.startsWith('data:image')) {
+      return { ...s, content: `[LOCAL_IMG:${s.id}]` };
+    }
+    return s;
+  });
+
+  try { localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(safeSubsForStorage)); } catch(e) {}
   localStorage.setItem(STORAGE_KEY_PAID_HISTORY, JSON.stringify(approvedPayoutsHistory));
   localStorage.setItem(STORAGE_KEY_LOCAL_BOUNTIES, JSON.stringify(bounties));
 
-  syncGlobalPublicBounties(null, true);
+  // Push approved payout item to global server store
+  await pushApprovedPayout(approvedItem);
 
   renderPosterDashboard();
   renderBounties();
@@ -1941,6 +1952,7 @@ async function approveWorkerPayout(subId) {
   renderSessionBar();
   renderProfile();
   renderDedicatedOrders();
+  renderLeaderboard();
   updateWalletUI();
   triggerConfetti();
   showToastNotification('Worker Paid', `${sub.reward} NIM transferred directly to ${getUserDisplayName(sub.workerAddress)}.`, false);
