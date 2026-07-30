@@ -79,13 +79,33 @@ function getProfile(walletAddress) {
   return allProfiles[clean];
 }
 
-// Helper: Save User Profile Data
+// Helper: Save User Profile Data & Sync Globally
 function saveProfile(walletAddress, profileData) {
   if (!walletAddress) return;
   const clean = String(walletAddress).replace(/\s+/g, '').toUpperCase();
   const allProfiles = JSON.parse(localStorage.getItem(STORAGE_KEY_PROFILE) || '{}');
   allProfiles[clean] = profileData;
   localStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(allProfiles));
+  pushUserProfile(clean, profileData);
+}
+
+async function pushUserProfile(walletAddress, profileData) {
+  if (!walletAddress) return;
+  try {
+    const apiEndpoint = window.location.origin.includes('localhost')
+      ? `${PRODUCTION_URL}/api/bounties`
+      : `/api/bounties`;
+
+    await fetch(apiEndpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        walletAddress: walletAddress,
+        profile: profileData,
+        updatedAt: Date.now()
+      })
+    });
+  } catch (e) {}
 }
 
 // Helper: Get Display Name (ALL CAPS Username if set, else Shortened Address)
@@ -267,7 +287,24 @@ async function fetchGlobalPublicBounties() {
         if (s.content && s.content.startsWith('data:image')) return { ...s, content: `[LOCAL_IMG:${s.id}]` };
         return s;
       });
-      try { localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(safeForStorage)); } catch(e) {}
+      // Merge global user profiles safely
+      if (data.profiles && typeof data.profiles === 'object') {
+        const allProfiles = JSON.parse(localStorage.getItem(STORAGE_KEY_PROFILE) || '{}');
+        let profChanged = false;
+        Object.keys(data.profiles).forEach(cleanAddr => {
+          const incoming = data.profiles[cleanAddr];
+          if (incoming && incoming.username) {
+            if (!allProfiles[cleanAddr] || allProfiles[cleanAddr].username !== incoming.username || allProfiles[cleanAddr].avatarUrl !== incoming.avatarUrl) {
+              allProfiles[cleanAddr] = { ...allProfiles[cleanAddr], ...incoming };
+              profChanged = true;
+            }
+          }
+        });
+        if (profChanged) {
+          localStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(allProfiles));
+          stateChanged = true;
+        }
+      }
 
       const newHash = `${bounties.length}-${pendingSubmissions.length}-${approvedPayoutsHistory.length}-${userAccount}`;
       if (stateChanged || newHash !== lastRenderHash) {
@@ -2394,8 +2431,10 @@ function renderLeaderboard() {
 
     const isCurrentConnected = userAccount && isSameNimiqAddress(w.cleanAddress, userAccount);
     const displayAddr = `${w.cleanAddress.substring(0, 6)}...${w.cleanAddress.substring(w.cleanAddress.length - 4)}`;
-    const displayUser = w.username
-      ? `<span style="font-weight:800; color:var(--ink); font-size:0.88rem;">@${w.username.toUpperCase()}</span>`
+    const currentProf = getProfile(w.cleanAddress);
+    const effectiveUsername = currentProf.username || w.username;
+    const displayUser = effectiveUsername
+      ? `<span style="font-weight:800; color:var(--ink); font-size:0.88rem;">@${effectiveUsername.toUpperCase()}</span>`
       : `<span style="color:var(--muted); font-size:0.8rem; font-style:italic;">No username set</span>`;
 
     return `

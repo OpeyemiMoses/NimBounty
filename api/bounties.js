@@ -3,7 +3,7 @@
 
 let activeBlobId = '019fb091-a7b1-75b7-817c-051be9882f1e';
 
-async function createNewBlob(initialData = { bounties: [], pendingSubmissions: [], approvedPayoutsHistory: [] }) {
+async function createNewBlob(initialData = { bounties: [], pendingSubmissions: [], approvedPayoutsHistory: [], profiles: {} }) {
   try {
     const res = await fetch('https://jsonblob.com/api/jsonBlob', {
       method: 'POST',
@@ -30,9 +30,11 @@ async function readStore() {
       return await createNewBlob();
     }
     if (!res.ok) throw new Error(`JSONBlob read status: ${res.status}`);
-    return await res.json();
+    const data = await res.json();
+    if (!data.profiles) data.profiles = {};
+    return data;
   } catch(e) {
-    return { bounties: [], pendingSubmissions: [], approvedPayoutsHistory: [] };
+    return { bounties: [], pendingSubmissions: [], approvedPayoutsHistory: [], profiles: {} };
   }
 }
 
@@ -71,11 +73,18 @@ export default async function handler(req, res) {
     try {
       const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
       const store = await readStore();
-      let { bounties, pendingSubmissions, approvedPayoutsHistory } = store;
+      let { bounties, pendingSubmissions, approvedPayoutsHistory, profiles } = store;
 
       if (!Array.isArray(bounties)) bounties = [];
       if (!Array.isArray(pendingSubmissions)) pendingSubmissions = [];
       if (!Array.isArray(approvedPayoutsHistory)) approvedPayoutsHistory = [];
+      if (!profiles || typeof profiles !== 'object') profiles = {};
+
+      // 0. Sync Profile Data
+      if (body.profile && body.walletAddress) {
+        const clean = String(body.walletAddress).replace(/\s+/g, '').toUpperCase();
+        profiles[clean] = { ...profiles[clean], ...body.profile, updatedAt: Date.now() };
+      }
 
       // 1. Sync Bounties
       if (body.newBounty) {
@@ -165,7 +174,7 @@ export default async function handler(req, res) {
       if (pendingSubmissions.length > 500) pendingSubmissions = pendingSubmissions.slice(0, 500);
       if (approvedPayoutsHistory.length > 1000) approvedPayoutsHistory = approvedPayoutsHistory.slice(0, 1000);
 
-      const newStore = { bounties, pendingSubmissions, approvedPayoutsHistory, updatedAt: Date.now() };
+      const newStore = { bounties, pendingSubmissions, approvedPayoutsHistory, profiles, updatedAt: Date.now() };
       await writeStore(newStore);
 
       return res.status(200).json({ success: true, ...newStore });
