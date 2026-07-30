@@ -262,6 +262,7 @@ async function fetchGlobalPublicBounties() {
         renderSessionBar();
         renderProfile();
         renderDedicatedOrders();
+        renderLeaderboard();
         updateWalletUI(); // Refresh NIM earned badge and wallet status
       }
     }
@@ -1215,6 +1216,17 @@ function renderProfile() {
 
     <!-- Menu Action Cards -->
     <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:24px;">
+      <div class="menu-action-card" onclick="openLeaderboardModal()" style="border:1.5px solid var(--gold); background:linear-gradient(135deg, rgba(255,199,44,0.08) 0%, rgba(255,199,44,0.02) 100%);">
+        <div class="menu-action-icon" style="background:var(--gold-tint); border:1px solid var(--gold-border);">🏆</div>
+        <div style="flex:1;">
+          <div class="menu-action-title" style="color:var(--gold-text); display:flex; align-items:center; gap:6px;">
+            Global Leaderboard <span style="background:var(--gold); color:#1a1917; font-size:0.65rem; font-weight:800; padding:2px 6px; border-radius:4px; text-transform:uppercase;">LIVE RANKINGS</span>
+          </div>
+          <div class="menu-action-desc">Track top earning worker wallets &amp; global NIM rankings</div>
+        </div>
+        <span class="menu-action-arrow" style="color:var(--gold);">&rarr;</span>
+      </div>
+
       <div class="menu-action-card" onclick="showView('how-it-works')">
         <div class="menu-action-icon">📖</div>
         <div style="flex:1;">
@@ -1731,12 +1743,28 @@ function renderPosterDashboard() {
 
   if (poolsList) {
     const myPools = bounties.filter(b => isSameNimiqAddress(b.posterAddress, userAccount));
-    poolsList.innerHTML = myPools.length ? myPools.map(b => `
-      <div style="background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; margin-bottom:12px;">
-        <h4 style="font-size:1rem; font-weight:800;">${b.title}</h4>
-        <div style="font-size:0.8rem; color:var(--muted); margin-top:4px;">Reward: ${b.reward} NIM &bull; Slots: ${b.slotsRemaining} / ${b.slotsTotal}</div>
-      </div>
-    `).join('') : createEmptyStateHTML(
+    poolsList.innerHTML = myPools.length ? myPools.map(b => {
+      const isSlotsZero = (b.slotsRemaining !== undefined && b.slotsRemaining <= 0);
+      const pendingSubCount = pendingSubmissions.filter(s => String(s.bountyId) === String(b.id) && s.status === 'pending').length;
+      const isFullyCompleted = isSlotsZero && pendingSubCount === 0;
+
+      const statusBadge = isFullyCompleted
+        ? `<span style="background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3); font-size:0.7rem; font-weight:800; padding:3px 8px; border-radius:6px; text-transform:uppercase; letter-spacing:0.04em; display:inline-flex; align-items:center; gap:4px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg> COMPLETED</span>`
+        : (isSlotsZero
+            ? `<span style="background:rgba(245,158,11,0.15); color:#f59e0b; border:1px solid rgba(245,158,11,0.3); font-size:0.7rem; font-weight:800; padding:3px 8px; border-radius:6px; text-transform:uppercase; letter-spacing:0.04em;">SLOTS FILLED (${pendingSubCount} PENDING)</span>`
+            : `<span style="background:rgba(59,130,246,0.15); color:#60a5fa; border:1px solid rgba(59,130,246,0.3); font-size:0.7rem; font-weight:800; padding:3px 8px; border-radius:6px; text-transform:uppercase; letter-spacing:0.04em;">ACTIVE POOL</span>`
+          );
+
+      return `
+        <div style="background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; margin-bottom:12px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px;">
+            <h4 style="font-size:1rem; font-weight:800; margin:0; color:var(--ink);">${b.title}</h4>
+            ${statusBadge}
+          </div>
+          <div style="font-size:0.8rem; color:var(--muted); font-weight:600;">Reward: ${b.reward} NIM &bull; Slots Remaining: ${b.slotsRemaining} / ${b.slotsTotal}</div>
+        </div>
+      `;
+    }).join('') : createEmptyStateHTML(
       'No Published Pools',
       'You have not published any task bounty pools yet. Click "Publish New Bounty" above to launch your first task pool!',
       `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>`
@@ -2270,5 +2298,93 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   // 3. Background async network fetches
   await fetchGlobalPublicBounties();
-  setInterval(fetchGlobalPublicBounties, 5000);
+  setInterval(fetchGlobalPublicBounties, 2000);
 });
+
+// ==========================================
+// GLOBAL LEADERBOARD ENGINE
+// ==========================================
+function renderLeaderboard() {
+  const container = document.getElementById('leaderboard-list-container');
+  if (!container) return;
+
+  const workerStats = {};
+
+  approvedPayoutsHistory.forEach(p => {
+    if (!p.workerAddress) return;
+    const cleanAddr = String(p.workerAddress).replace(/\s+/g, '').toUpperCase();
+    if (!workerStats[cleanAddr]) {
+      const prof = getProfile(cleanAddr);
+      workerStats[cleanAddr] = {
+        rawAddress: p.workerAddress,
+        cleanAddress: cleanAddr,
+        username: prof.username || null,
+        totalEarned: 0,
+        tasksCompleted: 0
+      };
+    }
+    workerStats[cleanAddr].totalEarned += (parseFloat(p.reward) || 0);
+    workerStats[cleanAddr].tasksCompleted += 1;
+    if (!workerStats[cleanAddr].username) {
+      const prof = getProfile(cleanAddr);
+      if (prof.username) workerStats[cleanAddr].username = prof.username;
+    }
+  });
+
+  const ranked = Object.values(workerStats).sort((a, b) => {
+    if (b.totalEarned !== a.totalEarned) return b.totalEarned - a.totalEarned;
+    return b.tasksCompleted - a.tasksCompleted;
+  });
+
+  if (ranked.length === 0) {
+    container.innerHTML = `
+      <div style="text-align:center; padding:40px 20px;">
+        <div style="width:56px; height:56px; background:var(--gold-tint); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 14px;">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><circle cx="12" cy="8" r="7"/><polyline points="8 21 12 17 16 21"/></svg>
+        </div>
+        <h4 style="font-size:1.1rem; font-weight:800; color:var(--ink); margin-bottom:6px;">No Leaderboard Stats Yet</h4>
+        <p style="font-size:0.82rem; color:var(--muted); margin-bottom:0;">Complete active task bounties to earn NIM and climb the global rankings!</p>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = ranked.map((w, index) => {
+    const rank = index + 1;
+    let rankBadge = `<span style="font-weight:900; color:var(--muted); width:28px; text-align:center; font-size:0.9rem;">#${rank}</span>`;
+    if (rank === 1) rankBadge = `<span style="width:28px; height:28px; background:#ffc72c; color:#1a1917; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-weight:900; font-size:0.85rem;">🥇</span>`;
+    else if (rank === 2) rankBadge = `<span style="width:28px; height:28px; background:#e2e8f0; color:#1e293b; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-weight:900; font-size:0.85rem;">🥈</span>`;
+    else if (rank === 3) rankBadge = `<span style="width:28px; height:28px; background:#cd7f32; color:#fff; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-weight:900; font-size:0.85rem;">🥉</span>`;
+
+    const isCurrentConnected = userAccount && isSameNimiqAddress(w.cleanAddress, userAccount);
+    const displayAddr = `${w.cleanAddress.substring(0, 6)}...${w.cleanAddress.substring(w.cleanAddress.length - 4)}`;
+    const displayUser = w.username
+      ? `<span style="font-weight:800; color:var(--ink); font-size:0.88rem;">@${w.username.toUpperCase()}</span>`
+      : `<span style="color:var(--muted); font-size:0.8rem; font-style:italic;">No username set</span>`;
+
+    return `
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px; background:${isCurrentConnected ? 'var(--gold-tint)' : 'var(--card)'}; border:1px solid ${isCurrentConnected ? 'var(--gold-border)' : 'var(--border)'}; border-radius:14px; margin-bottom:8px;">
+        <div style="display:flex; align-items:center; gap:12px; min-width:0;">
+          ${rankBadge}
+          <div style="min-width:0;">
+            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+              ${displayUser}
+              ${isCurrentConnected ? `<span style="background:var(--gold); color:#1a1917; font-size:0.65rem; font-weight:800; padding:1px 5px; border-radius:4px;">YOU</span>` : ''}
+            </div>
+            <div style="font-size:0.75rem; font-family:var(--font-mono); color:var(--muted); margin-top:2px;">${displayAddr} &bull; ${w.tasksCompleted} task${w.tasksCompleted === 1 ? '' : 's'}</div>
+          </div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:1rem; font-weight:900; color:var(--gold-text);">${w.totalEarned.toFixed(1)} NIM</div>
+          <div style="font-size:0.68rem; color:var(--muted); font-weight:700;">TOTAL EARNED</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function openLeaderboardModal() {
+  renderLeaderboard();
+  const modal = document.getElementById('modal-leaderboard');
+  if (modal) modal.style.display = 'flex';
+}

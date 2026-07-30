@@ -866,6 +866,26 @@
     </div>
   </div>
 
+  <!-- GLOBAL LEADERBOARD MODAL -->
+  <div class="modal-overlay" id="modal-leaderboard" style="display:none;">
+    <div class="modal-paper paper-card rise-in" style="max-width:520px; max-height:85vh; display:flex; flex-direction:column; padding:24px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid var(--border);">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="width:38px; height:38px; background:var(--gold-tint); border:1px solid var(--gold-border); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.2rem;">🏆</div>
+          <div>
+            <h3 style="font-size:1.2rem; font-weight:900; color:var(--ink); margin:0;">Global Leaderboard</h3>
+            <div style="font-size:0.75rem; color:var(--muted); font-weight:600;">Rankings based on total NIM earned on NimBounty</div>
+          </div>
+        </div>
+        <button class="modal-close" onclick="closeModal('modal-leaderboard')" style="position:static;">&times;</button>
+      </div>
+
+      <div id="leaderboard-list-container" style="flex:1; overflow-y:auto; padding-right:4px;">
+        <!-- Dynamic Leaderboard Items -->
+      </div>
+    </div>
+  </div>
+
   <!-- REPORT POSTER MODAL -->
   <div class="modal-overlay" id="modal-report-poster" style="display:none;">
     <div class="modal-paper paper-card rise-in" style="max-width:440px;">
