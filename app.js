@@ -5,19 +5,19 @@
 // Production API URL
 const PRODUCTION_URL = 'https://nim-bounty.vercel.app';
 
-// Storage Keys — Version 26 (Total Clean Slate)
-const STORAGE_KEY_USER_ACCT = 'nimbounty_user_wallet_v26';
-const STORAGE_KEY_PROFILE = 'nimbounty_profile_v26';
-const STORAGE_KEY_THEME = 'nimbounty_theme_v26';
-const STORAGE_KEY_LOCAL_BOUNTIES = 'nimbounty_pools_v26';
-const STORAGE_KEY_SUBS = 'nimbounty_subs_v26';
-const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v26';
-const STORAGE_KEY_REPUTATION = 'nimbounty_reputation_v26';
-const STORAGE_KEY_ONBOARDED_GLOBAL = 'nimbounty_onboarded_global_v26';
+// Storage Keys — Version 25 (Total Clean Slate)
+const STORAGE_KEY_USER_ACCT = 'nimbounty_user_wallet_v25';
+const STORAGE_KEY_PROFILE = 'nimbounty_profile_v25';
+const STORAGE_KEY_THEME = 'nimbounty_theme_v25';
+const STORAGE_KEY_LOCAL_BOUNTIES = 'nimbounty_pools_v25';
+const STORAGE_KEY_SUBS = 'nimbounty_subs_v25';
+const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v25';
+const STORAGE_KEY_REPUTATION = 'nimbounty_reputation_v25';
+const STORAGE_KEY_ONBOARDED_GLOBAL = 'nimbounty_onboarded_global_v25';
 
-// Clear all legacy local storage cache (v1–v25)
+// Clear all legacy local storage cache (v1–v24)
 try {
-  ['v1','v2','v3','v4','v5','v6','v7','v8','v9','v10','v11','v12','v13','v14','v15','v16','v17','v18','v19','v20','v21','v22','v23','v24','v25'].forEach(v => {
+  ['v1','v2','v3','v4','v5','v6','v7','v8','v9','v10','v11','v12','v13','v14','v15','v16','v17','v18','v19','v20','v21','v22','v23','v24'].forEach(v => {
     localStorage.removeItem(`nimbounty_pools_${v}`);
     localStorage.removeItem(`nimbounty_subs_${v}`);
     localStorage.removeItem(`nimbounty_approved_payouts_history_${v}`);
@@ -227,23 +227,36 @@ async function fetchGlobalPublicBounties() {
     if (!res.ok) return;
     const data = await res.json();
 
-    // 1. BOUNTIES — server authority + local unsynced drafts only
+    // ── SERVER IS AUTHORITATIVE ──
+    // Replace local arrays with server state, preserving only un-synced local items.
+
+    // 1. BOUNTIES — server is truth, but preserve any local bounties not yet on server
     if (Array.isArray(data.bounties)) {
       const serverIds = new Set(data.bounties.map(b => String(b.id)));
-      const unsyncedLocalBounties = bounties.filter(b => b._isUnsynced && !serverIds.has(String(b.id)));
-      bounties = [...data.bounties, ...unsyncedLocalBounties];
+      const localOnly = bounties.filter(b => !serverIds.has(String(b.id)));
+      bounties = [...data.bounties, ...localOnly];
       localStorage.setItem(STORAGE_KEY_LOCAL_BOUNTIES, JSON.stringify(bounties));
     }
 
-    // 2. APPROVED PAYOUTS HISTORY — server is total authority
+    // 2. APPROVED PAYOUTS HISTORY — server is truth, preserve local-only payouts
     if (Array.isArray(data.approvedPayoutsHistory)) {
-      approvedPayoutsHistory = data.approvedPayoutsHistory;
+      const serverPayKeys = new Set(
+        data.approvedPayoutsHistory.map(p => p.id || `${p.bountyId}_${(p.workerAddress || '').toUpperCase().replace(/\s+/g,'')}`)
+      );
+      const localOnlyPays = approvedPayoutsHistory.filter(p => {
+        const key = p.id || `${p.bountyId}_${(p.workerAddress || '').toUpperCase().replace(/\s+/g,'')}`;
+        return !serverPayKeys.has(key);
+      });
+      approvedPayoutsHistory = [...data.approvedPayoutsHistory, ...localOnlyPays];
       localStorage.setItem(STORAGE_KEY_PAID_HISTORY, JSON.stringify(approvedPayoutsHistory));
     }
 
-    // 3. PENDING SUBMISSIONS — server authority + local unsynced drafts
+    // 3. PENDING SUBMISSIONS — server is truth, preserve local-only subs (e.g. just submitted)
     if (Array.isArray(data.pendingSubmissions)) {
       const serverSubIds = new Set(data.pendingSubmissions.map(s => s.id));
+      // Keep local subs that haven't reached the server yet (preserving image data)
+      const localOnlySubs = pendingSubmissions.filter(s => !serverSubIds.has(s.id));
+      // For server subs, overlay local image data if we have it
       const mergedServerSubs = data.pendingSubmissions.map(ss => {
         const localMatch = pendingSubmissions.find(ls => ls.id === ss.id);
         if (localMatch && localMatch.content && localMatch.content.startsWith('data:image') && (!ss.content || ss.content.startsWith('[LOCAL_IMG'))) {
@@ -251,8 +264,7 @@ async function fetchGlobalPublicBounties() {
         }
         return ss;
       });
-      const unsyncedLocalSubs = pendingSubmissions.filter(s => s._isUnsynced && !serverSubIds.has(s.id));
-      pendingSubmissions = [...mergedServerSubs, ...unsyncedLocalSubs];
+      pendingSubmissions = [...mergedServerSubs, ...localOnlySubs];
     }
 
     // Mark any pending sub as 'approved' if it matches an approved payout
@@ -1733,7 +1745,7 @@ async function handleSubmitProof() {
     : 'SYSTEM';
 
   const timestamp = Date.now();
-  let signature = null;
+  let signature = `sig_fallback_${timestamp}`;
   let publicKey = null;
 
   // --- Ergon-pattern: provider.sign() — free cryptographic receipt, ZERO NIM sent ---
@@ -1749,64 +1761,28 @@ async function handleSubmitProof() {
     timestamp
   });
 
-  if (provider) {
-    let signedSuccess = false;
-    if (typeof provider.sign === 'function') {
-      try {
-        showToastNotification('Sign Proof', 'Review & sign the proof receipt in Nimiq Pay — no NIM is sent.', false);
-        const res = await provider.sign(proofReceipt);
-        if (res && !res.error && !res.canceled && (res.signature || typeof res === 'string')) {
-          signature = typeof res === 'string' ? res : res.signature;
-          publicKey = res.publicKey || null;
-          signedSuccess = true;
-        } else {
-          showToastNotification('Signature Rejected', 'Signature request rejected or cancelled. Task was NOT delivered.', true);
-          return;
-        }
-      } catch (e) {
-        // Fallback: try signMessage if available
-        if (typeof provider.signMessage === 'function') {
-          try {
-            const res2 = await provider.signMessage(proofReceipt);
-            if (res2 && !res2.error && !res2.canceled && (typeof res2 === 'string' || res2.signature)) {
-              signature = typeof res2 === 'string' ? res2 : res2.signature;
-              signedSuccess = true;
-            } else {
-              showToastNotification('Signature Rejected', 'Signature request rejected or cancelled. Task was NOT delivered.', true);
-              return;
-            }
-          } catch (e2) {
-            showToastNotification('Signature Rejected', 'Signature request rejected or cancelled. Task was NOT delivered.', true);
-            return;
-          }
-        } else {
-          showToastNotification('Signature Rejected', 'Signature request rejected or cancelled. Task was NOT delivered.', true);
-          return;
-        }
+  if (provider && typeof provider.sign === 'function') {
+    try {
+      showToastNotification('Sign Proof', 'Review & sign the proof receipt in Nimiq Pay — no NIM is sent.', false);
+      const res = await provider.sign(proofReceipt);
+      if (res && !res.error) {
+        signature = res.signature || signature;
+        publicKey = res.publicKey || null;
       }
-    } else if (typeof provider.signMessage === 'function') {
-      try {
-        showToastNotification('Sign Proof', 'Review & sign the proof receipt in Nimiq Pay — no NIM is sent.', false);
-        const res = await provider.signMessage(proofReceipt);
-        if (res && !res.error && !res.canceled && (typeof res === 'string' || res.signature)) {
-          signature = typeof res === 'string' ? res : res.signature;
-          signedSuccess = true;
-        } else {
-          showToastNotification('Signature Rejected', 'Signature request rejected or cancelled. Task was NOT delivered.', true);
-          return;
-        }
-      } catch (e) {
-        showToastNotification('Signature Rejected', 'Signature request rejected or cancelled. Task was NOT delivered.', true);
-        return;
+    } catch (e) {
+      // Fallback: try signMessage as backup (older SDK versions)
+      if (typeof provider.signMessage === 'function') {
+        try {
+          const res2 = await provider.signMessage(proofReceipt);
+          if (res2) signature = typeof res2 === 'string' ? res2 : (res2.signature || signature);
+        } catch (e2) {}
       }
     }
-
-    if (!signedSuccess && !signature) {
-      showToastNotification('Signature Required', 'Valid cryptographic signature required to deliver task proof.', true);
-      return;
-    }
-  } else {
-    signature = `sig_fallback_${timestamp}`;
+  } else if (provider && typeof provider.signMessage === 'function') {
+    try {
+      const res = await provider.signMessage(proofReceipt);
+      if (res) signature = typeof res === 'string' ? res : (res.signature || signature);
+    } catch (e) {}
   }
 
   const subId = `sub-${Date.now()}`;
@@ -1823,8 +1799,7 @@ async function handleSubmitProof() {
     publicKey: publicKey,
     submittedAt: new Date().toLocaleTimeString(),
     reward: bounty.reward,
-    status: 'pending',
-    _isUnsynced: true
+    status: 'pending'
   };
 
   pendingSubmissions.unshift(newSub);
@@ -1916,7 +1891,7 @@ async function publishBountyPoolDirectly() {
   const posterAddr = userAccount.replace(/\s+/g, '').toUpperCase();
 
   // --- Ergon-pattern: provider.sign() — Poster signs bounty creation receipt, no NIM sent ---
-  let publishSignature = null;
+  let publishSignature = `pubsig_fallback_${Date.now()}`;
   let publishPublicKey = null;
 
   const provider = getNimiqProvider();
@@ -1933,63 +1908,27 @@ async function publishBountyPoolDirectly() {
     timestamp: createdAt
   });
 
-  if (provider) {
-    let signedSuccess = false;
-    if (typeof provider.sign === 'function') {
-      try {
-        showToastNotification('Sign Bounty', 'Review & sign the bounty receipt in Nimiq Pay — no NIM is sent.', false);
-        const res = await provider.sign(bountyReceipt);
-        if (res && !res.error && !res.canceled && (res.signature || typeof res === 'string')) {
-          publishSignature = typeof res === 'string' ? res : res.signature;
-          publishPublicKey = res.publicKey || null;
-          signedSuccess = true;
-        } else {
-          showToastNotification('Signature Rejected', 'Bounty signature rejected or cancelled. Bounty was NOT published.', true);
-          return;
-        }
-      } catch (e) {
-        if (typeof provider.signMessage === 'function') {
-          try {
-            const res2 = await provider.signMessage(bountyReceipt);
-            if (res2 && !res2.error && !res2.canceled && (typeof res2 === 'string' || res2.signature)) {
-              publishSignature = typeof res2 === 'string' ? res2 : res2.signature;
-              signedSuccess = true;
-            } else {
-              showToastNotification('Signature Rejected', 'Bounty signature rejected or cancelled. Bounty was NOT published.', true);
-              return;
-            }
-          } catch (e2) {
-            showToastNotification('Signature Rejected', 'Bounty signature rejected or cancelled. Bounty was NOT published.', true);
-            return;
-          }
-        } else {
-          showToastNotification('Signature Rejected', 'Bounty signature rejected or cancelled. Bounty was NOT published.', true);
-          return;
-        }
+  if (provider && typeof provider.sign === 'function') {
+    try {
+      showToastNotification('Sign Bounty', 'Review & sign the bounty receipt in Nimiq Pay — no NIM is sent.', false);
+      const res = await provider.sign(bountyReceipt);
+      if (res && !res.error) {
+        publishSignature = res.signature || publishSignature;
+        publishPublicKey = res.publicKey || null;
       }
-    } else if (typeof provider.signMessage === 'function') {
-      try {
-        showToastNotification('Sign Bounty', 'Review & sign the bounty receipt in Nimiq Pay — no NIM is sent.', false);
-        const res = await provider.signMessage(bountyReceipt);
-        if (res && !res.error && !res.canceled && (typeof res === 'string' || res.signature)) {
-          publishSignature = typeof res === 'string' ? res : res.signature;
-          signedSuccess = true;
-        } else {
-          showToastNotification('Signature Rejected', 'Bounty signature rejected or cancelled. Bounty was NOT published.', true);
-          return;
-        }
-      } catch (e) {
-        showToastNotification('Signature Rejected', 'Bounty signature rejected or cancelled. Bounty was NOT published.', true);
-        return;
+    } catch (e) {
+      if (typeof provider.signMessage === 'function') {
+        try {
+          const res2 = await provider.signMessage(bountyReceipt);
+          if (res2) publishSignature = typeof res2 === 'string' ? res2 : (res2.signature || publishSignature);
+        } catch (e2) {}
       }
     }
-
-    if (!signedSuccess && !publishSignature) {
-      showToastNotification('Signature Required', 'Valid cryptographic signature required to publish bounty.', true);
-      return;
-    }
-  } else {
-    publishSignature = `pubsig_fallback_${createdAt}`;
+  } else if (provider && typeof provider.signMessage === 'function') {
+    try {
+      const res = await provider.signMessage(bountyReceipt);
+      if (res) publishSignature = typeof res === 'string' ? res : (res.signature || publishSignature);
+    } catch (e) {}
   }
 
   const newBounty = {
@@ -2009,8 +1948,7 @@ async function publishBountyPoolDirectly() {
     expiresAt,
     createdAt,
     publishSignature,
-    publishPublicKey,
-    _isUnsynced: true
+    publishPublicKey
   };
 
   bounties.unshift(newBounty);
