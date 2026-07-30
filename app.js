@@ -2017,8 +2017,17 @@ function handleImageUrlInput(event) {
 }
 
 async function handleSubmitProof() {
+  if (!isRealWalletConnected()) {
+    showToastNotification('Wallet Required', 'Connect your Nimiq Pay wallet first!', true);
+    openDesktopConnectModal();
+    return;
+  }
+
   const bounty = bounties.find(b => String(b.id) === String(currentModalBountyId));
-  if (!bounty) return;
+  if (!bounty) {
+    showToastNotification('Error', 'Bounty not found. Please close and reopen the modal.', true);
+    return;
+  }
 
   const pType = bounty.proofType || 'text';
   let proofContent = '';
