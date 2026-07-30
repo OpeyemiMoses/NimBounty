@@ -1,4 +1,4 @@
-﻿/* ==========================================
+/* ==========================================
    NIMBOUNTY V2 - VERBATIM MAIN DESIGN SYSTEM
    ========================================== */
 
@@ -1069,8 +1069,7 @@ textarea {
 
   .page-view,
   #view-orders,
-  #view-app,
-  #panel-profile {
+  #view-app {
     padding-bottom: 0 !important;
   }
 
@@ -1155,10 +1154,9 @@ textarea {
    PROFILE PANEL SYSTEM
 ───────────────────────────────────────── */
 #panel-profile {
-  padding: 16px;
+  padding: 20px 16px 120px 16px !important;
   display: none;
   overflow-y: auto;
-  max-height: calc(100vh - 160px);
 }
 
 .profile-card-xcrow {

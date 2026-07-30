@@ -1217,7 +1217,9 @@ function renderProfile() {
     <!-- Menu Action Cards -->
     <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:24px;">
       <div class="menu-action-card" onclick="openLeaderboardModal()" style="border:1.5px solid var(--gold); background:linear-gradient(135deg, rgba(255,199,44,0.08) 0%, rgba(255,199,44,0.02) 100%);">
-        <div class="menu-action-icon" style="background:var(--gold-tint); border:1px solid var(--gold-border);">🏆</div>
+        <div class="menu-action-icon" style="background:var(--gold-tint); border:1px solid var(--gold-border); display:flex; align-items:center; justify-content:center;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg>
+        </div>
         <div style="flex:1;">
           <div class="menu-action-title" style="color:var(--gold-text); display:flex; align-items:center; gap:6px;">
             Global Leaderboard <span style="background:var(--gold); color:#1a1917; font-size:0.65rem; font-weight:800; padding:2px 6px; border-radius:4px; text-transform:uppercase;">LIVE RANKINGS</span>
@@ -1228,7 +1230,9 @@ function renderProfile() {
       </div>
 
       <div class="menu-action-card" onclick="showView('how-it-works')">
-        <div class="menu-action-icon">📖</div>
+        <div class="menu-action-icon" style="display:flex; align-items:center; justify-content:center;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+        </div>
         <div style="flex:1;">
           <div class="menu-action-title">How It Works</div>
           <div class="menu-action-desc">Learn about bounty creation, proof signing &amp; payouts</div>
@@ -1237,7 +1241,9 @@ function renderProfile() {
       </div>
 
       <div class="menu-action-card" onclick="showView('protections')">
-        <div class="menu-action-icon">🛡️</div>
+        <div class="menu-action-icon" style="display:flex; align-items:center; justify-content:center;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
         <div style="flex:1;">
           <div class="menu-action-title">Built-in Protections</div>
           <div class="menu-action-desc">Cryptographic signing &amp; anti-sybil device IDs</div>
@@ -1246,7 +1252,9 @@ function renderProfile() {
       </div>
 
       <div class="menu-action-card" onclick="showView('faq')">
-        <div class="menu-action-icon">❓</div>
+        <div class="menu-action-icon" style="display:flex; align-items:center; justify-content:center;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </div>
         <div style="flex:1;">
           <div class="menu-action-title">Frequently Asked Questions</div>
           <div class="menu-action-desc">Common questions about NimBounty micro-tasks</div>
@@ -1483,11 +1491,11 @@ function startClaimTimer(durationSeconds) {
     const minutes = Math.floor(timer / 60);
     const seconds = timer % 60;
     if (timerEl) {
-      timerEl.textContent = `⏱️ Lock Remaining: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+      timerEl.textContent = `Lock Remaining: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
     }
     if (--timer < 0) {
       clearInterval(activeClaimTimer);
-      showToastNotification('⏱️ Timer Expired', 'Slot reservation expired.', false);
+      showToastNotification('Timer Expired', 'Slot reservation expired.', false);
       closeModal('modal-submit-proof');
     }
   }, 1000);
@@ -2352,9 +2360,9 @@ function renderLeaderboard() {
   container.innerHTML = ranked.map((w, index) => {
     const rank = index + 1;
     let rankBadge = `<span style="font-weight:900; color:var(--muted); width:28px; text-align:center; font-size:0.9rem;">#${rank}</span>`;
-    if (rank === 1) rankBadge = `<span style="width:28px; height:28px; background:#ffc72c; color:#1a1917; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-weight:900; font-size:0.85rem;">🥇</span>`;
-    else if (rank === 2) rankBadge = `<span style="width:28px; height:28px; background:#e2e8f0; color:#1e293b; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-weight:900; font-size:0.85rem;">🥈</span>`;
-    else if (rank === 3) rankBadge = `<span style="width:28px; height:28px; background:#cd7f32; color:#fff; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-weight:900; font-size:0.85rem;">🥉</span>`;
+    if (rank === 1) rankBadge = `<span style="width:28px; height:28px; background:linear-gradient(135deg, #ffc72c 0%, #e6a800 100%); border-radius:50%; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 2px 6px rgba(255,199,44,0.4);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1a1917" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg></span>`;
+    else if (rank === 2) rankBadge = `<span style="width:28px; height:28px; background:linear-gradient(135deg, #94a3b8 0%, #64748b 100%); border-radius:50%; display:inline-flex; align-items:center; justify-content:center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg></span>`;
+    else if (rank === 3) rankBadge = `<span style="width:28px; height:28px; background:linear-gradient(135deg, #d97706 0%, #b45309 100%); border-radius:50%; display:inline-flex; align-items:center; justify-content:center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg></span>`;
 
     const isCurrentConnected = userAccount && isSameNimiqAddress(w.cleanAddress, userAccount);
     const displayAddr = `${w.cleanAddress.substring(0, 6)}...${w.cleanAddress.substring(w.cleanAddress.length - 4)}`;

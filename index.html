@@ -844,7 +844,7 @@
       <p style="font-size:0.82rem; color:var(--muted); margin-bottom:16px;">Scan QR code or copy deeplink to share this task pool.</p>
       <div id="qrcode-box" style="display:flex; justify-content:center; margin-bottom:16px; padding:16px; background:#fff; border-radius:16px; border:1px solid var(--border);"></div>
       <input type="text" id="qr-link-input" readonly style="width:100%; padding:10px; font-family:var(--font-mono); font-size:0.75rem; background:var(--bg-subtle); border:1px solid var(--border); border-radius:10px; color:var(--ink); text-align:center; margin-bottom:12px;" />
-      <button class="btn-primary-sm full-width" onclick="copyQrLink()" style="justify-content:center; padding:10px;">Copy Share Link 📋</button>
+      <button class="btn-primary-sm full-width" onclick="copyQrLink()" style="justify-content:center; padding:10px; display:inline-flex; align-items:center; gap:6px;">Copy Share Link <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
     </div>
   </div>
 
@@ -871,7 +871,9 @@
     <div class="modal-paper paper-card rise-in" style="max-width:520px; max-height:85vh; display:flex; flex-direction:column; padding:24px;">
       <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid var(--border);">
         <div style="display:flex; align-items:center; gap:10px;">
-          <div style="width:38px; height:38px; background:var(--gold-tint); border:1px solid var(--gold-border); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.2rem;">🏆</div>
+          <div style="width:38px; height:38px; background:var(--gold-tint); border:1px solid var(--gold-border); border-radius:50%; display:flex; align-items:center; justify-content:center;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg>
+          </div>
           <div>
             <h3 style="font-size:1.2rem; font-weight:900; color:var(--ink); margin:0;">Global Leaderboard</h3>
             <div style="font-size:0.75rem; color:var(--muted); font-weight:600;">Rankings based on total NIM earned on NimBounty</div>
