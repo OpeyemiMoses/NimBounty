@@ -1429,8 +1429,8 @@ function renderProfile() {
           <div style="font-size:1.25rem; font-weight:800; color:var(--ink); line-height:1.2;">${ratingStr}</div>
           <div style="font-size:0.65rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; margin-top:4px;">RATING</div>
         </div>
-        <div style="padding:14px 8px; text-align:center;">
-          <div style="font-size:1.25rem; font-weight:800; color:var(--ink); line-height:1.2;">${rep.reports || 0}</div>
+        <div onclick="openReportsModal()" style="padding:14px 8px; text-align:center; cursor:pointer;" title="View dispute & report details">
+          <div style="font-size:1.25rem; font-weight:800; color:${rep.reports > 0 ? 'var(--danger)' : 'var(--ink)'}; line-height:1.2;">${rep.reports || 0}</div>
           <div style="font-size:0.65rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; margin-top:4px;">REPORTS</div>
         </div>
       </div>
@@ -2362,10 +2362,16 @@ function renderPosterDashboard() {
         proofHTML = `<div style="font-size:0.85rem; color:var(--muted); padding:10px; background:var(--bg-subtle); border-radius:10px; margin-bottom:12px;">No proof content attached.</div>`;
       }
 
+      const workerRating = getPosterRating(s.workerAddress);
+
       return `
         <div style="background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; margin-bottom:12px;" data-sub-id="${s.id}">
           <h4 style="font-size:1rem; font-weight:800; margin-bottom:4px;">${s.bountyTitle}</h4>
-          <p style="font-size:0.82rem; color:var(--muted); margin:0 0 12px;">Worker: <strong>${getUserDisplayName(s.workerAddress)}</strong></p>
+          <p style="font-size:0.82rem; color:var(--muted); margin:0 0 12px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+            <span>Worker: <strong>${getUserDisplayName(s.workerAddress)}</strong></span>
+            <span>&bull;</span>
+            ${workerRating.HTML}
+          </p>
           ${proofHTML}
           <div style="display:flex; gap:10px;">
             <button class="btn-primary-sm" onclick="approveWorkerPayout('${s.id}')" style="flex:1; justify-content:center;">Approve &amp; Pay ${s.reward} NIM</button>
@@ -2475,6 +2481,9 @@ async function approveWorkerPayout(subId) {
   // Push approved payout + sub removal + bounty update atomically to server
   await pushApprovedPayout(approvedItem, subId, bountyForSub || null);
 
+  // Auto-settle any active report filed by this worker against this poster
+  await settleReport(sub.posterAddress, sub.workerAddress);
+
   renderPosterDashboard();
   renderBounties();
   renderMobileBottomNav();
@@ -2497,7 +2506,12 @@ async function pushNewReport(targetAddress, reason) {
   if (!allRep[cleanTarget]) allRep[cleanTarget] = { count: 0, list: [] };
   allRep[cleanTarget].count = (allRep[cleanTarget].count || 0) + 1;
   if (!Array.isArray(allRep[cleanTarget].list)) allRep[cleanTarget].list = [];
-  allRep[cleanTarget].list.unshift({ reporterAddress: reporterAddr, reason, timestamp: Date.now() });
+  allRep[cleanTarget].list.unshift({
+    id: `rep-${Date.now()}-${Math.random().toString(36).substr(2,5)}`,
+    reporterAddress: reporterAddr,
+    reason: reason,
+    timestamp: Date.now()
+  });
   localStorage.setItem(STORAGE_KEY_REPUTATION, JSON.stringify(allRep));
 
   // 2. Push to global server store
@@ -2526,6 +2540,93 @@ async function pushNewReport(targetAddress, reason) {
   renderDedicatedOrders();
   renderLeaderboard();
   renderGlobalRegistry();
+}
+
+async function settleReport(targetAddress, reporterAddress = null, reportId = null) {
+  if (!targetAddress) return;
+  const cleanTarget = String(targetAddress).replace(/\s+/g, '').toUpperCase();
+  const cleanReporter = reporterAddress ? String(reporterAddress).replace(/\s+/g, '').toUpperCase() : null;
+
+  // 1. Update local storage
+  const allRep = JSON.parse(localStorage.getItem(STORAGE_KEY_REPUTATION) || '{}');
+  if (allRep[cleanTarget] && Array.isArray(allRep[cleanTarget].list)) {
+    if (cleanReporter) {
+      allRep[cleanTarget].list = allRep[cleanTarget].list.filter(r => String(r.reporterAddress || '').replace(/\s+/g, '').toUpperCase() !== cleanReporter);
+    } else if (reportId) {
+      allRep[cleanTarget].list = allRep[cleanTarget].list.filter(r => r.id !== reportId);
+    }
+    allRep[cleanTarget].count = allRep[cleanTarget].list.length;
+    localStorage.setItem(STORAGE_KEY_REPUTATION, JSON.stringify(allRep));
+  }
+
+  // 2. Push settlement to server
+  try {
+    const apiEndpoint = window.location.origin.includes('localhost')
+      ? `${PRODUCTION_URL}/api/bounties`
+      : `/api/bounties`;
+
+    await fetch(apiEndpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        settleReport: {
+          targetAddress: cleanTarget,
+          reporterAddress: cleanReporter,
+          reportId: reportId
+        }
+      })
+    });
+  } catch (e) {}
+
+  // 3. Re-render UI
+  renderProfile();
+  renderBounties();
+  renderPosterDashboard();
+  renderDedicatedOrders();
+  renderLeaderboard();
+  renderGlobalRegistry();
+  showToastNotification('Report Settled', 'Report dismissed and rating updated.', false);
+}
+
+function openReportsModal() {
+  renderReportsList();
+  const modal = document.getElementById('modal-reports-list');
+  if (modal) modal.style.display = 'flex';
+}
+
+function renderReportsList() {
+  const container = document.getElementById('reports-modal-content');
+  if (!container || !userAccount) return;
+
+  const rep = getReputation(userAccount);
+  const myReports = rep.list || [];
+
+  if (myReports.length === 0) {
+    container.innerHTML = createEmptyStateHTML(
+      'No Active Reports',
+      'Your account has 0 active reports. Keep maintaining clean transactions to keep a 5.0 rating!',
+      `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--emerald)" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`
+    );
+    return;
+  }
+
+  container.innerHTML = myReports.map(r => `
+    <div style="background:var(--bg-subtle); border:1px solid var(--border); border-radius:14px; padding:14px; margin-bottom:10px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+        <span style="font-size:0.75rem; font-weight:800; color:var(--danger); text-transform:uppercase; display:inline-flex; align-items:center; gap:4px;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+          Reported by ${getUserDisplayName(r.reporterAddress)}
+        </span>
+        <span style="font-size:0.72rem; color:var(--muted);">${r.timestamp ? new Date(r.timestamp).toLocaleDateString() : 'Recently'}</span>
+      </div>
+      <div style="font-size:0.83rem; color:var(--ink); background:var(--card); border:1px solid var(--border); padding:10px; border-radius:10px; margin-bottom:10px;">
+        ${r.reason || 'No reason provided.'}
+      </div>
+      <button onclick="settleReport('${userAccount}', '${r.reporterAddress}', '${r.id}')" class="btn-ghost-sm full-width" style="font-size:0.75rem; color:var(--emerald); border-color:rgba(16,185,129,0.3); justify-content:center;">
+        ✓ Mark Resolved &amp; Withdraw Report
+      </button>
+    </div>
+  `).join('');
 }
 
 let _pendingRejectSubId = null;

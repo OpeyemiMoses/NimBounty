@@ -953,11 +953,36 @@
           </div>
           <label style="display:flex; align-items:center; gap:8px; font-size:0.8rem; color:var(--danger); cursor:pointer; font-weight:700; background:rgba(239,68,68,0.08); padding:8px 12px; border-radius:10px; border:1px solid rgba(239,68,68,0.2);">
             <input type="checkbox" id="reject-flag-spam-check" style="accent-color:var(--danger);" />
-            <span>🚩 Flag worker account for fake/spam proof</span>
+            <span style="display:inline-flex; align-items:center; gap:4px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+              Flag worker account for fake/spam proof
+            </span>
           </label>
           <button class="btn-primary-lg full-width" type="submit" style="justify-content:center; background:var(--danger); color:#fff;">Confirm Rejection &rarr;</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- REPORTS DISPUTE RESOLUTION MODAL -->
+  <div class="modal-overlay" id="modal-reports-list" style="display:none;">
+    <div class="modal-paper paper-card rise-in" style="max-width:480px; max-height:85vh; display:flex; flex-direction:column; padding:24px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid var(--border);">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="width:38px; height:38px; background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.3); border-radius:50%; display:flex; align-items:center; justify-content:center; color:var(--danger);">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+          </div>
+          <div>
+            <h3 style="font-size:1.2rem; font-weight:900; color:var(--ink); margin:0;">Dispute &amp; Report Details</h3>
+            <div style="font-size:0.75rem; color:var(--muted); font-weight:600;">Reports filed against or by your account</div>
+          </div>
+        </div>
+        <button class="modal-close" onclick="closeModal('modal-reports-list')" style="position:static;">&times;</button>
+      </div>
+
+      <div id="reports-modal-content" style="flex:1; overflow-y:auto; padding-right:4px;">
+        <!-- Dynamic Reports Items -->
+      </div>
     </div>
   </div>
 

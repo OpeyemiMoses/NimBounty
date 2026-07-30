@@ -70,10 +70,26 @@ export default async function handler(req, res) {
         }
         reports[cleanTarget].count = (reports[cleanTarget].count || 0) + 1;
         reports[cleanTarget].list.unshift({
+          id: `rep-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
           reporterAddress: body.newReport.reporterAddress || 'ANONYMOUS',
           reason: body.newReport.reason || 'Flagged for review',
           timestamp: Date.now()
         });
+      }
+
+      // 0.1 Handle Settle / Dismiss Report
+      if (body.settleReport && body.settleReport.targetAddress) {
+        const cleanTarget = String(body.settleReport.targetAddress).replace(/\s+/g, '').toUpperCase();
+        const cleanReporter = body.settleReport.reporterAddress ? String(body.settleReport.reporterAddress).replace(/\s+/g, '').toUpperCase() : null;
+
+        if (reports[cleanTarget] && Array.isArray(reports[cleanTarget].list)) {
+          if (cleanReporter) {
+            reports[cleanTarget].list = reports[cleanTarget].list.filter(r => String(r.reporterAddress || '').replace(/\s+/g, '').toUpperCase() !== cleanReporter);
+          } else if (body.settleReport.reportId) {
+            reports[cleanTarget].list = reports[cleanTarget].list.filter(r => r.id !== body.settleReport.reportId);
+          }
+          reports[cleanTarget].count = reports[cleanTarget].list.length;
+        }
       }
 
       // 0. Sync Profile Data
