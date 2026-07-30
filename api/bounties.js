@@ -1,37 +1,19 @@
 // Vercel Serverless API — NimBounty Global Store Sync Engine
 // Manages global real-time synchronization for bounties, worker submissions, and approved payouts.
 
-let activeBlobId = '019fb0ee-335d-787d-a99c-cbf42e2dc678';
-
-async function createNewBlob(initialData = { bounties: [], pendingSubmissions: [], approvedPayoutsHistory: [], profiles: {} }) {
-  try {
-    const res = await fetch('https://jsonblob.com/api/jsonBlob', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify(initialData)
-    });
-    const loc = res.headers.get('location');
-    if (loc) {
-      const parts = loc.split('/');
-      activeBlobId = parts[parts.length - 1];
-    }
-    return initialData;
-  } catch (e) {
-    return initialData;
-  }
-}
+const ACTIVE_BLOB_ID = '019fb293-6a30-7f0f-b59d-0c56e59af067';
 
 async function readStore() {
   try {
-    const res = await fetch(`https://jsonblob.com/api/jsonBlob/${activeBlobId}`, {
+    const res = await fetch(`https://jsonblob.com/api/jsonBlob/${ACTIVE_BLOB_ID}`, {
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }
     });
-    if (res.status === 404) {
-      return await createNewBlob();
-    }
     if (!res.ok) throw new Error(`JSONBlob read status: ${res.status}`);
     const data = await res.json();
-    if (!data.profiles) data.profiles = {};
+    if (!Array.isArray(data.bounties)) data.bounties = [];
+    if (!Array.isArray(data.pendingSubmissions)) data.pendingSubmissions = [];
+    if (!Array.isArray(data.approvedPayoutsHistory)) data.approvedPayoutsHistory = [];
+    if (!data.profiles || typeof data.profiles !== 'object') data.profiles = {};
     return data;
   } catch(e) {
     return { bounties: [], pendingSubmissions: [], approvedPayoutsHistory: [], profiles: {} };
@@ -40,18 +22,16 @@ async function readStore() {
 
 async function writeStore(data) {
   try {
-    const res = await fetch(`https://jsonblob.com/api/jsonBlob/${activeBlobId}`, {
+    const res = await fetch(`https://jsonblob.com/api/jsonBlob/${ACTIVE_BLOB_ID}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
       body: JSON.stringify(data)
     });
-    if (res.status === 404) {
-      return await createNewBlob(data);
-    }
     if (!res.ok) throw new Error(`JSONBlob write status: ${res.status}`);
     return res.json();
   } catch (e) {
-    return await createNewBlob(data);
+    console.error('writeStore error:', e);
+    return data;
   }
 }
 
@@ -112,7 +92,7 @@ export default async function handler(req, res) {
         });
       }
 
-      // 2. Sync Approved Payouts History
+      // 2. Sync Approved Payouts History (PERMANENTLY KEEP ALL APPROVED PAYOUTS)
       if (Array.isArray(body.approvedPayoutsHistory) && body.approvedPayoutsHistory.length > 0) {
         const existingPayKeys = new Set(
           approvedPayoutsHistory.map(p => p.id || `${p.bountyId}_${p.paidAt}_${(p.workerAddress || '').toUpperCase().replace(/\s+/g,'')}`)
@@ -126,21 +106,17 @@ export default async function handler(req, res) {
         });
       }
 
-      // 3. Sync Pending Submissions
-      if (body.newSubmission && body.newSubmission.id) {
-        const subKey = String(body.newSubmission.bountyId) + '_' + (body.newSubmission.workerAddress || '').toUpperCase().replace(/\s+/g,'');
-        // Remove any old approved record for this specific worker+bounty so new proof is unblocked
-        approvedPayoutsHistory = approvedPayoutsHistory.filter(p => {
-          const pKey = String(p.bountyId) + '_' + (p.workerAddress || '').toUpperCase().replace(/\s+/g,'');
-          return pKey !== subKey;
-        });
+      if (body.removeSubmissionId) {
+        pendingSubmissions = pendingSubmissions.filter(s => s.id !== body.removeSubmissionId);
+      }
 
-        const alreadyExists = pendingSubmissions.some(s => s.id === body.newSubmission.id);
-        if (!alreadyExists) {
+      // 3. Sync Pending Submissions (Deduplicate strictly by submission ID)
+      if (body.newSubmission && body.newSubmission.id) {
+        const existingIdx = pendingSubmissions.findIndex(s => s.id === body.newSubmission.id);
+        if (existingIdx === -1) {
           pendingSubmissions.unshift(body.newSubmission);
         } else {
-          const idx = pendingSubmissions.findIndex(s => s.id === body.newSubmission.id);
-          if (idx !== -1) pendingSubmissions[idx] = { ...pendingSubmissions[idx], ...body.newSubmission };
+          pendingSubmissions[existingIdx] = { ...pendingSubmissions[existingIdx], ...body.newSubmission };
         }
       } else if (Array.isArray(body.pendingSubmissions)) {
         if (body.replacePendingSubmissions) {
@@ -168,6 +144,15 @@ export default async function handler(req, res) {
       pendingSubmissions = pendingSubmissions.filter(s => {
         const key = String(s.bountyId) + '_' + (s.workerAddress || '').toUpperCase().replace(/\s+/g,'');
         return !approvedKeys.has(key);
+      });
+
+      // 5. Dynamic slot recalculation based on real consumption
+      bounties.forEach(b => {
+        const bId = String(b.id);
+        const pendingCount = pendingSubmissions.filter(s => String(s.bountyId) === bId && s.status === 'pending').length;
+        const approvedCount = approvedPayoutsHistory.filter(p => String(p.bountyId) === bId).length;
+        const total = parseInt(b.slotsTotal || 5);
+        b.slotsRemaining = Math.max(0, total - (pendingCount + approvedCount));
       });
 
       if (bounties.length > 200) bounties = bounties.slice(0, 200);

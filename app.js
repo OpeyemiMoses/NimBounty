@@ -5,19 +5,19 @@
 // Production API URL
 const PRODUCTION_URL = 'https://nim-bounty.vercel.app';
 
-// Storage Keys — Version 11 (Total Clean Slate)
-const STORAGE_KEY_USER_ACCT = 'nimbounty_user_wallet_v11';
-const STORAGE_KEY_PROFILE = 'nimbounty_profile_v11';
-const STORAGE_KEY_THEME = 'nimbounty_theme_v11';
-const STORAGE_KEY_LOCAL_BOUNTIES = 'nimbounty_pools_v11';
-const STORAGE_KEY_SUBS = 'nimbounty_subs_v11';
-const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v11';
-const STORAGE_KEY_REPUTATION = 'nimbounty_reputation_v11';
-const STORAGE_KEY_ONBOARDED_GLOBAL = 'nimbounty_onboarded_global_v11';
+// Storage Keys — Version 25 (Total Clean Slate)
+const STORAGE_KEY_USER_ACCT = 'nimbounty_user_wallet_v25';
+const STORAGE_KEY_PROFILE = 'nimbounty_profile_v25';
+const STORAGE_KEY_THEME = 'nimbounty_theme_v25';
+const STORAGE_KEY_LOCAL_BOUNTIES = 'nimbounty_pools_v25';
+const STORAGE_KEY_SUBS = 'nimbounty_subs_v25';
+const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v25';
+const STORAGE_KEY_REPUTATION = 'nimbounty_reputation_v25';
+const STORAGE_KEY_ONBOARDED_GLOBAL = 'nimbounty_onboarded_global_v25';
 
-// Clear all legacy local storage cache (v1–v10)
+// Clear all legacy local storage cache (v1–v24)
 try {
-  ['v1','v2','v3','v4','v5','v6','v7','v8','v9','v10'].forEach(v => {
+  ['v1','v2','v3','v4','v5','v6','v7','v8','v9','v10','v11','v12','v13','v14','v15','v16','v17','v18','v19','v20','v21','v22','v23','v24'].forEach(v => {
     localStorage.removeItem(`nimbounty_pools_${v}`);
     localStorage.removeItem(`nimbounty_subs_${v}`);
     localStorage.removeItem(`nimbounty_approved_payouts_history_${v}`);
@@ -788,12 +788,10 @@ function updateLandingStats() {
   const elPayouts = document.getElementById('landing-stat-payouts');
 
   const activeCount = bounties.filter(b => (b.slotsRemaining === undefined || b.slotsRemaining > 0)).length;
-  const seedPayoutsSum = 1250;
   const livePayoutsSum = approvedPayoutsHistory.reduce((sum, p) => sum + (parseFloat(p.reward) || 0), 0);
-  const totalPayouts = seedPayoutsSum + livePayoutsSum;
 
-  if (elBounties) elBounties.textContent = activeCount > 0 ? activeCount : (INITIAL_SEED_BOUNTIES.length || 2);
-  if (elPayouts) elPayouts.textContent = `${totalPayouts.toLocaleString()} NIM`;
+  if (elBounties) elBounties.textContent = activeCount;
+  if (elPayouts) elPayouts.textContent = `${livePayoutsSum.toFixed(1)} NIM`;
 }
 
 function renderSessionBar() {
@@ -1053,18 +1051,20 @@ function renderMobileBottomNav() {
 }
 
 function switchMobileTab(tab) {
-  const profilePanel = document.getElementById('panel-profile');
-  const workerView   = document.getElementById('view-worker');
-  const posterView   = document.getElementById('view-poster');
-  const appView      = document.getElementById('view-app');
-  const ordersView   = document.getElementById('view-orders');
-  const landingView  = document.getElementById('view-landing');
-  const sessionBar   = document.getElementById('console-session-bar');
-  const mobileNav    = document.getElementById('mobile-bottom-nav');
+  const profilePanel  = document.getElementById('panel-profile');
+  const workerView    = document.getElementById('view-worker');
+  const posterView    = document.getElementById('view-poster');
+  const appView       = document.getElementById('view-app');
+  const ordersView    = document.getElementById('view-orders');
+  const registryView  = document.getElementById('view-registry');
+  const landingView   = document.getElementById('view-landing');
+  const sessionBar    = document.getElementById('console-session-bar');
+  const mobileNav     = document.getElementById('mobile-bottom-nav');
 
-  // Hide landing and orders; always show app wrapper
+  // Hide landing, orders, and registry; always keep tabs scoped
   if (landingView)  landingView.style.display  = 'none';
   if (ordersView)   ordersView.style.display   = 'none';
+  if (registryView) registryView.style.display = 'none';
 
   if (tab === 'orders') {
     if (appView)      appView.style.display      = 'none';
