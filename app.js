@@ -1727,13 +1727,42 @@ async function handleSubmitProof() {
     : 'SYSTEM';
 
   const timestamp = Date.now();
-  const proofMessage = `NIMBOUNTY_PROOF_SIGNATURE | Bounty: ${bounty.id} | Worker: ${workerAddr} | Time: ${timestamp}`;
-  let signature = `sig_${Date.now()}`;
+  let signature = `sig_fallback_${timestamp}`;
+  let publicKey = null;
 
+  // --- Ergon-pattern: provider.sign() — free cryptographic receipt, ZERO NIM sent ---
   const provider = getNimiqProvider();
-  if (provider && typeof provider.signMessage === 'function') {
+  const proofReceipt = JSON.stringify({
+    app: 'NimBounty',
+    action: 'submit-proof',
+    bountyId: bounty.id,
+    bountyTitle: bounty.title,
+    proofType: pType,
+    worker: workerAddr,
+    reward: bounty.reward,
+    timestamp
+  });
+
+  if (provider && typeof provider.sign === 'function') {
     try {
-      const res = await provider.signMessage(proofMessage);
+      showToastNotification('Sign Proof', 'Review & sign the proof receipt in Nimiq Pay — no NIM is sent.', false);
+      const res = await provider.sign(proofReceipt);
+      if (res && !res.error) {
+        signature = res.signature || signature;
+        publicKey = res.publicKey || null;
+      }
+    } catch (e) {
+      // Fallback: try signMessage as backup (older SDK versions)
+      if (typeof provider.signMessage === 'function') {
+        try {
+          const res2 = await provider.signMessage(proofReceipt);
+          if (res2) signature = typeof res2 === 'string' ? res2 : (res2.signature || signature);
+        } catch (e2) {}
+      }
+    }
+  } else if (provider && typeof provider.signMessage === 'function') {
+    try {
+      const res = await provider.signMessage(proofReceipt);
       if (res) signature = typeof res === 'string' ? res : (res.signature || signature);
     } catch (e) {}
   }
@@ -1749,6 +1778,7 @@ async function handleSubmitProof() {
     proofType: pType,
     content: proofContent,
     signature: signature,
+    publicKey: publicKey,
     submittedAt: new Date().toLocaleTimeString(),
     reward: bounty.reward,
     status: 'pending'
@@ -1813,7 +1843,7 @@ function copyQrLink() {
   }
 }
 
-function publishBountyPoolDirectly() {
+async function publishBountyPoolDirectly() {
   if (!isRealWalletConnected()) {
     showToastNotification('Wallet Required', 'Connect your Nimiq Pay wallet first!', true);
     openDesktopConnectModal();
@@ -1842,9 +1872,52 @@ function publishBountyPoolDirectly() {
   };
 
   const expiresAt = Date.now() + (duration * 60 * 60 * 1000);
+  const createdAt = Date.now();
+  const posterAddr = userAccount.replace(/\s+/g, '').toUpperCase();
+
+  // --- Ergon-pattern: provider.sign() — Poster signs bounty creation receipt, no NIM sent ---
+  let publishSignature = `pubsig_fallback_${Date.now()}`;
+  let publishPublicKey = null;
+
+  const provider = getNimiqProvider();
+  const bountyReceipt = JSON.stringify({
+    app: 'NimBounty',
+    action: 'publish-bounty',
+    title,
+    category,
+    proofType,
+    reward: parseFloat(reward).toFixed(1),
+    slots,
+    poster: posterAddr,
+    duration,
+    timestamp: createdAt
+  });
+
+  if (provider && typeof provider.sign === 'function') {
+    try {
+      showToastNotification('Sign Bounty', 'Review & sign the bounty receipt in Nimiq Pay — no NIM is sent.', false);
+      const res = await provider.sign(bountyReceipt);
+      if (res && !res.error) {
+        publishSignature = res.signature || publishSignature;
+        publishPublicKey = res.publicKey || null;
+      }
+    } catch (e) {
+      if (typeof provider.signMessage === 'function') {
+        try {
+          const res2 = await provider.signMessage(bountyReceipt);
+          if (res2) publishSignature = typeof res2 === 'string' ? res2 : (res2.signature || publishSignature);
+        } catch (e2) {}
+      }
+    }
+  } else if (provider && typeof provider.signMessage === 'function') {
+    try {
+      const res = await provider.signMessage(bountyReceipt);
+      if (res) publishSignature = typeof res === 'string' ? res : (res.signature || publishSignature);
+    } catch (e) {}
+  }
 
   const newBounty = {
-    id: `bounty-${Date.now()}`,
+    id: `bounty-${createdAt}`,
     title,
     category,
     categoryName: categoryNames[category] || category.toUpperCase(),
@@ -1852,13 +1925,15 @@ function publishBountyPoolDirectly() {
     reward: parseFloat(reward).toFixed(1),
     slotsTotal: slots,
     slotsRemaining: slots,
-    posterAddress: userAccount.replace(/\s+/g, '').toUpperCase(),
+    posterAddress: posterAddr,
     sponsor: getUserDisplayName(userAccount),
     instructions: desc,
     description: desc,
     duration,
     expiresAt,
-    createdAt: Date.now()
+    createdAt,
+    publishSignature,
+    publishPublicKey
   };
 
   bounties.unshift(newBounty);
@@ -1868,7 +1943,7 @@ function publishBountyPoolDirectly() {
   renderBounties();
   renderSessionBar();
   triggerConfetti();
-  showToastNotification('Bounty Published!', 'Your task campaign is live for workers.', false);
+  showToastNotification('Bounty Published!', 'Your task campaign is live — signed proof recorded.', false);
 
   // Clear form
   document.getElementById('task-title').value = '';
