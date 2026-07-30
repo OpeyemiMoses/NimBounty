@@ -458,7 +458,7 @@ async function fetchGlobalPublicBounties() {
       localStorage.setItem(STORAGE_KEY_REPUTATION, JSON.stringify(localRep));
     }
 
-    // 5. Only re-render if data actually changed (prevents UI flicker)
+    // 5. Only re-render if data actually changed (prevents UI flicker & form input destruction)
     const allProfStr = JSON.stringify(JSON.parse(localStorage.getItem(STORAGE_KEY_PROFILE) || '{}'));
     const contentHash = JSON.stringify({
       bLen: bounties.length,
@@ -469,7 +469,10 @@ async function fetchGlobalPublicBounties() {
       pIds: pendingSubmissions.map(s => `${s.id}:${s.status}`).join(','),
       prof: allProfStr
     });
-    // 5. Re-render all views to keep leaderboard, profile stats, worker/poster rankings, and task grids in live continuous sync
+
+    if (contentHash === lastRenderHash) return; // Nothing changed — skip re-render entirely
+    lastRenderHash = contentHash;
+
     renderBounties();
     renderPosterDashboard();
     renderSessionBar();
@@ -3122,7 +3125,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   // 3. Background async network fetches
   await fetchGlobalPublicBounties();
-  setInterval(fetchGlobalPublicBounties, 4000);
+  setInterval(fetchGlobalPublicBounties, 8000);
 });
 
 // ==========================================
