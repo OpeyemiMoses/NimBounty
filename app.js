@@ -1732,7 +1732,7 @@ async function handleSubmitProof() {
     : 'SYSTEM';
 
   const timestamp = Date.now();
-  let signature = `sig_fallback_${timestamp}`;
+  let signature = null;
   let publicKey = null;
 
   // --- Ergon-pattern: provider.sign() — free cryptographic receipt, ZERO NIM sent ---
@@ -1748,28 +1748,64 @@ async function handleSubmitProof() {
     timestamp
   });
 
-  if (provider && typeof provider.sign === 'function') {
-    try {
-      showToastNotification('Sign Proof', 'Review & sign the proof receipt in Nimiq Pay — no NIM is sent.', false);
-      const res = await provider.sign(proofReceipt);
-      if (res && !res.error) {
-        signature = res.signature || signature;
-        publicKey = res.publicKey || null;
+  if (provider) {
+    let signedSuccess = false;
+    if (typeof provider.sign === 'function') {
+      try {
+        showToastNotification('Sign Proof', 'Review & sign the proof receipt in Nimiq Pay — no NIM is sent.', false);
+        const res = await provider.sign(proofReceipt);
+        if (res && !res.error && !res.canceled && (res.signature || typeof res === 'string')) {
+          signature = typeof res === 'string' ? res : res.signature;
+          publicKey = res.publicKey || null;
+          signedSuccess = true;
+        } else {
+          showToastNotification('Signature Rejected', 'Signature request rejected or cancelled. Task was NOT delivered.', true);
+          return;
+        }
+      } catch (e) {
+        // Fallback: try signMessage if available
+        if (typeof provider.signMessage === 'function') {
+          try {
+            const res2 = await provider.signMessage(proofReceipt);
+            if (res2 && !res2.error && !res2.canceled && (typeof res2 === 'string' || res2.signature)) {
+              signature = typeof res2 === 'string' ? res2 : res2.signature;
+              signedSuccess = true;
+            } else {
+              showToastNotification('Signature Rejected', 'Signature request rejected or cancelled. Task was NOT delivered.', true);
+              return;
+            }
+          } catch (e2) {
+            showToastNotification('Signature Rejected', 'Signature request rejected or cancelled. Task was NOT delivered.', true);
+            return;
+          }
+        } else {
+          showToastNotification('Signature Rejected', 'Signature request rejected or cancelled. Task was NOT delivered.', true);
+          return;
+        }
       }
-    } catch (e) {
-      // Fallback: try signMessage as backup (older SDK versions)
-      if (typeof provider.signMessage === 'function') {
-        try {
-          const res2 = await provider.signMessage(proofReceipt);
-          if (res2) signature = typeof res2 === 'string' ? res2 : (res2.signature || signature);
-        } catch (e2) {}
+    } else if (typeof provider.signMessage === 'function') {
+      try {
+        showToastNotification('Sign Proof', 'Review & sign the proof receipt in Nimiq Pay — no NIM is sent.', false);
+        const res = await provider.signMessage(proofReceipt);
+        if (res && !res.error && !res.canceled && (typeof res === 'string' || res.signature)) {
+          signature = typeof res === 'string' ? res : res.signature;
+          signedSuccess = true;
+        } else {
+          showToastNotification('Signature Rejected', 'Signature request rejected or cancelled. Task was NOT delivered.', true);
+          return;
+        }
+      } catch (e) {
+        showToastNotification('Signature Rejected', 'Signature request rejected or cancelled. Task was NOT delivered.', true);
+        return;
       }
     }
-  } else if (provider && typeof provider.signMessage === 'function') {
-    try {
-      const res = await provider.signMessage(proofReceipt);
-      if (res) signature = typeof res === 'string' ? res : (res.signature || signature);
-    } catch (e) {}
+
+    if (!signedSuccess && !signature) {
+      showToastNotification('Signature Required', 'Valid cryptographic signature required to deliver task proof.', true);
+      return;
+    }
+  } else {
+    signature = `sig_fallback_${timestamp}`;
   }
 
   const subId = `sub-${Date.now()}`;
@@ -1878,7 +1914,7 @@ async function publishBountyPoolDirectly() {
   const posterAddr = userAccount.replace(/\s+/g, '').toUpperCase();
 
   // --- Ergon-pattern: provider.sign() — Poster signs bounty creation receipt, no NIM sent ---
-  let publishSignature = `pubsig_fallback_${Date.now()}`;
+  let publishSignature = null;
   let publishPublicKey = null;
 
   const provider = getNimiqProvider();
@@ -1895,27 +1931,63 @@ async function publishBountyPoolDirectly() {
     timestamp: createdAt
   });
 
-  if (provider && typeof provider.sign === 'function') {
-    try {
-      showToastNotification('Sign Bounty', 'Review & sign the bounty receipt in Nimiq Pay — no NIM is sent.', false);
-      const res = await provider.sign(bountyReceipt);
-      if (res && !res.error) {
-        publishSignature = res.signature || publishSignature;
-        publishPublicKey = res.publicKey || null;
+  if (provider) {
+    let signedSuccess = false;
+    if (typeof provider.sign === 'function') {
+      try {
+        showToastNotification('Sign Bounty', 'Review & sign the bounty receipt in Nimiq Pay — no NIM is sent.', false);
+        const res = await provider.sign(bountyReceipt);
+        if (res && !res.error && !res.canceled && (res.signature || typeof res === 'string')) {
+          publishSignature = typeof res === 'string' ? res : res.signature;
+          publishPublicKey = res.publicKey || null;
+          signedSuccess = true;
+        } else {
+          showToastNotification('Signature Rejected', 'Bounty signature rejected or cancelled. Bounty was NOT published.', true);
+          return;
+        }
+      } catch (e) {
+        if (typeof provider.signMessage === 'function') {
+          try {
+            const res2 = await provider.signMessage(bountyReceipt);
+            if (res2 && !res2.error && !res2.canceled && (typeof res2 === 'string' || res2.signature)) {
+              publishSignature = typeof res2 === 'string' ? res2 : res2.signature;
+              signedSuccess = true;
+            } else {
+              showToastNotification('Signature Rejected', 'Bounty signature rejected or cancelled. Bounty was NOT published.', true);
+              return;
+            }
+          } catch (e2) {
+            showToastNotification('Signature Rejected', 'Bounty signature rejected or cancelled. Bounty was NOT published.', true);
+            return;
+          }
+        } else {
+          showToastNotification('Signature Rejected', 'Bounty signature rejected or cancelled. Bounty was NOT published.', true);
+          return;
+        }
       }
-    } catch (e) {
-      if (typeof provider.signMessage === 'function') {
-        try {
-          const res2 = await provider.signMessage(bountyReceipt);
-          if (res2) publishSignature = typeof res2 === 'string' ? res2 : (res2.signature || publishSignature);
-        } catch (e2) {}
+    } else if (typeof provider.signMessage === 'function') {
+      try {
+        showToastNotification('Sign Bounty', 'Review & sign the bounty receipt in Nimiq Pay — no NIM is sent.', false);
+        const res = await provider.signMessage(bountyReceipt);
+        if (res && !res.error && !res.canceled && (typeof res === 'string' || res.signature)) {
+          publishSignature = typeof res === 'string' ? res : res.signature;
+          signedSuccess = true;
+        } else {
+          showToastNotification('Signature Rejected', 'Bounty signature rejected or cancelled. Bounty was NOT published.', true);
+          return;
+        }
+      } catch (e) {
+        showToastNotification('Signature Rejected', 'Bounty signature rejected or cancelled. Bounty was NOT published.', true);
+        return;
       }
     }
-  } else if (provider && typeof provider.signMessage === 'function') {
-    try {
-      const res = await provider.signMessage(bountyReceipt);
-      if (res) publishSignature = typeof res === 'string' ? res : (res.signature || publishSignature);
-    } catch (e) {}
+
+    if (!signedSuccess && !publishSignature) {
+      showToastNotification('Signature Required', 'Valid cryptographic signature required to publish bounty.', true);
+      return;
+    }
+  } else {
+    publishSignature = `pubsig_fallback_${createdAt}`;
   }
 
   const newBounty = {
