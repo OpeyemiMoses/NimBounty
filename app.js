@@ -214,129 +214,100 @@ async function fetchGlobalPublicBounties() {
       : `/api/bounties`;
 
     const res = await fetch(apiEndpoint, { cache: 'no-cache' });
-    if (res.ok) {
-      const data = await res.json();
-      let stateChanged = false;
+    if (!res.ok) return;
+    const data = await res.json();
 
-      // Merge bounties safely without wiping local items
-      if (Array.isArray(data.bounties) && data.bounties.length > 0) {
-        const existingIds = new Set(bounties.map(b => b.id));
-        data.bounties.forEach(sb => {
-          if (!existingIds.has(sb.id)) {
-            bounties.unshift(sb);
-            existingIds.add(sb.id);
-            stateChanged = true;
-          } else {
-            const idx = bounties.findIndex(b => String(b.id) === String(sb.id));
-      // Merge slots: only accept the server value if it is LOWER (i.e. more consumed).
-          // Never let a stale server read inflate slotsRemaining back up after a local deduction.
-          const localSlots = bounties[idx].slotsRemaining;
-          const serverSlots = sb.slotsRemaining;
-          if (serverSlots !== undefined && serverSlots !== localSlots) {
-            if (serverSlots < localSlots) {
-              // Server has consumed more slots — accept it
-              bounties[idx].slotsRemaining = serverSlots;
-              stateChanged = true;
-            }
-            // else: local value is lower (more consumed) — keep local, don't revert
-          }
-          }
-        });
-        localStorage.setItem(STORAGE_KEY_LOCAL_BOUNTIES, JSON.stringify(bounties));
-      }
+    // ── SERVER IS AUTHORITATIVE ──
+    // Replace local arrays with server state, preserving only un-synced local items.
 
-      // Merge approved payouts history safely without wiping local history
-      if (Array.isArray(data.approvedPayoutsHistory) && data.approvedPayoutsHistory.length > 0) {
-        const existingPayKeys = new Set(
-          approvedPayoutsHistory.map(p => p.id || `${p.bountyId}_${p.paidAt || 0}_${(p.workerAddress || '').toUpperCase().replace(/\s+/g,'')}`)
-        );
-        data.approvedPayoutsHistory.forEach(sp => {
-          const key = sp.id || `${sp.bountyId}_${sp.paidAt || 0}_${(sp.workerAddress || '').toUpperCase().replace(/\s+/g,'')}`;
-          if (!existingPayKeys.has(key)) {
-            approvedPayoutsHistory.unshift(sp);
-            existingPayKeys.add(key);
-            stateChanged = true;
-          }
-        });
-        localStorage.setItem(STORAGE_KEY_PAID_HISTORY, JSON.stringify(approvedPayoutsHistory));
-      }
+    // 1. BOUNTIES — server is truth, but preserve any local bounties not yet on server
+    if (Array.isArray(data.bounties)) {
+      const serverIds = new Set(data.bounties.map(b => String(b.id)));
+      const localOnly = bounties.filter(b => !serverIds.has(String(b.id)));
+      bounties = [...data.bounties, ...localOnly];
+      localStorage.setItem(STORAGE_KEY_LOCAL_BOUNTIES, JSON.stringify(bounties));
+    }
 
-      // Merge pending submissions — update status of existing subs from server
-      if (Array.isArray(data.pendingSubmissions)) {
-        const serverSubIds = new Set(data.pendingSubmissions.map(s => s.id));
-        const existingSubIds = new Set(pendingSubmissions.map(s => s.id));
-
-        // Add new subs from server (other workers' submissions visible to poster)
-        data.pendingSubmissions.forEach(ss => {
-          if (!existingSubIds.has(ss.id)) {
-            pendingSubmissions.unshift(ss);
-            existingSubIds.add(ss.id);
-            stateChanged = true;
-          } else {
-            // Update status if server has a newer one (e.g. rejected)
-            const idx = pendingSubmissions.findIndex(s => s.id === ss.id);
-            if (idx !== -1 && ss.status && ss.status !== pendingSubmissions[idx].status) {
-              pendingSubmissions[idx].status = ss.status;
-              if (ss.rejectionReason) pendingSubmissions[idx].rejectionReason = ss.rejectionReason;
-              stateChanged = true;
-            }
-          }
-        });
-      }
-
-      // Mark approved + purge: for any local pending sub whose bountyId+workerAddr matches
-      // an approved payout → set status 'approved' (so History shows Paid Out), then remove after
-      {
-        const approvedKeys = new Set(
-          approvedPayoutsHistory.map(p => String(p.bountyId) + '_' + (p.workerAddress || '').toUpperCase().replace(/\s+/g,''))
-        );
-        let changed = false;
-        pendingSubmissions = pendingSubmissions.map(s => {
-          const key = String(s.bountyId) + '_' + (s.workerAddress || '').toUpperCase().replace(/\s+/g,'');
-          if (approvedKeys.has(key) && s.status !== 'approved') {
-            changed = true;
-            return { ...s, status: 'approved' };
-          }
-          return s;
-        });
-        if (changed) stateChanged = true;
-      }
-      // Save subs to localStorage (strip base64 images)
-      const safeForStorage = pendingSubmissions.map(s => {
-        if (s.content && s.content.startsWith('data:image')) return { ...s, content: `[LOCAL_IMG:${s.id}]` };
-        return s;
+    // 2. APPROVED PAYOUTS HISTORY — server is truth, preserve local-only payouts
+    if (Array.isArray(data.approvedPayoutsHistory)) {
+      const serverPayKeys = new Set(
+        data.approvedPayoutsHistory.map(p => p.id || `${p.bountyId}_${(p.workerAddress || '').toUpperCase().replace(/\s+/g,'')}`)
+      );
+      const localOnlyPays = approvedPayoutsHistory.filter(p => {
+        const key = p.id || `${p.bountyId}_${(p.workerAddress || '').toUpperCase().replace(/\s+/g,'')}`;
+        return !serverPayKeys.has(key);
       });
-      // Merge global user profiles safely
-      if (data.profiles && typeof data.profiles === 'object') {
-        const allProfiles = JSON.parse(localStorage.getItem(STORAGE_KEY_PROFILE) || '{}');
-        let profChanged = false;
-        Object.keys(data.profiles).forEach(cleanAddr => {
-          const incoming = data.profiles[cleanAddr];
-          if (incoming && incoming.username) {
-            if (!allProfiles[cleanAddr] || allProfiles[cleanAddr].username !== incoming.username || allProfiles[cleanAddr].avatarUrl !== incoming.avatarUrl) {
-              allProfiles[cleanAddr] = { ...allProfiles[cleanAddr], ...incoming };
-              profChanged = true;
-            }
-          }
-        });
-        if (profChanged) {
-          localStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(allProfiles));
-          stateChanged = true;
-        }
-      }
+      approvedPayoutsHistory = [...data.approvedPayoutsHistory, ...localOnlyPays];
+      localStorage.setItem(STORAGE_KEY_PAID_HISTORY, JSON.stringify(approvedPayoutsHistory));
+    }
 
-      const newHash = `${bounties.length}-${pendingSubmissions.length}-${approvedPayoutsHistory.length}-${userAccount}`;
-      if (stateChanged || newHash !== lastRenderHash) {
-        lastRenderHash = newHash;
-        renderBounties();
-        renderPosterDashboard();
-        renderSessionBar();
-        renderProfile();
-        renderDedicatedOrders();
-        renderLeaderboard();
-        renderGlobalRegistry();
-        updateWalletUI(); // Refresh NIM earned badge and wallet status
+    // 3. PENDING SUBMISSIONS — server is truth, preserve local-only subs (e.g. just submitted)
+    if (Array.isArray(data.pendingSubmissions)) {
+      const serverSubIds = new Set(data.pendingSubmissions.map(s => s.id));
+      // Keep local subs that haven't reached the server yet (preserving image data)
+      const localOnlySubs = pendingSubmissions.filter(s => !serverSubIds.has(s.id));
+      // For server subs, overlay local image data if we have it
+      const mergedServerSubs = data.pendingSubmissions.map(ss => {
+        const localMatch = pendingSubmissions.find(ls => ls.id === ss.id);
+        if (localMatch && localMatch.content && localMatch.content.startsWith('data:image') && (!ss.content || ss.content.startsWith('[LOCAL_IMG'))) {
+          return { ...ss, content: localMatch.content };
+        }
+        return ss;
+      });
+      pendingSubmissions = [...mergedServerSubs, ...localOnlySubs];
+    }
+
+    // Mark any pending sub as 'approved' if it matches an approved payout
+    const approvedKeys = new Set(
+      approvedPayoutsHistory.map(p => String(p.bountyId) + '_' + (p.workerAddress || '').toUpperCase().replace(/\s+/g,''))
+    );
+    pendingSubmissions = pendingSubmissions.map(s => {
+      const key = String(s.bountyId) + '_' + (s.workerAddress || '').toUpperCase().replace(/\s+/g,'');
+      if (approvedKeys.has(key) && s.status !== 'approved') {
+        return { ...s, status: 'approved' };
       }
+      return s;
+    });
+
+    // Save subs to localStorage (strip base64 images for storage)
+    const safeForStorage = pendingSubmissions.map(s => {
+      if (s.content && s.content.startsWith('data:image')) return { ...s, content: `[LOCAL_IMG:${s.id}]` };
+      return s;
+    });
+    try { localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(safeForStorage)); } catch(e) {}
+
+    // 4. Merge global user profiles
+    if (data.profiles && typeof data.profiles === 'object') {
+      const allProfiles = JSON.parse(localStorage.getItem(STORAGE_KEY_PROFILE) || '{}');
+      Object.keys(data.profiles).forEach(cleanAddr => {
+        const incoming = data.profiles[cleanAddr];
+        if (incoming && incoming.username) {
+          allProfiles[cleanAddr] = { ...allProfiles[cleanAddr], ...incoming };
+        }
+      });
+      localStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(allProfiles));
+    }
+
+    // 5. Only re-render if data actually changed (prevents UI flicker)
+    const contentHash = JSON.stringify({
+      bLen: bounties.length,
+      bSlots: bounties.map(b => b.slotsRemaining).join(','),
+      aLen: approvedPayoutsHistory.length,
+      aIds: approvedPayoutsHistory.map(p => p.id).join(','),
+      pLen: pendingSubmissions.length,
+      pIds: pendingSubmissions.map(s => `${s.id}:${s.status}`).join(',')
+    });
+    if (contentHash !== lastRenderHash) {
+      lastRenderHash = contentHash;
+      renderBounties();
+      renderPosterDashboard();
+      renderSessionBar();
+      renderProfile();
+      renderDedicatedOrders();
+      renderLeaderboard();
+      renderGlobalRegistry();
+      updateLandingStats();
+      updateWalletUI();
     }
   } catch (e) {
     // Silent graceful fallback
@@ -376,21 +347,30 @@ async function pushNewSubmission(newSub, updatedBounty = null) {
   }
 }
 
-async function pushApprovedPayout(approvedItem) {
+async function pushApprovedPayout(approvedItem, removedSubId, updatedBounty) {
   try {
     const apiEndpoint = window.location.origin.includes('localhost')
       ? `${PRODUCTION_URL}/api/bounties`
       : `/api/bounties`;
 
+    const payload = {
+      approvedPayoutsHistory: [approvedItem],
+      removeSubmissionId: removedSubId || null,
+      updatedAt: Date.now()
+    };
+    // Also send the updated bounty with current slot count
+    if (updatedBounty) {
+      payload.newBounty = updatedBounty;
+    }
+
     await fetch(apiEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        approvedPayoutsHistory: [approvedItem],
-        updatedAt: Date.now()
-      })
+      body: JSON.stringify(payload)
     });
-  } catch (e) {}
+  } catch (e) {
+    console.error('[pushApprovedPayout] Network error:', e);
+  }
 }
 
 async function syncGlobalPublicBounties(updatedBountyObj = null) {
@@ -2187,8 +2167,11 @@ async function approveWorkerPayout(subId) {
   localStorage.setItem(STORAGE_KEY_PAID_HISTORY, JSON.stringify(approvedPayoutsHistory));
   localStorage.setItem(STORAGE_KEY_LOCAL_BOUNTIES, JSON.stringify(bounties));
 
-  // Push approved payout item to global server store
-  await pushApprovedPayout(approvedItem);
+  // Find the bounty and send it with the updated state
+  const bountyForSub = bounties.find(b => String(b.id) === String(sub.bountyId));
+
+  // Push approved payout + sub removal + bounty update atomically to server
+  await pushApprovedPayout(approvedItem, subId, bountyForSub || null);
 
   renderPosterDashboard();
   renderBounties();
@@ -2562,7 +2545,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   // 3. Background async network fetches
   await fetchGlobalPublicBounties();
-  setInterval(fetchGlobalPublicBounties, 2000);
+  setInterval(fetchGlobalPublicBounties, 4000);
 });
 
 // ==========================================
