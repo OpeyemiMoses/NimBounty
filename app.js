@@ -2087,7 +2087,7 @@ function renderPosterDashboard() {
       let linkContent = '';
 
       if (content.startsWith('data:image') || content.startsWith('http://') || content.startsWith('https://')) {
-        if (content.match(/\.(jpeg|jpg|gif|png|webp)($|\?)/i) || content.includes('catbox.moe') || content.includes('imgur') || content.includes('postimg') || content.includes('ibb.co') || content.startsWith('data:image')) {
+        if (content.match(/\.(jpeg|jpg|gif|png|webp)($|\?)/i) || content.includes('catbox.moe') || content.includes('postimg') || content.includes('ibb.co') || content.startsWith('data:image')) {
           imageUrl = content;
         } else {
           linkContent = content;
@@ -2096,7 +2096,14 @@ function renderPosterDashboard() {
         // Combined text + image (feedback type)
         try {
           const parsed = JSON.parse(content);
-          imageUrl = parsed.image || null;
+          const parsedImg = parsed.image || null;
+          if (parsedImg) {
+            if (parsedImg.match(/\.(jpeg|jpg|gif|png|webp)($|\?)/i) || parsedImg.includes('catbox.moe') || parsedImg.includes('postimg') || parsedImg.includes('ibb.co') || parsedImg.startsWith('data:image')) {
+              imageUrl = parsedImg;
+            } else {
+              linkContent = parsedImg;
+            }
+          }
           textContent = parsed.text || '';
         } catch (e) {
           textContent = content;
@@ -2124,7 +2131,15 @@ function renderPosterDashboard() {
         proofHTML += `<div style="font-size:0.85rem; background:var(--bg-subtle); padding:10px 14px; border-radius:10px; margin-bottom:12px; line-height:1.5; white-space:pre-wrap;">${textContent}</div>`;
       }
       if (linkContent) {
-        proofHTML += `<div style="margin-bottom:12px;"><a href="${linkContent}" target="_blank" rel="noopener noreferrer" style="font-size:0.85rem; color:var(--gold); word-break:break-all; text-decoration:underline;">${linkContent}</a></div>`;
+        proofHTML += `
+          <div style="margin-bottom:12px;">
+            <div style="font-size:0.75rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:6px;">Submitted Proof Link</div>
+            <a href="${linkContent}" target="_blank" rel="noopener noreferrer" style="display:inline-flex; align-items:center; gap:8px; background:var(--gold-tint); border:1px solid var(--gold-border); padding:10px 16px; border-radius:12px; font-size:0.85rem; font-weight:700; color:var(--gold-text); text-decoration:none; word-break:break-all;">
+              <span>🖼️ Open Public Proof Link</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            </a>
+            <div style="font-size:0.72rem; color:var(--muted); margin-top:4px; font-family:var(--font-mono);">${linkContent}</div>
+          </div>`;
       }
       if (!proofHTML) {
         proofHTML = `<div style="font-size:0.85rem; color:var(--muted); padding:10px; background:var(--bg-subtle); border-radius:10px; margin-bottom:12px;">No proof content attached.</div>`;
