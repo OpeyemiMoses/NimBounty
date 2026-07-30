@@ -156,23 +156,55 @@ function createEmptyStateHTML(title, description, svgIcon = '') {
   `;
 }
 
-// Helper: Calculate Remaining Expiration Time for Bounty
-function getBountyTimeLeftStr(b) {
+// Helper: Calculate Remaining Expiration Time / Status for Bounty
+function getBountyTimeLeftStr(b, userAddr = null) {
+  if (!b) return '';
+
+  // 1. Per-Worker check: if userAddr is provided and has been paid out, show CLOSED (RED)
+  if (userAddr) {
+    const hasUserPaid = approvedPayoutsHistory.some(p =>
+      String(p.bountyId) === String(b.id) &&
+      p.workerAddress &&
+      isSameNimiqAddress(p.workerAddress, userAddr)
+    );
+    if (hasUserPaid) {
+      return `<span style="color:#ef4444; background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.3); font-weight:800; padding:2px 8px; border-radius:6px; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.04em; display:inline-flex; align-items:center; gap:4px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> CLOSED</span>`;
+    }
+  }
+
+  // 2. Global Check: Has EVERY slot been paid out by the poster?
+  const slotsTotal = b.slotsTotal || 5;
+  const approvedCount = approvedPayoutsHistory.filter(p => String(p.bountyId) === String(b.id)).length;
+  const pendingCount = pendingSubmissions.filter(s => String(s.bountyId) === String(b.id) && s.status === 'pending').length;
+  const effectiveSlots = getEffectiveSlotsRemaining(b);
+
+  const isAllPaidOut = (approvedCount >= slotsTotal) || (effectiveSlots <= 0 && pendingCount === 0 && approvedCount > 0);
+
+  if (isAllPaidOut) {
+    return `<span style="color:#ef4444; background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.3); font-weight:800; padding:2px 8px; border-radius:6px; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.04em; display:inline-flex; align-items:center; gap:4px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> CLOSED</span>`;
+  }
+
+  // 3. Expiration Check: Timer naturally elapsed BEFORE slots/payouts were finished
   const createdAt = b.createdAt || (b.id && String(b.id).startsWith('bounty-') ? parseInt(String(b.id).replace('bounty-', '')) : Date.now());
-  const durationHours = b.duration || 336; // 14 days default
+  const durationHours = b.duration || 336;
   const expiresAt = b.expiresAt || (createdAt + (durationHours * 3600 * 1000));
   const diffMs = expiresAt - Date.now();
 
-  if (diffMs <= 0) return 'Expired';
+  if (diffMs <= 0) {
+    return `<span style="color:#dc2626; background:rgba(220,38,38,0.12); border:1px solid rgba(220,38,38,0.3); font-weight:800; padding:2px 8px; border-radius:6px; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.04em; display:inline-flex; align-items:center; gap:4px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> EXPIRED</span>`;
+  }
 
+  // 4. Active Countdown
   const totalMins = Math.floor(diffMs / (1000 * 60));
   const days = Math.floor(totalMins / (60 * 24));
   const hours = Math.floor((totalMins % (60 * 24)) / 60);
   const mins = totalMins % 60;
 
-  if (days > 0) return `${days}d ${hours}h left`;
-  if (hours > 0) return `${hours}h ${mins}m left`;
-  return `${mins}m left`;
+  let timeStr = `${mins}m left`;
+  if (days > 0) timeStr = `${days}d ${hours}h left`;
+  else if (hours > 0) timeStr = `${hours}h ${mins}m left`;
+
+  return `<span style="font-size:0.72rem; color:var(--muted); font-weight:700; display:inline-flex; align-items:center; gap:4px; background:var(--bg-subtle); padding:3px 8px; border-radius:6px; border:1px solid var(--border);"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> ${timeStr}</span>`;
 }
 
 // Live Escrow Budget Calculator for Publish Campaign Form
@@ -1547,9 +1579,7 @@ function renderBounties() {
           <div class="bounty-card-header">
             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
               <span class="bounty-category-tag">${b.categoryName || b.category || 'General'}</span>
-              <span style="font-size:0.72rem; color:var(--muted); font-weight:700; display:inline-flex; align-items:center; gap:4px; background:var(--bg-subtle); padding:3px 8px; border-radius:6px; border:1px solid var(--border);">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> ${getBountyTimeLeftStr(b)}
-              </span>
+              ${getBountyTimeLeftStr(b, userAccount)}
             </div>
             <div style="display:flex; align-items:center; gap:8px;">
               <button onclick="openQrModal('${b.id}')" title="Share QR Code" style="background:var(--bg-subtle); border:1px solid var(--border); padding:6px; border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; color:var(--ink);">
@@ -2054,15 +2084,20 @@ function renderPosterDashboard() {
   if (poolsList) {
     const myPools = bounties.filter(b => isSameNimiqAddress(b.posterAddress, userAccount));
     poolsList.innerHTML = myPools.length ? myPools.map(b => {
-      const isSlotsZero = getEffectiveSlotsRemaining(b) <= 0;
+      const approvedCount = approvedPayoutsHistory.filter(p => String(p.bountyId) === String(b.id)).length;
       const pendingSubCount = pendingSubmissions.filter(s => String(s.bountyId) === String(b.id) && s.status === 'pending').length;
-      const isFullyCompleted = isSlotsZero && pendingSubCount === 0;
+      const isSlotsZero = getEffectiveSlotsRemaining(b) <= 0;
+      const isFullyCompleted = (approvedCount >= (b.slotsTotal || 5)) || (isSlotsZero && pendingSubCount === 0 && approvedCount > 0);
+      const isExpired = !isFullyCompleted && (b.expiresAt ? Date.now() > b.expiresAt : false);
 
       const statusBadge = isFullyCompleted
-        ? `<span style="background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3); font-size:0.7rem; font-weight:800; padding:3px 8px; border-radius:6px; text-transform:uppercase; letter-spacing:0.04em; display:inline-flex; align-items:center; gap:4px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg> COMPLETED</span>`
-        : (isSlotsZero
-            ? `<span style="background:rgba(245,158,11,0.15); color:#f59e0b; border:1px solid rgba(245,158,11,0.3); font-size:0.7rem; font-weight:800; padding:3px 8px; border-radius:6px; text-transform:uppercase; letter-spacing:0.04em;">SLOTS FILLED (${pendingSubCount} PENDING)</span>`
-            : `<span style="background:rgba(59,130,246,0.15); color:#60a5fa; border:1px solid rgba(59,130,246,0.3); font-size:0.7rem; font-weight:800; padding:3px 8px; border-radius:6px; text-transform:uppercase; letter-spacing:0.04em;">ACTIVE POOL</span>`
+        ? `<span style="background:rgba(239,68,68,0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.3); font-size:0.7rem; font-weight:800; padding:3px 8px; border-radius:6px; text-transform:uppercase; letter-spacing:0.04em; display:inline-flex; align-items:center; gap:4px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> CLOSED</span>`
+        : (isExpired
+            ? `<span style="background:rgba(220,38,38,0.15); color:#dc2626; border:1px solid rgba(220,38,38,0.3); font-size:0.7rem; font-weight:800; padding:3px 8px; border-radius:6px; text-transform:uppercase; letter-spacing:0.04em;">EXPIRED</span>`
+            : (isSlotsZero
+                ? `<span style="background:rgba(245,158,11,0.15); color:#f59e0b; border:1px solid rgba(245,158,11,0.3); font-size:0.7rem; font-weight:800; padding:3px 8px; border-radius:6px; text-transform:uppercase; letter-spacing:0.04em;">SLOTS FILLED (${pendingSubCount} PENDING)</span>`
+                : `<span style="background:rgba(59,130,246,0.15); color:#60a5fa; border:1px solid rgba(59,130,246,0.3); font-size:0.7rem; font-weight:800; padding:3px 8px; border-radius:6px; text-transform:uppercase; letter-spacing:0.04em;">ACTIVE POOL</span>`
+              )
           );
 
       return `
@@ -2764,9 +2799,7 @@ function renderGlobalRegistry() {
         <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; flex-wrap:wrap;">
           <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
             <span class="bounty-category-tag">${b.categoryName || b.category || 'General'}</span>
-            <span style="font-size:0.72rem; color:var(--muted); font-weight:700; display:inline-flex; align-items:center; gap:4px; background:var(--card); padding:3px 8px; border-radius:6px; border:1px solid var(--border);">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> ${timeLeftStr}
-            </span>
+            ${getBountyTimeLeftStr(b)}
           </div>
           <span style="font-size:1.1rem; font-weight:900; color:var(--gold-text);">${b.reward} NIM</span>
         </div>
