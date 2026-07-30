@@ -14,9 +14,10 @@ async function readStore() {
     if (!Array.isArray(data.pendingSubmissions)) data.pendingSubmissions = [];
     if (!Array.isArray(data.approvedPayoutsHistory)) data.approvedPayoutsHistory = [];
     if (!data.profiles || typeof data.profiles !== 'object') data.profiles = {};
+    if (!data.reports || typeof data.reports !== 'object') data.reports = {};
     return data;
   } catch(e) {
-    return { bounties: [], pendingSubmissions: [], approvedPayoutsHistory: [], profiles: {} };
+    return { bounties: [], pendingSubmissions: [], approvedPayoutsHistory: [], profiles: {}, reports: {} };
   }
 }
 
@@ -53,12 +54,27 @@ export default async function handler(req, res) {
     try {
       const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
       const store = await readStore();
-      let { bounties, pendingSubmissions, approvedPayoutsHistory, profiles } = store;
+      let { bounties, pendingSubmissions, approvedPayoutsHistory, profiles, reports } = store;
 
       if (!Array.isArray(bounties)) bounties = [];
       if (!Array.isArray(pendingSubmissions)) pendingSubmissions = [];
       if (!Array.isArray(approvedPayoutsHistory)) approvedPayoutsHistory = [];
       if (!profiles || typeof profiles !== 'object') profiles = {};
+      if (!reports || typeof reports !== 'object') reports = {};
+
+      // 0. Handle New Reports
+      if (body.newReport && body.newReport.targetAddress) {
+        const cleanTarget = String(body.newReport.targetAddress).replace(/\s+/g, '').toUpperCase();
+        if (!reports[cleanTarget]) {
+          reports[cleanTarget] = { count: 0, list: [] };
+        }
+        reports[cleanTarget].count = (reports[cleanTarget].count || 0) + 1;
+        reports[cleanTarget].list.unshift({
+          reporterAddress: body.newReport.reporterAddress || 'ANONYMOUS',
+          reason: body.newReport.reason || 'Flagged for review',
+          timestamp: Date.now()
+        });
+      }
 
       // 0. Sync Profile Data
       if (body.profile && body.walletAddress) {
@@ -167,7 +183,7 @@ export default async function handler(req, res) {
       if (pendingSubmissions.length > 500) pendingSubmissions = pendingSubmissions.slice(0, 500);
       if (approvedPayoutsHistory.length > 1000) approvedPayoutsHistory = approvedPayoutsHistory.slice(0, 1000);
 
-      const newStore = { bounties, pendingSubmissions, approvedPayoutsHistory, profiles, updatedAt: Date.now() };
+      const newStore = { bounties, pendingSubmissions, approvedPayoutsHistory, profiles, reports, updatedAt: Date.now() };
       await writeStore(newStore);
 
       return res.status(200).json({ success: true, ...newStore });

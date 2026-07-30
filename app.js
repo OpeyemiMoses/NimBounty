@@ -349,6 +349,21 @@ async function fetchGlobalPublicBounties() {
       localStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(allProfiles));
     }
 
+    // 4.5. Merge global user reports
+    if (data.reports && typeof data.reports === 'object') {
+      const localRep = JSON.parse(localStorage.getItem(STORAGE_KEY_REPUTATION) || '{}');
+      Object.keys(data.reports).forEach(cleanAddr => {
+        const incomingRep = data.reports[cleanAddr];
+        if (incomingRep) {
+          localRep[cleanAddr] = {
+            count: Math.max(localRep[cleanAddr]?.count || 0, incomingRep.count || 0),
+            list: incomingRep.list || localRep[cleanAddr]?.list || []
+          };
+        }
+      });
+      localStorage.setItem(STORAGE_KEY_REPUTATION, JSON.stringify(localRep));
+    }
+
     // 5. Only re-render if data actually changed (prevents UI flicker)
     const allProfStr = JSON.stringify(JSON.parse(localStorage.getItem(STORAGE_KEY_PROFILE) || '{}'));
     const contentHash = JSON.stringify({
@@ -1569,6 +1584,7 @@ function renderBounties() {
       btnDisabled = true;
     }
 
+    const posterRep = getReputation(b.posterAddress);
     const posterDisplayName = (b.sponsor && String(b.sponsor).trim() && !String(b.sponsor).startsWith('NQ'))
       ? String(b.sponsor).trim().toUpperCase()
       : getUserDisplayName(b.posterAddress);
@@ -1579,6 +1595,7 @@ function renderBounties() {
           <div class="bounty-card-header">
             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
               <span class="bounty-category-tag">${b.categoryName || b.category || 'General'}</span>
+              ${posterRep.isFlagged ? `<span style="background:rgba(220,38,38,0.15); color:#dc2626; border:1px solid rgba(220,38,38,0.3); font-size:0.65rem; font-weight:800; padding:2px 6px; border-radius:4px; text-transform:uppercase;">⚠️ FLAGGED (3+ REPORTS)</span>` : ''}
               ${getBountyTimeLeftStr(b, userAccount)}
             </div>
             <div style="display:flex; align-items:center; gap:8px;">
@@ -2314,6 +2331,47 @@ async function approveWorkerPayout(subId) {
   showToastNotification('Worker Paid', `${sub.reward} NIM transferred directly to ${getUserDisplayName(sub.workerAddress)}.`, false);
 }
 
+async function pushNewReport(targetAddress, reason) {
+  if (!targetAddress) return;
+  const cleanTarget = String(targetAddress).replace(/\s+/g, '').toUpperCase();
+  const reporterAddr = userAccount ? userAccount.replace(/\s+/g, '').toUpperCase() : 'ANONYMOUS';
+
+  // 1. Update local storage immediately
+  const allRep = JSON.parse(localStorage.getItem(STORAGE_KEY_REPUTATION) || '{}');
+  if (!allRep[cleanTarget]) allRep[cleanTarget] = { count: 0, list: [] };
+  allRep[cleanTarget].count = (allRep[cleanTarget].count || 0) + 1;
+  if (!Array.isArray(allRep[cleanTarget].list)) allRep[cleanTarget].list = [];
+  allRep[cleanTarget].list.unshift({ reporterAddress: reporterAddr, reason, timestamp: Date.now() });
+  localStorage.setItem(STORAGE_KEY_REPUTATION, JSON.stringify(allRep));
+
+  // 2. Push to global server store
+  try {
+    const apiEndpoint = window.location.origin.includes('localhost')
+      ? `${PRODUCTION_URL}/api/bounties`
+      : `/api/bounties`;
+
+    await fetch(apiEndpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        newReport: {
+          targetAddress: cleanTarget,
+          reporterAddress: reporterAddr,
+          reason: reason
+        }
+      })
+    });
+  } catch (e) {}
+
+  // 3. Trigger UI re-renders
+  renderProfile();
+  renderBounties();
+  renderPosterDashboard();
+  renderDedicatedOrders();
+  renderLeaderboard();
+  renderGlobalRegistry();
+}
+
 let _pendingRejectSubId = null;
 
 function openRejectionModal(subId) {
@@ -2322,8 +2380,9 @@ function openRejectionModal(subId) {
   if (modal) modal.style.display = 'flex';
 }
 
-function submitTaskRejectionWithReason() {
+async function submitTaskRejectionWithReason() {
   const reasonInput = document.getElementById('rejection-reason-input');
+  const flagSpamCheck = document.getElementById('reject-flag-spam-check');
   const val = reasonInput ? reasonInput.value.trim() : '';
 
   if (!val) {
@@ -2333,19 +2392,36 @@ function submitTaskRejectionWithReason() {
 
   const subIndex = pendingSubmissions.findIndex(s => s.id === _pendingRejectSubId);
   if (subIndex !== -1) {
-    pendingSubmissions[subIndex].status = 'rejected';
-    pendingSubmissions[subIndex].rejectionReason = val;
+    const sub = pendingSubmissions[subIndex];
+    sub.status = 'rejected';
+    sub.rejectionReason = val;
     localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions));
-    syncGlobalPublicBounties(null, true);
+
+    if (flagSpamCheck && flagSpamCheck.checked && sub.workerAddress) {
+      await pushNewReport(sub.workerAddress, `Fake/Spam proof submitted for task: "${sub.bountyTitle}" - Reason: ${val}`);
+    } else {
+      syncGlobalPublicBounties(null, true);
+    }
   }
 
   closeModal('modal-reject-reason');
+  if (flagSpamCheck) flagSpamCheck.checked = false;
+  if (reasonInput) reasonInput.value = '';
   renderPosterDashboard();
   showToastNotification('Task Rejected', 'Worker notified of rejection reason. Task slot remains open.', false);
-  if (reasonInput) reasonInput.value = '';
 }
 
-function submitReportPoster() {
+let _pendingReportTargetAddr = null;
+
+function openReportPosterModal(targetAddr, bountyTitle = '') {
+  _pendingReportTargetAddr = targetAddr;
+  const modal = document.getElementById('modal-report-poster');
+  const titleEl = document.querySelector('#modal-report-poster h3');
+  if (titleEl) titleEl.textContent = bountyTitle ? `Report Poster: ${bountyTitle}` : 'Report Account';
+  if (modal) modal.style.display = 'flex';
+}
+
+async function submitReportPoster() {
   const reasonInput = document.getElementById('report-poster-reason');
   const val = reasonInput ? reasonInput.value.trim() : '';
 
@@ -2354,8 +2430,11 @@ function submitReportPoster() {
     return;
   }
 
+  const target = _pendingReportTargetAddr || 'POSTER';
+  await pushNewReport(target, val);
+
   closeModal('modal-report-poster');
-  showToastNotification('Report Submitted', 'Poster reputation updated.', false);
+  showToastNotification('Report Submitted', 'Report recorded against user account on global ledger.', false);
   if (reasonInput) reasonInput.value = '';
 }
 
@@ -2645,9 +2724,16 @@ function checkUrlAutoImport() {
 
 // Reputation Helper
 function getReputation(walletAddress) {
+  if (!walletAddress) return { reports: 0, isFlagged: false, list: [] };
+  const clean = String(walletAddress).replace(/\s+/g, '').toUpperCase();
   const allRep = JSON.parse(localStorage.getItem(STORAGE_KEY_REPUTATION) || '{}');
-  const clean = String(walletAddress || '').replace(/\s+/g, '').toUpperCase();
-  return allRep[clean] || { reports: 0, status: 'good' };
+  const rep = allRep[clean] || { count: 0, reports: 0, list: [] };
+  const count = parseInt(rep.count || rep.reports || 0);
+  return {
+    reports: count,
+    isFlagged: count >= 3,
+    list: rep.list || []
+  };
 }
 
 // Initializer

@@ -922,8 +922,8 @@
   <div class="modal-overlay" id="modal-report-poster" style="display:none;">
     <div class="modal-paper paper-card rise-in" style="max-width:440px;">
       <button class="modal-close" onclick="closeModal('modal-report-poster')">&times;</button>
-      <h3 style="font-size:1.3rem; font-weight:800; margin-bottom:6px;">Report Poster</h3>
-      <p style="font-size:0.82rem; color:var(--muted); margin-bottom:16px;">Flag posters for unfulfilled payouts, invalid rejections, or shady behavior.</p>
+      <h3 style="font-size:1.3rem; font-weight:800; margin-bottom:6px;">Report Account</h3>
+      <p style="font-size:0.82rem; color:var(--muted); margin-bottom:16px;">Flag user for unfulfilled payouts, invalid rejections, or shady behavior.</p>
       <form onsubmit="event.preventDefault(); submitReportPoster();">
         <div style="display:flex; flex-direction:column; gap:14px;">
           <div>
@@ -931,6 +931,28 @@
             <textarea id="report-poster-reason" rows="3" placeholder="Describe shady behavior or invalid rejection..." style="width:100%; padding:10px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink); resize:none;" required></textarea>
           </div>
           <button class="btn-primary-lg full-width" type="submit" style="justify-content:center; background:var(--danger); color:#fff;">Submit Report &rarr;</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- REJECT SUBMISSION MODAL WITH SPAM FLAGGING -->
+  <div class="modal-overlay" id="modal-reject-reason" style="display:none;">
+    <div class="modal-paper paper-card rise-in" style="max-width:440px;">
+      <button class="modal-close" onclick="closeModal('modal-reject-reason')">&times;</button>
+      <h3 style="font-size:1.3rem; font-weight:800; margin-bottom:6px;">Reject Submission</h3>
+      <p style="font-size:0.82rem; color:var(--muted); margin-bottom:14px;">Explain why this proof submission is rejected. The slot will reopen for other workers.</p>
+      <form onsubmit="event.preventDefault(); submitTaskRejectionWithReason();">
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <div>
+            <label style="font-size:0.82rem; font-weight:700; color:var(--muted); display:block; margin-bottom:4px;">Rejection Reason</label>
+            <textarea id="rejection-reason-input" rows="3" placeholder="e.g. Invalid screenshot link, incorrect proof details..." style="width:100%; padding:10px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink); resize:none;" required></textarea>
+          </div>
+          <label style="display:flex; align-items:center; gap:8px; font-size:0.8rem; color:var(--danger); cursor:pointer; font-weight:700; background:rgba(239,68,68,0.08); padding:8px 12px; border-radius:10px; border:1px solid rgba(239,68,68,0.2);">
+            <input type="checkbox" id="reject-flag-spam-check" style="accent-color:var(--danger);" />
+            <span>🚩 Flag worker account for fake/spam proof</span>
+          </label>
+          <button class="btn-primary-lg full-width" type="submit" style="justify-content:center; background:var(--danger); color:#fff;">Confirm Rejection &rarr;</button>
         </div>
       </form>
     </div>
