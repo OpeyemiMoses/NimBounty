@@ -227,23 +227,40 @@ async function fetchGlobalPublicBounties() {
     if (!res.ok) return;
     const data = await res.json();
 
-    // ── SERVER IS AUTHORITATIVE ──
-    // Replace local arrays with server state, preserving only un-synced local items.
+    const NOW = Date.now();
+    const GRACE_PERIOD_MS = 120000; // 2 minutes grace period for local in-flight items
 
-    // 1. BOUNTIES — server is total authority
+    // 1. BOUNTIES — server authority + 2-min grace period for newly created local bounties
     if (Array.isArray(data.bounties)) {
-      bounties = data.bounties;
+      const serverIds = new Set(data.bounties.map(b => String(b.id)));
+      const recentLocalBounties = bounties.filter(b => {
+        const key = String(b.id);
+        if (serverIds.has(key)) return false;
+        const created = b.createdAt || (key.startsWith('bounty-') ? parseInt(key.replace('bounty-', '')) : 0);
+        return (NOW - created) < GRACE_PERIOD_MS;
+      });
+      bounties = [...data.bounties, ...recentLocalBounties];
       localStorage.setItem(STORAGE_KEY_LOCAL_BOUNTIES, JSON.stringify(bounties));
     }
 
-    // 2. APPROVED PAYOUTS HISTORY — server is total authority
+    // 2. APPROVED PAYOUTS HISTORY — server authority + 2-min grace period
     if (Array.isArray(data.approvedPayoutsHistory)) {
-      approvedPayoutsHistory = data.approvedPayoutsHistory;
+      const serverPayKeys = new Set(
+        data.approvedPayoutsHistory.map(p => p.id || `${p.bountyId}_${(p.workerAddress || '').toUpperCase().replace(/\s+/g,'')}`)
+      );
+      const recentLocalPays = approvedPayoutsHistory.filter(p => {
+        const key = p.id || `${p.bountyId}_${(p.workerAddress || '').toUpperCase().replace(/\s+/g,'')}`;
+        if (serverPayKeys.has(key)) return false;
+        const paidAt = p.paidAt || (key.startsWith('pay-') ? parseInt(key.split('-')[1]) : 0);
+        return (NOW - paidAt) < GRACE_PERIOD_MS;
+      });
+      approvedPayoutsHistory = [...data.approvedPayoutsHistory, ...recentLocalPays];
       localStorage.setItem(STORAGE_KEY_PAID_HISTORY, JSON.stringify(approvedPayoutsHistory));
     }
 
-    // 3. PENDING SUBMISSIONS — server is authority (preserve local image previews if available)
+    // 3. PENDING SUBMISSIONS — server authority + 2-min grace period (preserving local images)
     if (Array.isArray(data.pendingSubmissions)) {
+      const serverSubIds = new Set(data.pendingSubmissions.map(s => s.id));
       const mergedServerSubs = data.pendingSubmissions.map(ss => {
         const localMatch = pendingSubmissions.find(ls => ls.id === ss.id);
         if (localMatch && localMatch.content && localMatch.content.startsWith('data:image') && (!ss.content || ss.content.startsWith('[LOCAL_IMG'))) {
@@ -251,7 +268,12 @@ async function fetchGlobalPublicBounties() {
         }
         return ss;
       });
-      pendingSubmissions = mergedServerSubs;
+      const recentLocalSubs = pendingSubmissions.filter(s => {
+        if (serverSubIds.has(s.id)) return false;
+        const subTime = s.id && String(s.id).startsWith('sub-') ? parseInt(String(s.id).replace('sub-', '')) : 0;
+        return (NOW - subTime) < GRACE_PERIOD_MS;
+      });
+      pendingSubmissions = [...mergedServerSubs, ...recentLocalSubs];
     }
 
     // Mark any pending sub as 'approved' if it matches an approved payout
