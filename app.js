@@ -77,7 +77,9 @@ function getEffectiveSlotsRemaining(bounty) {
 
 // Helper: Calculate Poster Rating & Reputation Stars
 function getPosterRating(posterAddress) {
-  if (!posterAddress) return { score: '5.0', stars: '⭐ 5.0', label: 'New Poster', count: 0, HTML: '' };
+  const starIcon = `<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" style="margin-right:2px; vertical-align:-1px;"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>`;
+
+  if (!posterAddress) return { score: '5.0', label: 'New Poster', count: 0, HTML: '' };
   const paidCount = approvedPayoutsHistory.filter(p => p.posterAddress && isSameNimiqAddress(p.posterAddress, posterAddress)).length;
   const rejectedCount = pendingSubmissions.filter(s => s.posterAddress && isSameNimiqAddress(s.posterAddress, posterAddress) && s.status === 'rejected').length;
   const rep = getReputation(posterAddress);
@@ -86,10 +88,9 @@ function getPosterRating(posterAddress) {
   if (paidCount === 0 && rejectedCount === 0 && reportsCount === 0) {
     return {
       score: '5.0',
-      stars: '⭐ 5.0',
       label: 'New Poster',
       count: 0,
-      HTML: `<span style="font-size:0.7rem; font-weight:700; color:var(--gold-text); background:var(--gold-tint); border:1px solid var(--gold-border); padding:2px 7px; border-radius:6px; display:inline-flex; align-items:center; gap:3px;">⭐ 5.0 (New Poster)</span>`
+      HTML: `<span style="font-size:0.7rem; font-weight:700; color:var(--gold-text); background:var(--gold-tint); border:1px solid var(--gold-border); padding:2px 7px; border-radius:6px; display:inline-flex; align-items:center;">${starIcon} 5.0 (New Poster)</span>`
     };
   }
 
@@ -104,10 +105,9 @@ function getPosterRating(posterAddress) {
 
   return {
     score: scoreStr,
-    stars: `⭐ ${scoreStr}`,
     label: `${paidCount} Paid`,
     count: paidCount,
-    HTML: `<span style="font-size:0.7rem; font-weight:800; color:${badgeColor}; background:${badgeBg}; border:1px solid ${badgeBorder}; padding:2px 7px; border-radius:6px; display:inline-flex; align-items:center; gap:3px;" title="${paidCount} paid payouts, ${rejectedCount} rejections, ${reportsCount} reports">⭐ ${scoreStr} (${paidCount} Paid)</span>`
+    HTML: `<span style="font-size:0.7rem; font-weight:800; color:${badgeColor}; background:${badgeBg}; border:1px solid ${badgeBorder}; padding:2px 7px; border-radius:6px; display:inline-flex; align-items:center;" title="${paidCount} paid payouts, ${rejectedCount} rejections, ${reportsCount} reports">${starIcon} ${scoreStr} (${paidCount} Paid)</span>`
   };
 }
 
@@ -412,18 +412,16 @@ async function fetchGlobalPublicBounties() {
       pIds: pendingSubmissions.map(s => `${s.id}:${s.status}`).join(','),
       prof: allProfStr
     });
-    if (contentHash !== lastRenderHash) {
-      lastRenderHash = contentHash;
-      renderBounties();
-      renderPosterDashboard();
-      renderSessionBar();
-      renderProfile();
-      renderDedicatedOrders();
-      renderLeaderboard();
-      renderGlobalRegistry();
-      updateLandingStats();
-      updateWalletUI();
-    }
+    // 5. Re-render all views to keep leaderboard, profile stats, worker/poster rankings, and task grids in live continuous sync
+    renderBounties();
+    renderPosterDashboard();
+    renderSessionBar();
+    renderProfile();
+    renderDedicatedOrders();
+    renderLeaderboard();
+    renderGlobalRegistry();
+    updateLandingStats();
+    updateWalletUI();
   } catch (e) {
     // Silent graceful fallback
   }
@@ -1046,7 +1044,7 @@ function renderDedicatedOrders() {
 
   // 1. Pending Review Section
   if (myPending.length > 0) {
-    html += `<h4 style="font-size:0.9rem; font-weight:800; color:var(--gold); margin-bottom:10px;">⏳ Pending Poster Review (${myPending.length})</h4>`;
+    html += `<h4 style="font-size:0.9rem; font-weight:800; color:var(--gold); margin-bottom:10px; display:flex; align-items:center; gap:6px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Pending Poster Review (${myPending.length})</h4>`;
     html += myPending.map(s => `
       <div style="background:var(--bg-subtle); border:1px solid var(--border); border-radius:14px; padding:16px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
         <div>
@@ -1063,7 +1061,7 @@ function renderDedicatedOrders() {
 
   // 2. Rejected Submissions Section
   if (myRejected.length > 0) {
-    html += `<h4 style="font-size:0.9rem; font-weight:800; color:var(--danger); margin-top:20px; margin-bottom:10px;">❌ Rejected Tasks / Needs Action (${myRejected.length})</h4>`;
+    html += `<h4 style="font-size:0.9rem; font-weight:800; color:var(--danger); margin-top:20px; margin-bottom:10px; display:flex; align-items:center; gap:6px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> Rejected Tasks / Needs Action (${myRejected.length})</h4>`;
     html += myRejected.map(s => {
       const posterRating = getPosterRating(s.posterAddress);
       return `
@@ -1073,16 +1071,26 @@ function renderDedicatedOrders() {
               <strong style="font-size:1rem; color:var(--ink); display:block;">${s.bountyTitle}</strong>
               <div style="font-size:0.78rem; color:var(--muted); margin-top:2px;">Poster: ${getUserDisplayName(s.posterAddress)} &bull; ${posterRating.HTML}</div>
             </div>
-            <span style="font-size:0.75rem; background:rgba(239,68,68,0.15); color:var(--danger); border:1px solid rgba(239,68,68,0.3); padding:2px 8px; border-radius:6px; font-weight:800; text-transform:uppercase;">❌ Rejected</span>
+            <span style="font-size:0.75rem; background:rgba(239,68,68,0.15); color:var(--danger); border:1px solid rgba(239,68,68,0.3); padding:2px 8px; border-radius:6px; font-weight:800; text-transform:uppercase; display:inline-flex; align-items:center; gap:4px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> Rejected</span>
           </div>
 
           <div style="font-size:0.85rem; color:var(--ink); background:var(--card); border:1px solid rgba(239,68,68,0.25); padding:12px 14px; border-radius:12px; margin-bottom:14px; line-height:1.5;">
-            💬 <strong>Poster's Rejection Reason:</strong> ${s.rejectionReason || 'No reason provided by poster.'}
+            <div style="display:flex; align-items:center; gap:6px; font-weight:800; color:var(--danger); margin-bottom:4px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              <span>Poster's Rejection Reason:</span>
+            </div>
+            ${s.rejectionReason || 'No reason provided by poster.'}
           </div>
 
           <div style="display:flex; gap:10px; flex-wrap:wrap;">
-            <button onclick="openSubmitProofModal('${s.bountyId}')" class="btn-primary-sm" style="font-size:0.8rem; padding:8px 14px;">🔄 Resubmit Proof &rarr;</button>
-            <button onclick="openReportPosterModal('${s.posterAddress}', '${s.bountyTitle}')" class="btn-ghost-sm" style="color:var(--danger); border-color:rgba(239,68,68,0.3); font-size:0.8rem; padding:8px 14px;">🚩 Report Poster</button>
+            <button onclick="openSubmitProofModal('${s.bountyId}')" class="btn-primary-sm" style="font-size:0.8rem; padding:8px 14px; display:inline-flex; align-items:center; gap:6px;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+              <span>Resubmit Proof &rarr;</span>
+            </button>
+            <button onclick="openReportPosterModal('${s.posterAddress}', '${s.bountyTitle}')" class="btn-ghost-sm" style="color:var(--danger); border-color:rgba(239,68,68,0.3); font-size:0.8rem; padding:8px 14px; display:inline-flex; align-items:center; gap:6px;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+              <span>Report Poster</span>
+            </button>
           </div>
         </div>
       `;
@@ -1091,7 +1099,7 @@ function renderDedicatedOrders() {
 
   // 3. Approved & Paid Out Section
   if (myApproved.length > 0) {
-    html += `<h4 style="font-size:0.9rem; font-weight:800; color:var(--emerald); margin-top:20px; margin-bottom:10px;">✅ Approved &amp; Paid Out (${myApproved.length})</h4>`;
+    html += `<h4 style="font-size:0.9rem; font-weight:800; color:var(--emerald); margin-top:20px; margin-bottom:10px; display:flex; align-items:center; gap:6px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Approved &amp; Paid Out (${myApproved.length})</h4>`;
     html += myApproved.map(p => `
       <div style="background:var(--bg-subtle); border:1px solid var(--border); border-radius:14px; padding:16px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
         <div>
@@ -1449,7 +1457,10 @@ function renderProfile() {
         </div>
       </div>
       <div onclick="showView('registry')" style="display:flex; align-items:center; justify-content:space-between; padding:8px 10px; background:var(--bg); border:1px solid var(--border); border-radius:10px; cursor:pointer; font-size:0.78rem; font-weight:700; color:var(--ink);">
-        <span>📋 Global Bounty Registry</span>
+        <span style="display:inline-flex; align-items:center; gap:6px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+          Global Bounty Registry
+        </span>
         <span style="color:var(--gold); font-weight:800;">&rarr;</span>
       </div>
     </div>
@@ -1679,9 +1690,9 @@ function renderBounties() {
             <div class="bounty-card-header">
               <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                 <span class="bounty-category-tag">${b.categoryName || b.category || 'General'}</span>
-                <span style="font-size:0.72rem; color:var(--danger); font-weight:800; background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.3); padding:2px 8px; border-radius:6px; text-transform:uppercase;">❌ REJECTED</span>
+                <span style="font-size:0.72rem; color:var(--danger); font-weight:800; background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.3); padding:2px 8px; border-radius:6px; text-transform:uppercase; display:inline-flex; align-items:center; gap:4px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> REJECTED</span>
                 ${posterRating.HTML}
-                ${posterRep.isFlagged ? `<span style="background:rgba(220,38,38,0.15); color:#dc2626; border:1px solid rgba(220,38,38,0.3); font-size:0.65rem; font-weight:800; padding:2px 6px; border-radius:4px; text-transform:uppercase;">⚠️ FLAGGED (3+ REPORTS)</span>` : ''}
+                ${posterRep.isFlagged ? `<span style="background:rgba(220,38,38,0.15); color:#dc2626; border:1px solid rgba(220,38,38,0.3); font-size:0.65rem; font-weight:800; padding:2px 6px; border-radius:4px; text-transform:uppercase; display:inline-flex; align-items:center; gap:4px;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> FLAGGED (3+ REPORTS)</span>` : ''}
               </div>
               <span class="bounty-reward">${b.reward} NIM</span>
             </div>
@@ -1690,7 +1701,11 @@ function renderBounties() {
             <p class="bounty-desc">${b.instructions || b.description}</p>
 
             <div style="font-size:0.83rem; color:var(--ink); background:rgba(239,68,68,0.06); border:1px solid rgba(239,68,68,0.25); padding:12px 14px; border-radius:12px; margin:12px 0; line-height:1.5;">
-              💬 <strong>Poster's Rejection Reason:</strong> ${rejSub.rejectionReason || 'No reason provided by poster.'}
+              <div style="display:flex; align-items:center; gap:6px; font-weight:800; color:var(--danger); margin-bottom:4px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <span>Poster's Rejection Reason:</span>
+              </div>
+              ${rejSub.rejectionReason || 'No reason provided by poster.'}
             </div>
           </div>
 
@@ -1701,11 +1716,13 @@ function renderBounties() {
             </div>
 
             <div style="display:flex; gap:10px; flex-wrap:wrap;">
-              <button class="btn-primary-sm" onclick="openSubmitProofModal('${b.id}')" style="flex:1; justify-content:center; padding:10px;">
-                🔄 Resubmit Proof &rarr;
+              <button class="btn-primary-sm" onclick="openSubmitProofModal('${b.id}')" style="flex:1; justify-content:center; padding:10px; display:inline-flex; align-items:center; gap:6px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                <span>Resubmit Proof &rarr;</span>
               </button>
-              <button class="btn-ghost-sm" onclick="openReportPosterModal('${b.posterAddress}', '${b.title}')" style="color:var(--danger); border-color:rgba(239,68,68,0.3); padding:10px; justify-content:center;">
-                🚩 Report Poster
+              <button class="btn-ghost-sm" onclick="openReportPosterModal('${b.posterAddress}', '${b.title}')" style="color:var(--danger); border-color:rgba(239,68,68,0.3); padding:10px; justify-content:center; display:inline-flex; align-items:center; gap:6px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+                <span>Report Poster</span>
               </button>
             </div>
           </div>
@@ -2321,7 +2338,8 @@ function renderPosterDashboard() {
           <div style="margin-bottom:12px;">
             <div style="font-size:0.75rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:6px;">Submitted Proof Link</div>
             <a href="${linkContent}" target="_blank" rel="noopener noreferrer" style="display:inline-flex; align-items:center; gap:8px; background:var(--gold-tint); border:1px solid var(--gold-border); padding:10px 16px; border-radius:12px; font-size:0.85rem; font-weight:700; color:var(--gold-text); text-decoration:none; word-break:break-all;">
-              <span>🖼️ Open Public Proof Link</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              <span>Open Public Proof Link</span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
             </a>
             <div style="font-size:0.72rem; color:var(--muted); margin-top:4px; font-family:var(--font-mono);">${linkContent}</div>
