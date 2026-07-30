@@ -1256,7 +1256,9 @@ function renderProfile() {
 
         ${!profile.username ? `
           <button class="btn-ghost-sm" onclick="openSetUsernameModal()" style="margin-top:10px; font-size:0.75rem; padding:4px 10px; border-color:var(--gold); color:var(--gold);">+ Set Permanent Username</button>
-        ` : ''}
+        ` : `
+          <button class="btn-ghost-sm" onclick="openSetUsernameModal()" style="margin-top:10px; font-size:0.75rem; padding:4px 10px; border-color:var(--border); color:var(--muted);">⟳ Sync Username Globally</button>
+        `}
       </div>
     </div>
 
@@ -1362,32 +1364,44 @@ let _pendingUsernameChoice = null;
 function openSetUsernameModal() {
   if (!userAccount) return;
   const profile = getProfile(userAccount);
-  if (profile.username) {
-    showToastNotification('Permanent Username', 'Your username has already been set permanently.', true);
-    return;
-  }
   const input = document.getElementById('username-input');
-  if (input) input.value = '';
   const modal = document.getElementById('modal-set-username');
+  const titleEl = document.querySelector('#modal-set-username h3');
+  const descEl = document.querySelector('#modal-set-username p');
+  const btnEl = document.querySelector('#modal-set-username .btn-primary-lg');
+
+  if (profile.username) {
+    // Already set — allow re-sync to global server
+    if (input) input.value = profile.username;
+    if (titleEl) titleEl.textContent = 'Verify & Sync Username';
+    if (descEl) descEl.textContent = 'Your username is set. Confirm to re-sync it globally so it appears on the leaderboard and registry for all users.';
+    if (btnEl) btnEl.textContent = 'Sync Username Globally \u2192';
+  } else {
+    if (input) input.value = '';
+    if (titleEl) titleEl.textContent = 'Set Username';
+    if (descEl) descEl.textContent = 'Choose a permanent username linked to your wallet address.';
+    if (btnEl) btnEl.textContent = 'Set Username \u2192';
+  }
   if (modal) modal.style.display = 'flex';
 }
 
 function confirmSetUsername() {
   if (!userAccount) return;
   const profile = getProfile(userAccount);
-  if (profile.username) {
-    showToastNotification('Permanent Username', 'Your username has already been set permanently.', true);
-    closeModal('modal-set-username');
-    return;
-  }
   const input = document.getElementById('username-input');
   const val = input ? input.value.trim().toUpperCase() : '';
   if (!val || val.length < 3) {
     showToastNotification('Invalid Username', 'Username must be at least 3 characters.', true);
     return;
   }
-  _pendingUsernameChoice = val;
-  document.getElementById('username-confirm-display').textContent = val;
+  // If already set permanently and trying to change to a different name, block it
+  if (profile.username && val !== profile.username.toUpperCase()) {
+    showToastNotification('Username Locked', `Your permanent username @${profile.username} cannot be changed. Syncing it globally instead.`, true);
+    _pendingUsernameChoice = profile.username.toUpperCase();
+  } else {
+    _pendingUsernameChoice = val;
+  }
+  document.getElementById('username-confirm-display').textContent = _pendingUsernameChoice;
   closeModal('modal-set-username');
   document.getElementById('modal-confirm-username').style.display = 'flex';
 }
