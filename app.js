@@ -75,6 +75,52 @@ function getEffectiveSlotsRemaining(bounty) {
   return Math.max(0, total - (pendingCount + approvedCount));
 }
 
+// Helper: Check 24-Hour Post-Expiration Unpaid Defaulter Lockout
+function getDefaulterStatus(walletAddress) {
+  if (!walletAddress) return { isDefaulter: false, isWarning: false };
+  const cleanAddr = String(walletAddress).replace(/\s+/g, '').toUpperCase();
+  const now = Date.now();
+
+  const myBounties = bounties.filter(b => b.posterAddress && isSameNimiqAddress(b.posterAddress, cleanAddr));
+
+  for (let b of myBounties) {
+    const createdAt = b.createdAt || (b.id && String(b.id).startsWith('bounty-') ? parseInt(String(b.id).replace('bounty-', '')) : now);
+    const durationHours = b.duration || 336;
+    const expiresAt = b.expiresAt || (createdAt + (durationHours * 3600 * 1000));
+
+    const pendingSubs = pendingSubmissions.filter(s => String(s.bountyId) === String(b.id) && s.status === 'pending');
+    if (pendingSubs.length === 0) continue; // No pending workers left
+
+    const timePastExpirationMs = now - expiresAt;
+
+    // 1. Defaulter Lockout: >24 hours past expiration with unpaid pending workers
+    if (timePastExpirationMs > (24 * 3600 * 1000)) {
+      const hoursOverdue = Math.floor(timePastExpirationMs / (3600 * 1000));
+      return {
+        isDefaulter: true,
+        isWarning: false,
+        defaultedBounty: b,
+        pendingCount: pendingSubs.length,
+        hoursOverdue: hoursOverdue
+      };
+    }
+
+    // 2. Warning Grace Period: 18-24 hours past expiration (6h remaining to lockout)
+    if (timePastExpirationMs > (18 * 3600 * 1000)) {
+      const hoursRemaining = Math.max(1, 24 - Math.floor(timePastExpirationMs / (3600 * 1000)));
+      return {
+        isDefaulter: false,
+        isWarning: true,
+        warningBounty: b,
+        pendingCount: pendingSubs.length,
+        hoursRemaining: hoursRemaining
+      };
+    }
+  }
+
+  return { isDefaulter: false, isWarning: false };
+}
+
 // Helper: Calculate Poster Rating & Reputation Stars
 function getPosterRating(posterAddress) {
   const starIcon = `<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" style="margin-right:2px; vertical-align:-1px;"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>`;
@@ -84,6 +130,17 @@ function getPosterRating(posterAddress) {
   const rejectedCount = pendingSubmissions.filter(s => s.posterAddress && isSameNimiqAddress(s.posterAddress, posterAddress) && s.status === 'rejected').length;
   const rep = getReputation(posterAddress);
   const reportsCount = rep.reports || 0;
+
+  const def = getDefaulterStatus(posterAddress);
+  if (def.isDefaulter) {
+    const defaultTag = `<span style="background:rgba(239,68,68,0.15); color:var(--danger); border:1px solid rgba(239,68,68,0.3); font-size:0.68rem; font-weight:800; padding:2px 6px; border-radius:4px; text-transform:uppercase; display:inline-flex; align-items:center; gap:4px;" title="Account locked: Unpaid workers >24h past expiration"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> DEFAULTER (UNPAID WORKERS)</span>`;
+    return {
+      score: '1.0',
+      label: 'DEFAULTER',
+      count: paidCount,
+      HTML: defaultTag
+    };
+  }
 
   if (paidCount === 0 && rejectedCount === 0 && reportsCount === 0) {
     return {
@@ -1394,6 +1451,12 @@ function renderProfile() {
           <div style="min-width:0;">
             <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
               <h3 style="font-size:1.35rem; font-weight:800; color:var(--ink); margin:0; letter-spacing:-0.02em;">${displayUsername}</h3>
+              ${getDefaulterStatus(userAccount).isDefaulter ? `
+                <span style="background:rgba(239,68,68,0.15); color:var(--danger); border:1px solid rgba(239,68,68,0.3); font-size:0.68rem; font-weight:800; padding:2px 6px; border-radius:4px; text-transform:uppercase; display:inline-flex; align-items:center; gap:4px;">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                  DEFAULTER (UNPAID WORKERS)
+                </span>
+              ` : ''}
               ${profile.username ? `
                 <button onclick="openSetUsernameModal()" title="Sync username globally" style="background:none; border:none; cursor:pointer; padding:2px; color:var(--muted); display:inline-flex; align-items:center; opacity:0.6;">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
@@ -1770,6 +1833,12 @@ function openSubmitProofModal(bountyId) {
     return;
   }
 
+  const def = getDefaulterStatus(userAccount);
+  if (def.isDefaulter) {
+    showToastNotification('Account Locked', `You cannot claim bounties while you have unpaid workers on expired campaign "${def.defaultedBounty.title}". Pay your workers to unlock.`, true);
+    return;
+  }
+
   currentModalBountyId = bountyId;
   const bounty = bounties.find(b => String(b.id) === String(bountyId));
   if (!bounty) return;
@@ -2132,10 +2201,16 @@ function copyQrLink() {
   }
 }
 
-async function publishBountyPoolDirectly() {
+async function publishBounty() {
   if (!isRealWalletConnected()) {
     showToastNotification('Wallet Required', 'Connect your Nimiq Pay wallet first!', true);
     openDesktopConnectModal();
+    return;
+  }
+
+  const def = getDefaulterStatus(userAccount);
+  if (def.isDefaulter) {
+    showToastNotification('Account Locked', `You have unpaid workers on expired campaign "${def.defaultedBounty.title}". Pay your workers to unlock publishing.`, true);
     return;
   }
 
@@ -2253,9 +2328,35 @@ function renderPosterDashboard() {
   const poolsList = document.getElementById('poster-pools-list');
   const subsList = document.getElementById('poster-subs-list');
 
+  const def = getDefaulterStatus(userAccount);
+  let bannerHTML = '';
+  if (def.isDefaulter) {
+    bannerHTML = `
+      <div style="background:rgba(239,68,68,0.12); border:1.5px solid rgba(239,68,68,0.4); border-radius:14px; padding:16px; margin-bottom:16px; color:var(--ink);">
+        <div style="display:flex; align-items:center; gap:8px; font-weight:900; color:var(--danger); font-size:0.95rem; margin-bottom:4px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          ACCOUNT LOCKED: UNPAID WORKERS (&gt;24H OVERDUE)
+        </div>
+        <div style="font-size:0.83rem; color:var(--ink); line-height:1.5;">
+          You have <strong>${def.pendingCount} pending worker submission(s)</strong> on expired bounty <strong>"${def.defaultedBounty.title}"</strong> waiting past 24h. Your account is locked from publishing new bounties or claiming tasks until you review and pay your workers.
+        </div>
+      </div>`;
+  } else if (def.isWarning) {
+    bannerHTML = `
+      <div style="background:var(--gold-tint); border:1.5px solid var(--gold-border); border-radius:14px; padding:16px; margin-bottom:16px; color:var(--ink);">
+        <div style="display:flex; align-items:center; gap:8px; font-weight:900; color:var(--gold-text); font-size:0.95rem; margin-bottom:4px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          WARNING: 24-HOUR PAYOUT DEADLINE APPROACHING
+        </div>
+        <div style="font-size:0.83rem; color:var(--ink); line-height:1.5;">
+          You have <strong>${def.hoursRemaining} hours remaining</strong> to review pending worker submissions on expired bounty <strong>"${def.warningBounty.title}"</strong> before automatic account lockdown!
+        </div>
+      </div>`;
+  }
+
   if (poolsList) {
     const myPools = bounties.filter(b => isSameNimiqAddress(b.posterAddress, userAccount));
-    poolsList.innerHTML = myPools.length ? myPools.map(b => {
+    const poolsHTML = myPools.length ? myPools.map(b => {
       const approvedCount = approvedPayoutsHistory.filter(p => String(p.bountyId) === String(b.id)).length;
       const pendingSubCount = pendingSubmissions.filter(s => String(s.bountyId) === String(b.id) && s.status === 'pending').length;
       const isSlotsZero = getEffectiveSlotsRemaining(b) <= 0;
@@ -2286,6 +2387,7 @@ function renderPosterDashboard() {
       'You have not published any task bounty pools yet. Click "Publish New Bounty" above to launch your first task pool!',
       `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>`
     );
+    poolsList.innerHTML = bannerHTML + poolsHTML;
   }
 
   if (subsList) {
