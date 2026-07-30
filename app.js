@@ -1660,14 +1660,14 @@ async function processImageFileToDataUrl(file) {
         try {
           const canvas = document.createElement('canvas');
           let width = img.width, height = img.height;
-          const maxDim = 500;
+          const maxDim = 360; // Optimized micro dimension (~12KB-18KB payload max)
           if (width > maxDim || height > maxDim) {
             if (width > height) { height = Math.round((height * maxDim) / width); width = maxDim; }
             else { width = Math.round((width * maxDim) / height); height = maxDim; }
           }
           canvas.width = width; canvas.height = height;
           canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', 0.6));
+          resolve(canvas.toDataURL('image/jpeg', 0.45));
         } catch (err) { resolve(rawDataUrl); }
       };
       img.onerror = () => { clearTimeout(timer); resolve(rawDataUrl); };
@@ -1679,26 +1679,46 @@ async function processImageFileToDataUrl(file) {
 }
 
 async function uploadScreenshotToCloud(file) {
+  // 1. Try tmpfiles.org cloud host
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 3500);
+    const res = await fetch('https://tmpfiles.org/api/v1/upload', {
+      method: 'POST',
+      body: formData,
+      signal: controller.signal
+    });
+    clearTimeout(timer);
+    if (res.ok) {
+      const json = await res.json();
+      if (json && json.data && json.data.url) {
+        const directUrl = json.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
+        return directUrl;
+      }
+    }
+  } catch(e) {}
+
+  // 2. Fallback to catbox.moe
   try {
     const formData = new FormData();
     formData.append('reqtype', 'fileupload');
     formData.append('fileToUpload', file);
-
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 4000);
-
+    const timer = setTimeout(() => controller.abort(), 3500);
     const res = await fetch('https://catbox.moe/user/api.php', {
       method: 'POST',
       body: formData,
       signal: controller.signal
     });
-    clearTimeout(timeoutId);
-
+    clearTimeout(timer);
     if (res.ok) {
       const url = (await res.text()).trim();
       if (url.startsWith('http')) return url;
     }
   } catch (e) {}
+
   return null;
 }
 
@@ -1752,6 +1772,7 @@ async function handleSubmitProof() {
 
     const fileInput = document.getElementById('proof-image-file');
     if (!uploadedImageDataUrl && fileInput && fileInput.files && fileInput.files[0]) {
+      showToastNotification('Preparing Screenshot', 'Compressing screenshot proof for instant sync...', false);
       uploadedImageDataUrl = (await uploadScreenshotToCloud(fileInput.files[0])) || (await processImageFileToDataUrl(fileInput.files[0]));
     }
   }
