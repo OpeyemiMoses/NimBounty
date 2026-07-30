@@ -1765,18 +1765,6 @@ async function handleSubmitProof() {
   const pType = bounty.proofType || 'text';
   let proofContent = '';
 
-  if (pType === 'image' || pType === 'image_text') {
-    const urlInput = document.getElementById('proof-image-url-input');
-    const pastedUrl = urlInput ? urlInput.value.trim() : '';
-    if (pastedUrl) uploadedImageDataUrl = pastedUrl;
-
-    const fileInput = document.getElementById('proof-image-file');
-    if (!uploadedImageDataUrl && fileInput && fileInput.files && fileInput.files[0]) {
-      showToastNotification('Preparing Screenshot', 'Compressing screenshot proof for instant sync...', false);
-      uploadedImageDataUrl = (await uploadScreenshotToCloud(fileInput.files[0])) || (await processImageFileToDataUrl(fileInput.files[0]));
-    }
-  }
-
   if (pType === 'text') {
     proofContent = document.getElementById('proof-text-input')?.value.trim() || '';
     if (!proofContent) {
@@ -1789,20 +1777,38 @@ async function handleSubmitProof() {
       showToastNotification('Proof Required', 'Please paste your proof URL link.', true);
       return;
     }
-  } else if (pType === 'image') {
-    proofContent = uploadedImageDataUrl || '';
-    if (!proofContent) {
-      showToastNotification('Proof Required', 'Please attach a screenshot proof file.', true);
+    if (!proofContent.startsWith('http://') && !proofContent.startsWith('https://')) {
+      showToastNotification('Invalid Link', 'Proof URL must start with http:// or https://', true);
       return;
     }
+  } else if (pType === 'image') {
+    const imgUrl = document.getElementById('proof-image-url-input')?.value.trim() || '';
+    if (!imgUrl) {
+      showToastNotification('Screenshot Link Required', 'Please paste your public screenshot URL link to submit.', true);
+      return;
+    }
+    if (!imgUrl.startsWith('http://') && !imgUrl.startsWith('https://')) {
+      showToastNotification('Invalid Link', 'Screenshot URL must start with http:// or https://', true);
+      return;
+    }
+    proofContent = imgUrl;
   } else if (pType === 'image_text') {
     const txt = document.getElementById('proof-text-input')?.value.trim() || '';
-    const img = uploadedImageDataUrl || '';
-    if (!txt && !img) {
-      showToastNotification('Proof Required', 'Please provide feedback text or attach a screenshot.', true);
+    const imgUrl = document.getElementById('proof-image-url-input')?.value.trim() || '';
+
+    if (!txt) {
+      showToastNotification('Feedback Required', 'Please enter your written feedback before submitting.', true);
       return;
     }
-    proofContent = JSON.stringify({ text: txt, image: img });
+    if (!imgUrl) {
+      showToastNotification('Screenshot Link Required', 'Please paste your public screenshot URL link to submit.', true);
+      return;
+    }
+    if (!imgUrl.startsWith('http://') && !imgUrl.startsWith('https://')) {
+      showToastNotification('Invalid Link', 'Screenshot URL must start with http:// or https://', true);
+      return;
+    }
+    proofContent = JSON.stringify({ text: txt, image: imgUrl });
   }
 
   const workerAddr = userAccount.replace(/\s+/g, '').toUpperCase();
