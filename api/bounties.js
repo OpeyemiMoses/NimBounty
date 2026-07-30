@@ -1,7 +1,7 @@
 // Vercel Serverless API — NimBounty Global Store Sync Engine
 // Manages global real-time synchronization for bounties, worker submissions, and approved payouts.
 
-let activeBlobId = '019fb091-a7b1-75b7-817c-051be9882f1e';
+let activeBlobId = '019fb0b4-cb3f-7d30-b308-13b997cc7457';
 
 async function createNewBlob(initialData = { bounties: [], pendingSubmissions: [], approvedPayoutsHistory: [], profiles: {} }) {
   try {
@@ -115,10 +115,10 @@ export default async function handler(req, res) {
       // 2. Sync Approved Payouts History
       if (Array.isArray(body.approvedPayoutsHistory) && body.approvedPayoutsHistory.length > 0) {
         const existingPayKeys = new Set(
-          approvedPayoutsHistory.map(p => p.id || `${p.bountyId}_${(p.workerAddress || '').toUpperCase().replace(/\s+/g,'')}`)
+          approvedPayoutsHistory.map(p => p.id || `${p.bountyId}_${p.paidAt}_${(p.workerAddress || '').toUpperCase().replace(/\s+/g,'')}`)
         );
         body.approvedPayoutsHistory.forEach(incoming => {
-          const key = incoming.id || `${incoming.bountyId}_${(incoming.workerAddress || '').toUpperCase().replace(/\s+/g,'')}`;
+          const key = incoming.id || `${incoming.bountyId}_${incoming.paidAt}_${(incoming.workerAddress || '').toUpperCase().replace(/\s+/g,'')}`;
           if (!existingPayKeys.has(key)) {
             approvedPayoutsHistory.unshift(incoming);
             existingPayKeys.add(key);

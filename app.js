@@ -5,19 +5,19 @@
 // Production API URL
 const PRODUCTION_URL = 'https://nim-bounty.vercel.app';
 
-// Storage Keys — Version 9 (Total Clean Slate)
-const STORAGE_KEY_USER_ACCT = 'nimbounty_user_wallet_v9';
-const STORAGE_KEY_PROFILE = 'nimbounty_profile_v9';
-const STORAGE_KEY_THEME = 'nimbounty_theme_v9';
-const STORAGE_KEY_LOCAL_BOUNTIES = 'nimbounty_pools_v9';
-const STORAGE_KEY_SUBS = 'nimbounty_subs_v9';
-const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v9';
-const STORAGE_KEY_REPUTATION = 'nimbounty_reputation_v9';
-const STORAGE_KEY_ONBOARDED_GLOBAL = 'nimbounty_onboarded_global_v9';
+// Storage Keys — Version 10 (Total Clean Slate)
+const STORAGE_KEY_USER_ACCT = 'nimbounty_user_wallet_v10';
+const STORAGE_KEY_PROFILE = 'nimbounty_profile_v10';
+const STORAGE_KEY_THEME = 'nimbounty_theme_v10';
+const STORAGE_KEY_LOCAL_BOUNTIES = 'nimbounty_pools_v10';
+const STORAGE_KEY_SUBS = 'nimbounty_subs_v10';
+const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v10';
+const STORAGE_KEY_REPUTATION = 'nimbounty_reputation_v10';
+const STORAGE_KEY_ONBOARDED_GLOBAL = 'nimbounty_onboarded_global_v10';
 
-// Clear all legacy local storage cache (v1–v8)
+// Clear all legacy local storage cache (v1–v9)
 try {
-  ['v1','v2','v3','v4','v5','v6','v7','v8'].forEach(v => {
+  ['v1','v2','v3','v4','v5','v6','v7','v8','v9'].forEach(v => {
     localStorage.removeItem(`nimbounty_pools_${v}`);
     localStorage.removeItem(`nimbounty_subs_${v}`);
     localStorage.removeItem(`nimbounty_approved_payouts_history_${v}`);
@@ -128,6 +128,25 @@ function createEmptyStateHTML(title, description, svgIcon = '') {
       <p style="font-size:0.85rem; color:var(--muted); margin:0; max-width:440px; margin-left:auto; margin-right:auto;">${description}</p>
     </div>
   `;
+}
+
+// Helper: Calculate Remaining Expiration Time for Bounty
+function getBountyTimeLeftStr(b) {
+  const createdAt = b.createdAt || (b.id && String(b.id).startsWith('bounty-') ? parseInt(String(b.id).replace('bounty-', '')) : Date.now());
+  const durationHours = b.duration || 336; // 14 days default
+  const expiresAt = b.expiresAt || (createdAt + (durationHours * 3600 * 1000));
+  const diffMs = expiresAt - Date.now();
+
+  if (diffMs <= 0) return 'Expired';
+
+  const totalMins = Math.floor(diffMs / (1000 * 60));
+  const days = Math.floor(totalMins / (60 * 24));
+  const hours = Math.floor((totalMins % (60 * 24)) / 60);
+  const mins = totalMins % 60;
+
+  if (days > 0) return `${days}d ${hours}h left`;
+  if (hours > 0) return `${hours}h ${mins}m left`;
+  return `${mins}m left`;
 }
 
 // Live Escrow Budget Calculator for Publish Campaign Form
@@ -1463,7 +1482,12 @@ function renderBounties() {
       <div class="bounty-card">
         <div>
           <div class="bounty-card-header">
-            <span class="bounty-category-tag">${b.categoryName || b.category || 'General'}</span>
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+              <span class="bounty-category-tag">${b.categoryName || b.category || 'General'}</span>
+              <span style="font-size:0.72rem; color:var(--muted); font-weight:700; display:inline-flex; align-items:center; gap:4px; background:var(--bg-subtle); padding:3px 8px; border-radius:6px; border:1px solid var(--border);">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> ${getBountyTimeLeftStr(b)}
+              </span>
+            </div>
             <div style="display:flex; align-items:center; gap:8px;">
               <button onclick="openQrModal('${b.id}')" title="Share QR Code" style="background:var(--bg-subtle); border:1px solid var(--border); padding:6px; border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; color:var(--ink);">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
