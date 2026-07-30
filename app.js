@@ -1741,9 +1741,6 @@ function renderBounties() {
               ${getBountyTimeLeftStr(b, userAccount)}
             </div>
             <div style="display:flex; align-items:center; gap:8px;">
-              <button onclick="openQrModal('${b.id}')" title="Share QR Code" style="background:var(--bg-subtle); border:1px solid var(--border); padding:6px; border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; color:var(--ink);">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-              </button>
               <span class="bounty-reward">${b.reward} NIM</span>
             </div>
           </div>
@@ -2046,24 +2043,40 @@ async function handleSubmitProof() {
     } catch (e) {}
   }
 
-  const subId = `sub-${Date.now()}`;
+  const existingRejIdx = pendingSubmissions.findIndex(s => String(s.bountyId) === String(bounty.id) && isSameNimiqAddress(s.workerAddress, workerAddr) && s.status === 'rejected');
 
-  const newSub = {
-    id: subId,
-    bountyId: bounty.id,
-    bountyTitle: bounty.title,
-    posterAddress: posterAddr,
-    workerAddress: workerAddr,
-    proofType: pType,
-    content: proofContent,
-    signature: signature,
-    publicKey: publicKey,
-    submittedAt: new Date().toLocaleTimeString(),
-    reward: bounty.reward,
-    status: 'pending'
-  };
-
-  pendingSubmissions.unshift(newSub);
+  let newSub;
+  if (existingRejIdx !== -1) {
+    // Re-submit previous rejected submission back to 'pending' state!
+    newSub = {
+      ...pendingSubmissions[existingRejIdx],
+      proofType: pType,
+      content: proofContent,
+      signature: signature,
+      publicKey: publicKey,
+      submittedAt: new Date().toLocaleTimeString(),
+      status: 'pending',
+      rejectionReason: null
+    };
+    pendingSubmissions[existingRejIdx] = newSub;
+  } else {
+    // Brand new submission
+    newSub = {
+      id: `sub-${Date.now()}`,
+      bountyId: bounty.id,
+      bountyTitle: bounty.title,
+      posterAddress: posterAddr,
+      workerAddress: workerAddr,
+      proofType: pType,
+      content: proofContent,
+      signature: signature,
+      publicKey: publicKey,
+      submittedAt: new Date().toLocaleTimeString(),
+      reward: bounty.reward,
+      status: 'pending'
+    };
+    pendingSubmissions.unshift(newSub);
+  }
 
   if (!bounties.some(b => String(b.id) === String(bounty.id))) bounties.push(bounty);
   const targetBounty = bounties.find(b => String(b.id) === String(bounty.id));
