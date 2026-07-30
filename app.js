@@ -1427,6 +1427,13 @@ function renderProfile() {
     ? `<img src="${profile.avatarUrl}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;" />`
     : `<svg viewBox="0 0 64 64" width="48" height="48" fill="none" stroke="var(--gold)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M32 6L6 19l26 13 26-13L32 6zM6 45l26 13 26-13M6 32l26 13 26-13"/></svg>`;
 
+  const posterPaidOutNIM = userAccount
+    ? approvedPayoutsHistory
+        .filter(p => isSameNimiqAddress(p.posterAddress, userAccount))
+        .reduce((sum, p) => sum + (parseFloat(p.reward) || 0), 0)
+        .toFixed(1)
+    : '0.0';
+
   el.innerHTML = `
     <!-- Top Header Navigation -->
     <div style="display:flex; align-items:center; gap:8px; margin-bottom:20px; font-size:0.75rem; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:0.06em;">
@@ -1503,36 +1510,33 @@ function renderProfile() {
 
     </div>
 
-    <!-- Global Protocol Stats (Compact) -->
-    <div style="background:var(--card); border:1px solid var(--gold-border); border-radius:14px; padding:14px; margin-bottom:14px; background:linear-gradient(135deg, rgba(255,199,44,0.04) 0%, rgba(255,199,44,0.01) 100%);">
-      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
-        <div style="display:flex; align-items:center; gap:6px;">
-          <div style="width:7px; height:7px; border-radius:50%; background:var(--emerald); box-shadow:0 0 6px var(--emerald);"></div>
-          <span style="font-size:0.68rem; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em;">GLOBAL STATS</span>
+    <!-- Particular Wallet NIM Paid Out Thin Card -->
+    <div style="background:var(--card); border:1px solid var(--border); border-radius:14px; padding:12px 16px; margin-bottom:14px; display:flex; align-items:center; justify-content:space-between; box-shadow:var(--shadow-sm);">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div style="width:36px; height:36px; border-radius:10px; background:var(--gold-tint); border:1px solid var(--gold-border); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
         </div>
-        <span style="font-size:0.6rem; background:var(--gold); color:#1a1917; font-weight:800; padding:1px 6px; border-radius:4px; text-transform:uppercase;">LIVE</span>
-      </div>
-      <div style="display:flex; gap:10px; margin-bottom:10px;">
-        <div style="flex:1; background:var(--bg-subtle); border:1px solid var(--border); border-radius:10px; padding:10px; text-align:center;">
-          <div style="font-size:1.1rem; font-weight:900; color:var(--ink);">${bounties.length}</div>
-          <div style="font-size:0.6rem; font-weight:800; color:var(--muted); text-transform:uppercase;">TOTAL TASK CREATED</div>
-        </div>
-        <div style="flex:1; background:var(--bg-subtle); border:1px solid var(--border); border-radius:10px; padding:10px; text-align:center;">
-          <div style="font-size:1.1rem; font-weight:900; color:var(--emerald);">${approvedPayoutsHistory.reduce((acc, p) => acc + (parseFloat(p.reward) || 0), 0).toFixed(1)}</div>
-          <div style="font-size:0.6rem; font-weight:800; color:var(--muted); text-transform:uppercase;">TOTAL NIM PAID OUT</div>
+        <div>
+          <div style="font-size:0.86rem; font-weight:800; color:var(--ink);">NIM Paid Out by You</div>
+          <div style="font-size:0.7rem; color:var(--muted); font-weight:600;">Total NIM rewards funded from this wallet</div>
         </div>
       </div>
-      <div onclick="showView('registry')" style="display:flex; align-items:center; justify-content:space-between; padding:8px 10px; background:var(--bg); border:1px solid var(--border); border-radius:10px; cursor:pointer; font-size:0.78rem; font-weight:700; color:var(--ink);">
-        <span style="display:inline-flex; align-items:center; gap:6px;">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
-          Global Bounty Registry
-        </span>
-        <span style="color:var(--gold); font-weight:800;">&rarr;</span>
-      </div>
+      <div style="font-family:var(--font-mono); font-size:1.15rem; font-weight:900; color:var(--gold-text);">${posterPaidOutNIM} NIM</div>
     </div>
 
     <!-- Menu Action Cards -->
     <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:24px;">
+      <div class="menu-action-card" onclick="showView('registry')">
+        <div class="menu-action-icon" style="display:flex; align-items:center; justify-content:center;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+        </div>
+        <div style="flex:1;">
+          <div class="menu-action-title">Global Bounty Registry</div>
+          <div class="menu-action-desc">View public live ledger of all created bounties &amp; stats</div>
+        </div>
+        <span class="menu-action-arrow">&rarr;</span>
+      </div>
+
       <div class="menu-action-card" onclick="openLeaderboardModal()" style="border:1.5px solid var(--gold); background:linear-gradient(135deg, rgba(255,199,44,0.08) 0%, rgba(255,199,44,0.02) 100%);">
         <div class="menu-action-icon" style="background:var(--gold-tint); border:1px solid var(--gold-border); display:flex; align-items:center; justify-content:center;">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg>
@@ -3230,9 +3234,33 @@ function openLeaderboardModal() {
 function renderGlobalRegistry() {
   const container = document.getElementById('global-registry-list');
   const countBadge = document.getElementById('registry-count-badge');
+  const statsCard = document.getElementById('global-registry-stats-card');
   if (!container) return;
 
   if (countBadge) countBadge.textContent = `${bounties.length} Bounties Created`;
+
+  if (statsCard) {
+    const totalPaidOut = approvedPayoutsHistory.reduce((acc, p) => acc + (parseFloat(p.reward) || 0), 0).toFixed(1);
+    statsCard.innerHTML = `
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+        <div style="display:flex; align-items:center; gap:6px;">
+          <div style="width:7px; height:7px; border-radius:50%; background:var(--emerald); box-shadow:0 0 6px var(--emerald);"></div>
+          <span style="font-size:0.7rem; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em;">GLOBAL STATS</span>
+        </div>
+        <span style="font-size:0.65rem; background:var(--gold); color:#1a1917; font-weight:800; padding:2px 8px; border-radius:6px; text-transform:uppercase;">LIVE ENGINE</span>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <div style="background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; padding:10px; text-align:center;">
+          <div style="font-size:1.2rem; font-weight:900; color:var(--ink);">${bounties.length}</div>
+          <div style="font-size:0.62rem; font-weight:800; color:var(--muted); text-transform:uppercase; margin-top:2px;">TOTAL TASK CREATED</div>
+        </div>
+        <div style="background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; padding:10px; text-align:center;">
+          <div style="font-size:1.2rem; font-weight:900; color:var(--emerald);">${totalPaidOut} NIM</div>
+          <div style="font-size:0.62rem; font-weight:800; color:var(--muted); text-transform:uppercase; margin-top:2px;">TOTAL NIM PAID OUT</div>
+        </div>
+      </div>
+    `;
+  }
 
   if (bounties.length === 0) {
     container.innerHTML = createEmptyStateHTML(
