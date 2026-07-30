@@ -88,25 +88,39 @@ body {
   z-index: 999999;
 }
 
-/* Toast Notifications Container */
+/* Toast Notifications Container — Bottom Positioned */
 .toast-container {
   position: fixed;
-  top: 80px;
+  bottom: 84px;
   right: 24px;
-  z-index: 99999;
+  z-index: 999999;
   display: flex;
-  flex-direction: column;
+  flex-direction: column-reverse;
   gap: 10px;
   max-width: 380px;
+  pointer-events: none;
 }
 
 .toast-msg {
   background: var(--card);
   border: 1px solid var(--border);
   border-left: 4px solid var(--gold);
-  border-radius: 12px;
+  border-radius: 14px;
   padding: 14px 18px;
-  box-shadow: var(--shadow-card);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  pointer-events: auto;
+  animation: toastSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes toastSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Navbar */
@@ -1145,6 +1159,12 @@ textarea {
   #view-app, #view-orders, #view-faq, #view-protections, #view-how-it-works {
     padding-bottom: 90px !important;
   }
+  .toast-container {
+    bottom: 80px;
+    left: 16px;
+    right: 16px;
+    max-width: none;
+  }
   .stat-divider { display: none; }
   .stats-card-container { grid-template-columns: 1fr 1fr; gap: 16px; }
   .btn-primary-lg, .btn-secondary-lg { width: 100%; }
@@ -1387,10 +1407,12 @@ textarea {
   transition: filter 0.3s ease, opacity 0.3s ease;
 }
 
-/* Onboarding Walkthrough � sits above everything, even tour-highlighted cards */
+/* Onboarding Walkthrough — NO BLUR so highlighted UI features are completely crystal clear */
 #onboarding-overlay {
   z-index: 300000 !important;
-  background: rgba(0, 0, 0, 0.45) !important;
+  background: rgba(0, 0, 0, 0.32) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   pointer-events: auto !important;
 }
 
