@@ -299,13 +299,15 @@ async function fetchGlobalPublicBounties() {
     }
 
     // 5. Only re-render if data actually changed (prevents UI flicker)
+    const allProfStr = JSON.stringify(JSON.parse(localStorage.getItem(STORAGE_KEY_PROFILE) || '{}'));
     const contentHash = JSON.stringify({
       bLen: bounties.length,
       bSlots: bounties.map(b => getEffectiveSlotsRemaining(b)).join(','),
       aLen: approvedPayoutsHistory.length,
       aIds: approvedPayoutsHistory.map(p => p.id).join(','),
       pLen: pendingSubmissions.length,
-      pIds: pendingSubmissions.map(s => `${s.id}:${s.status}`).join(',')
+      pIds: pendingSubmissions.map(s => `${s.id}:${s.status}`).join(','),
+      prof: allProfStr
     });
     if (contentHash !== lastRenderHash) {
       lastRenderHash = contentHash;
@@ -1405,6 +1407,7 @@ async function finalizeUsername() {
   localStorage.setItem(STORAGE_KEY_LOCAL_BOUNTIES, JSON.stringify(bounties));
 
   // Sync updated username and bounty sponsor names to global server store
+  await pushUserProfile(userAccount, profile);
   await syncGlobalPublicBounties();
 
   closeModal('modal-confirm-username');
@@ -1414,7 +1417,9 @@ async function finalizeUsername() {
   renderBounties();
   renderPosterDashboard();
   renderDedicatedOrders();
-  showToastNotification('Username Set', `Permanent username set: ${_pendingUsernameChoice}`, false);
+  renderLeaderboard();
+  renderGlobalRegistry();
+  showToastNotification('Username Set', `Permanent username set: @${_pendingUsernameChoice}`, false);
 }
 
 // ==========================================

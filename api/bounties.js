@@ -64,6 +64,14 @@ export default async function handler(req, res) {
       if (body.profile && body.walletAddress) {
         const clean = String(body.walletAddress).replace(/\s+/g, '').toUpperCase();
         profiles[clean] = { ...profiles[clean], ...body.profile, updatedAt: Date.now() };
+        if (body.profile.username) {
+          const uname = String(body.profile.username).trim().toUpperCase();
+          bounties.forEach(b => {
+            if (b.posterAddress && String(b.posterAddress).replace(/\s+/g, '').toUpperCase() === clean) {
+              b.sponsor = uname;
+            }
+          });
+        }
       }
 
       // 1. Sync Bounties
