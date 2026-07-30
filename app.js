@@ -2038,7 +2038,16 @@ async function publishBountyPoolDirectly() {
   calculateTotalEscrow();
 }
 
+function togglePosterProofInfoBox() {
+  const select = document.getElementById('task-proof-type');
+  const box = document.getElementById('poster-proof-info-box');
+  if (!select || !box) return;
+  const val = select.value;
+  box.style.display = (val === 'image' || val === 'image_text') ? 'block' : 'none';
+}
+
 function renderPosterDashboard() {
+  togglePosterProofInfoBox();
   const poolsList = document.getElementById('poster-pools-list');
   const subsList = document.getElementById('poster-subs-list');
 
