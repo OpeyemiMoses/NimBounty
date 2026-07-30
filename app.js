@@ -5,19 +5,19 @@
 // Production API URL
 const PRODUCTION_URL = 'https://nim-bounty.vercel.app';
 
-// Storage Keys — Version 8 (Total Clean Slate)
-const STORAGE_KEY_USER_ACCT = 'nimbounty_user_wallet_v8';
-const STORAGE_KEY_PROFILE = 'nimbounty_profile_v8';
-const STORAGE_KEY_THEME = 'nimbounty_theme_v8';
-const STORAGE_KEY_LOCAL_BOUNTIES = 'nimbounty_pools_v8';
-const STORAGE_KEY_SUBS = 'nimbounty_subs_v8';
-const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v8';
-const STORAGE_KEY_REPUTATION = 'nimbounty_reputation_v8';
-const STORAGE_KEY_ONBOARDED_GLOBAL = 'nimbounty_onboarded_global_v8';
+// Storage Keys — Version 9 (Total Clean Slate)
+const STORAGE_KEY_USER_ACCT = 'nimbounty_user_wallet_v9';
+const STORAGE_KEY_PROFILE = 'nimbounty_profile_v9';
+const STORAGE_KEY_THEME = 'nimbounty_theme_v9';
+const STORAGE_KEY_LOCAL_BOUNTIES = 'nimbounty_pools_v9';
+const STORAGE_KEY_SUBS = 'nimbounty_subs_v9';
+const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v9';
+const STORAGE_KEY_REPUTATION = 'nimbounty_reputation_v9';
+const STORAGE_KEY_ONBOARDED_GLOBAL = 'nimbounty_onboarded_global_v9';
 
-// Clear all legacy local storage cache (v1–v7)
+// Clear all legacy local storage cache (v1–v8)
 try {
-  ['v1','v2','v3','v4','v5','v6','v7'].forEach(v => {
+  ['v1','v2','v3','v4','v5','v6','v7','v8'].forEach(v => {
     localStorage.removeItem(`nimbounty_pools_${v}`);
     localStorage.removeItem(`nimbounty_subs_${v}`);
     localStorage.removeItem(`nimbounty_approved_payouts_history_${v}`);
