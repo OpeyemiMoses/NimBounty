@@ -230,33 +230,20 @@ async function fetchGlobalPublicBounties() {
     // ── SERVER IS AUTHORITATIVE ──
     // Replace local arrays with server state, preserving only un-synced local items.
 
-    // 1. BOUNTIES — server is truth, but preserve any local bounties not yet on server
+    // 1. BOUNTIES — server is total authority
     if (Array.isArray(data.bounties)) {
-      const serverIds = new Set(data.bounties.map(b => String(b.id)));
-      const localOnly = bounties.filter(b => !serverIds.has(String(b.id)));
-      bounties = [...data.bounties, ...localOnly];
+      bounties = data.bounties;
       localStorage.setItem(STORAGE_KEY_LOCAL_BOUNTIES, JSON.stringify(bounties));
     }
 
-    // 2. APPROVED PAYOUTS HISTORY — server is truth, preserve local-only payouts
+    // 2. APPROVED PAYOUTS HISTORY — server is total authority
     if (Array.isArray(data.approvedPayoutsHistory)) {
-      const serverPayKeys = new Set(
-        data.approvedPayoutsHistory.map(p => p.id || `${p.bountyId}_${(p.workerAddress || '').toUpperCase().replace(/\s+/g,'')}`)
-      );
-      const localOnlyPays = approvedPayoutsHistory.filter(p => {
-        const key = p.id || `${p.bountyId}_${(p.workerAddress || '').toUpperCase().replace(/\s+/g,'')}`;
-        return !serverPayKeys.has(key);
-      });
-      approvedPayoutsHistory = [...data.approvedPayoutsHistory, ...localOnlyPays];
+      approvedPayoutsHistory = data.approvedPayoutsHistory;
       localStorage.setItem(STORAGE_KEY_PAID_HISTORY, JSON.stringify(approvedPayoutsHistory));
     }
 
-    // 3. PENDING SUBMISSIONS — server is truth, preserve local-only subs (e.g. just submitted)
+    // 3. PENDING SUBMISSIONS — server is authority (preserve local image previews if available)
     if (Array.isArray(data.pendingSubmissions)) {
-      const serverSubIds = new Set(data.pendingSubmissions.map(s => s.id));
-      // Keep local subs that haven't reached the server yet (preserving image data)
-      const localOnlySubs = pendingSubmissions.filter(s => !serverSubIds.has(s.id));
-      // For server subs, overlay local image data if we have it
       const mergedServerSubs = data.pendingSubmissions.map(ss => {
         const localMatch = pendingSubmissions.find(ls => ls.id === ss.id);
         if (localMatch && localMatch.content && localMatch.content.startsWith('data:image') && (!ss.content || ss.content.startsWith('[LOCAL_IMG'))) {
@@ -264,7 +251,7 @@ async function fetchGlobalPublicBounties() {
         }
         return ss;
       });
-      pendingSubmissions = [...mergedServerSubs, ...localOnlySubs];
+      pendingSubmissions = mergedServerSubs;
     }
 
     // Mark any pending sub as 'approved' if it matches an approved payout
