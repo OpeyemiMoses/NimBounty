@@ -64,6 +64,16 @@ function isSameNimiqAddress(addr1, addr2) {
   return clean1 === clean2;
 }
 
+// Helper: Calculate effective slotsRemaining DYNAMICALLY from live data
+// Never trust stored slotsRemaining — always compute from real pending + approved counts
+function getEffectiveSlotsRemaining(bounty) {
+  const bId = String(bounty.id);
+  const total = parseInt(bounty.slotsTotal || 5);
+  const pendingCount = pendingSubmissions.filter(s => String(s.bountyId) === bId && s.status === 'pending').length;
+  const approvedCount = approvedPayoutsHistory.filter(p => String(p.bountyId) === bId).length;
+  return Math.max(0, total - (pendingCount + approvedCount));
+}
+
 // Helper: Get User Profile Data
 function getProfile(walletAddress) {
   if (!walletAddress) return { username: null, avatarUrl: null, joinedAt: null };
@@ -291,7 +301,7 @@ async function fetchGlobalPublicBounties() {
     // 5. Only re-render if data actually changed (prevents UI flicker)
     const contentHash = JSON.stringify({
       bLen: bounties.length,
-      bSlots: bounties.map(b => b.slotsRemaining).join(','),
+      bSlots: bounties.map(b => getEffectiveSlotsRemaining(b)).join(','),
       aLen: approvedPayoutsHistory.length,
       aIds: approvedPayoutsHistory.map(p => p.id).join(','),
       pLen: pendingSubmissions.length,
@@ -767,7 +777,7 @@ function updateLandingStats() {
   const elBounties = document.getElementById('landing-stat-bounties');
   const elPayouts = document.getElementById('landing-stat-payouts');
 
-  const activeCount = bounties.filter(b => (b.slotsRemaining === undefined || b.slotsRemaining > 0)).length;
+  const activeCount = bounties.filter(b => getEffectiveSlotsRemaining(b) > 0).length;
   const livePayoutsSum = approvedPayoutsHistory.reduce((sum, p) => sum + (parseFloat(p.reward) || 0), 0);
 
   if (elBounties) elBounties.textContent = activeCount;
@@ -1268,36 +1278,27 @@ function renderProfile() {
       </div>
     </div>
 
-    <!-- Global Protocol Stats Card (Real-Time Live) -->
-    <div style="background:var(--card); border:1.5px solid var(--gold); border-radius:18px; padding:20px; margin-bottom:16px; box-shadow:0 8px 24px rgba(255,199,44,0.08); background:linear-gradient(135deg, rgba(255,199,44,0.06) 0%, rgba(255,199,44,0.01) 100%);">
-      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
-        <div style="display:flex; align-items:center; gap:8px;">
-          <div style="width:10px; height:10px; border-radius:50%; background:var(--emerald); box-shadow:0 0 8px var(--emerald);"></div>
-          <span style="font-size:0.75rem; font-weight:800; color:var(--ink); text-transform:uppercase; letter-spacing:0.06em;">GLOBAL PROTOCOL STATS</span>
+    <!-- Global Protocol Stats (Compact) -->
+    <div style="background:var(--card); border:1px solid var(--gold-border); border-radius:14px; padding:14px; margin-bottom:14px; background:linear-gradient(135deg, rgba(255,199,44,0.04) 0%, rgba(255,199,44,0.01) 100%);">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+        <div style="display:flex; align-items:center; gap:6px;">
+          <div style="width:7px; height:7px; border-radius:50%; background:var(--emerald); box-shadow:0 0 6px var(--emerald);"></div>
+          <span style="font-size:0.68rem; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em;">GLOBAL STATS</span>
         </div>
-        <span style="font-size:0.68rem; background:var(--gold); color:#1a1917; font-weight:800; padding:2px 8px; border-radius:6px; text-transform:uppercase;">LIVE ENGINE</span>
+        <span style="font-size:0.6rem; background:var(--gold); color:#1a1917; font-weight:800; padding:1px 6px; border-radius:4px; text-transform:uppercase;">LIVE</span>
       </div>
-
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px;">
-        <div style="background:var(--bg-subtle); border:1px solid var(--border); border-radius:14px; padding:14px; text-align:center;">
-          <div style="font-size:1.4rem; font-weight:900; color:var(--ink); line-height:1.2;">${bounties.length}</div>
-          <div style="font-size:0.68rem; font-weight:800; color:var(--muted); margin-top:4px; text-transform:uppercase; letter-spacing:0.04em;">TOTAL TASKS CREATED</div>
+      <div style="display:flex; gap:10px; margin-bottom:10px;">
+        <div style="flex:1; background:var(--bg-subtle); border:1px solid var(--border); border-radius:10px; padding:10px; text-align:center;">
+          <div style="font-size:1.1rem; font-weight:900; color:var(--ink);">${bounties.length}</div>
+          <div style="font-size:0.6rem; font-weight:800; color:var(--muted); text-transform:uppercase;">TASKS</div>
         </div>
-        <div style="background:var(--bg-subtle); border:1px solid var(--border); border-radius:14px; padding:14px; text-align:center;">
-          <div style="font-size:1.4rem; font-weight:900; color:var(--emerald); line-height:1.2;">${approvedPayoutsHistory.reduce((acc, p) => acc + (parseFloat(p.reward) || 0), 0).toFixed(1)} NIM</div>
-          <div style="font-size:0.68rem; font-weight:800; color:var(--muted); margin-top:4px; text-transform:uppercase; letter-spacing:0.04em;">TOTAL REWARDS PAID</div>
+        <div style="flex:1; background:var(--bg-subtle); border:1px solid var(--border); border-radius:10px; padding:10px; text-align:center;">
+          <div style="font-size:1.1rem; font-weight:900; color:var(--emerald);">${approvedPayoutsHistory.reduce((acc, p) => acc + (parseFloat(p.reward) || 0), 0).toFixed(1)}</div>
+          <div style="font-size:0.6rem; font-weight:800; color:var(--muted); text-transform:uppercase;">NIM PAID</div>
         </div>
       </div>
-
-      <!-- Global Registry Page Link Card -->
-      <div onclick="showView('registry')" style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 14px; background:var(--bg); border:1px solid var(--gold-border); border-radius:12px; cursor:pointer; transition:all 0.2s;">
-        <div style="display:flex; align-items:center; gap:10px;">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-          <div>
-            <div style="font-size:0.85rem; font-weight:800; color:var(--ink);">View Global Bounty Registry</div>
-            <div style="font-size:0.72rem; color:var(--muted);">Public live ledger of all bounty pools &amp; creator handles</div>
-          </div>
-        </div>
+      <div onclick="showView('registry')" style="display:flex; align-items:center; justify-content:space-between; padding:8px 10px; background:var(--bg); border:1px solid var(--border); border-radius:10px; cursor:pointer; font-size:0.78rem; font-weight:700; color:var(--ink);">
+        <span>📋 Global Bounty Registry</span>
         <span style="color:var(--gold); font-weight:800;">&rarr;</span>
       </div>
     </div>
@@ -1446,7 +1447,7 @@ function renderBounties() {
       : false;
 
     if (workerSubtab === 'active') {
-      return matchesSearch && matchesCat && (b.slotsRemaining === undefined || b.slotsRemaining > 0) && !myApprovedPayout && !hasPendingSub && !isPublisher;
+      return matchesSearch && matchesCat && getEffectiveSlotsRemaining(b) > 0 && !myApprovedPayout && !hasPendingSub && !isPublisher;
     } else {
       return matchesSearch && matchesCat && (myApprovedPayout || hasPendingSub);
     }
@@ -1518,7 +1519,7 @@ function renderBounties() {
         <div>
           <div class="bounty-meta-row">
             <span>Poster: <strong>${posterDisplayName}</strong></span>
-            <span>Slots: <strong>${b.slotsRemaining !== undefined ? b.slotsRemaining : (b.slotsTotal || 5)} / ${b.slotsTotal || 5}</strong></span>
+            <span>Slots: <strong>${getEffectiveSlotsRemaining(b)} / ${b.slotsTotal || 5}</strong></span>
           </div>
           <button class="btn-primary-sm full-width" onclick="openSubmitProofModal('${b.id}')" ${btnDisabled ? 'disabled' : ''} style="justify-content:center;">
             ${btnLabel}
@@ -1805,9 +1806,6 @@ async function handleSubmitProof() {
 
   if (!bounties.some(b => String(b.id) === String(bounty.id))) bounties.push(bounty);
   const targetBounty = bounties.find(b => String(b.id) === String(bounty.id));
-  if (targetBounty && targetBounty.slotsRemaining > 0) {
-    targetBounty.slotsRemaining -= 1;
-  }
 
   const safeSubsForStorage = pendingSubmissions.map(s => {
     if (s.content && s.content.startsWith('data:image')) {
@@ -1975,7 +1973,7 @@ function renderPosterDashboard() {
   if (poolsList) {
     const myPools = bounties.filter(b => isSameNimiqAddress(b.posterAddress, userAccount));
     poolsList.innerHTML = myPools.length ? myPools.map(b => {
-      const isSlotsZero = (b.slotsRemaining !== undefined && b.slotsRemaining <= 0);
+      const isSlotsZero = getEffectiveSlotsRemaining(b) <= 0;
       const pendingSubCount = pendingSubmissions.filter(s => String(s.bountyId) === String(b.id) && s.status === 'pending').length;
       const isFullyCompleted = isSlotsZero && pendingSubCount === 0;
 
@@ -1992,7 +1990,7 @@ function renderPosterDashboard() {
             <h4 style="font-size:1rem; font-weight:800; margin:0; color:var(--ink);">${b.title}</h4>
             ${statusBadge}
           </div>
-          <div style="font-size:0.8rem; color:var(--muted); font-weight:600;">Reward: ${b.reward} NIM &bull; Slots Remaining: ${b.slotsRemaining} / ${b.slotsTotal}</div>
+          <div style="font-size:0.8rem; color:var(--muted); font-weight:600;">Reward: ${b.reward} NIM &bull; Slots Remaining: ${getEffectiveSlotsRemaining(b)} / ${b.slotsTotal}</div>
         </div>
       `;
     }).join('') : createEmptyStateHTML(
@@ -2659,7 +2657,7 @@ function renderGlobalRegistry() {
       ? String(b.sponsor).trim().toUpperCase()
       : getUserDisplayName(b.posterAddress);
 
-    const isSlotsZero = (b.slotsRemaining !== undefined && b.slotsRemaining <= 0);
+    const isSlotsZero = getEffectiveSlotsRemaining(b) <= 0;
     const timeLeftStr = getBountyTimeLeftStr(b);
     const createdDate = b.createdAt
       ? new Date(b.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -2685,7 +2683,7 @@ function renderGlobalRegistry() {
             Created by: <strong style="color:var(--ink);">${creatorDisplayName}</strong> &bull; ${createdDate}
           </div>
           <div style="font-weight:700; color:${isSlotsZero ? 'var(--danger)' : 'var(--emerald)'};">
-            Slots Remaining: ${b.slotsRemaining !== undefined ? b.slotsRemaining : (b.slotsTotal || 5)} / ${b.slotsTotal || 5}
+            Slots Remaining: ${getEffectiveSlotsRemaining(b)} / ${b.slotsTotal || 5}
           </div>
         </div>
       </div>
