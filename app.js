@@ -5,19 +5,19 @@
 // Production API URL
 const PRODUCTION_URL = 'https://nim-bounty.vercel.app';
 
-// Storage Keys — Version 10 (Total Clean Slate)
-const STORAGE_KEY_USER_ACCT = 'nimbounty_user_wallet_v10';
-const STORAGE_KEY_PROFILE = 'nimbounty_profile_v10';
-const STORAGE_KEY_THEME = 'nimbounty_theme_v10';
-const STORAGE_KEY_LOCAL_BOUNTIES = 'nimbounty_pools_v10';
-const STORAGE_KEY_SUBS = 'nimbounty_subs_v10';
-const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v10';
-const STORAGE_KEY_REPUTATION = 'nimbounty_reputation_v10';
-const STORAGE_KEY_ONBOARDED_GLOBAL = 'nimbounty_onboarded_global_v10';
+// Storage Keys — Version 11 (Total Clean Slate)
+const STORAGE_KEY_USER_ACCT = 'nimbounty_user_wallet_v11';
+const STORAGE_KEY_PROFILE = 'nimbounty_profile_v11';
+const STORAGE_KEY_THEME = 'nimbounty_theme_v11';
+const STORAGE_KEY_LOCAL_BOUNTIES = 'nimbounty_pools_v11';
+const STORAGE_KEY_SUBS = 'nimbounty_subs_v11';
+const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v11';
+const STORAGE_KEY_REPUTATION = 'nimbounty_reputation_v11';
+const STORAGE_KEY_ONBOARDED_GLOBAL = 'nimbounty_onboarded_global_v11';
 
-// Clear all legacy local storage cache (v1–v9)
+// Clear all legacy local storage cache (v1–v10)
 try {
-  ['v1','v2','v3','v4','v5','v6','v7','v8','v9'].forEach(v => {
+  ['v1','v2','v3','v4','v5','v6','v7','v8','v9','v10'].forEach(v => {
     localStorage.removeItem(`nimbounty_pools_${v}`);
     localStorage.removeItem(`nimbounty_subs_${v}`);
     localStorage.removeItem(`nimbounty_approved_payouts_history_${v}`);
@@ -248,10 +248,10 @@ async function fetchGlobalPublicBounties() {
       // Merge approved payouts history safely without wiping local history
       if (Array.isArray(data.approvedPayoutsHistory) && data.approvedPayoutsHistory.length > 0) {
         const existingPayKeys = new Set(
-          approvedPayoutsHistory.map(p => p.id || `${p.bountyId}_${(p.workerAddress || '').toUpperCase().replace(/\s+/g,'')}`)
+          approvedPayoutsHistory.map(p => p.id || `${p.bountyId}_${p.paidAt || 0}_${(p.workerAddress || '').toUpperCase().replace(/\s+/g,'')}`)
         );
         data.approvedPayoutsHistory.forEach(sp => {
-          const key = sp.id || `${sp.bountyId}_${(sp.workerAddress || '').toUpperCase().replace(/\s+/g,'')}`;
+          const key = sp.id || `${sp.bountyId}_${sp.paidAt || 0}_${(sp.workerAddress || '').toUpperCase().replace(/\s+/g,'')}`;
           if (!existingPayKeys.has(key)) {
             approvedPayoutsHistory.unshift(sp);
             existingPayKeys.add(key);
