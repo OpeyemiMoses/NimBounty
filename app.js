@@ -1243,65 +1243,69 @@ function renderProfile() {
     <div style="display:flex; align-items:center; gap:8px; margin-bottom:20px; font-size:0.75rem; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:0.06em;">
       <span>USER PROFILE</span>
     </div>
-    <div class="profile-card-xcrow" style="margin-bottom:16px;">
-      <div style="display:flex; gap:14px; align-items:flex-start; margin-bottom:16px;">
-        <div style="position:relative; flex-shrink:0;">
-          <div class="profile-avatar-circle">
-            ${avatarSvg}
+
+    <!-- Unified Profile Card (Matches User Screenshot) -->
+    <div style="background:var(--card); border:1px solid var(--border); border-radius:20px; overflow:hidden; margin-bottom:16px; box-shadow:0 2px 12px rgba(0,0,0,0.03);">
+      
+      <!-- Top Section -->
+      <div style="padding:20px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+        <div style="display:flex; align-items:center; gap:14px; min-width:0;">
+          <!-- Avatar Container -->
+          <div style="position:relative; width:64px; height:64px; flex-shrink:0;">
+            <div style="width:64px; height:64px; border-radius:50%; background:#000; border:2px solid var(--border); overflow:hidden; display:flex; align-items:center; justify-content:center;">
+              ${avatarSvg}
+            </div>
+            <button onclick="document.getElementById('profile-avatar-input').click()" title="Change Profile Picture" style="position:absolute; bottom:-2px; right:-2px; width:24px; height:24px; border-radius:50%; background:#1b6348; border:2px solid #ffffff; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            </button>
+            <input type="file" id="profile-avatar-input" accept="image/*" onchange="uploadProfileAvatar(event)" style="display:none;" />
           </div>
-          <button class="profile-camera-badge" onclick="document.getElementById('profile-avatar-input').click()" title="Change Profile Picture">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-          </button>
-          <input type="file" id="profile-avatar-input" accept="image/*" onchange="uploadProfileAvatar(event)" style="display:none;" />
+
+          <!-- User Info -->
+          <div style="min-width:0;">
+            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+              <h3 style="font-size:1.35rem; font-weight:800; color:var(--ink); margin:0; letter-spacing:-0.02em;">${displayUsername}</h3>
+              ${profile.username ? `
+                <button onclick="openSetUsernameModal()" title="Sync username globally" style="background:none; border:none; cursor:pointer; padding:2px; color:var(--muted); display:inline-flex; align-items:center; opacity:0.6;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                </button>
+              ` : `
+                <button class="btn-ghost-sm" onclick="openSetUsernameModal()" style="font-size:0.75rem; padding:4px 10px; border-color:var(--gold); color:var(--gold);">+ Set Username</button>
+              `}
+            </div>
+            ${hasCustomAvatar ? `
+              <button onclick="removeProfileAvatar()" style="background:none; border:none; color:var(--muted); font-size:0.82rem; cursor:pointer; padding:0; margin-top:4px; display:block; font-weight:500;">Remove photo</button>
+            ` : ''}
+          </div>
         </div>
 
-        <div style="flex:1; min-width:0;">
-          <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
-            <div>
-              <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                <h3 style="font-size:1.3rem; font-weight:900; color:var(--ink); margin:0; letter-spacing:-0.02em;">${displayUsername}</h3>
-                ${profile.username ? `
-                  <button onclick="openSetUsernameModal()" title="Sync username globally" style="background:none; border:none; cursor:pointer; padding:2px; color:var(--muted); display:inline-flex; align-items:center; opacity:0.6;" >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-                  </button>
-                ` : `
-                  <button class="btn-ghost-sm" onclick="openSetUsernameModal()" style="font-size:0.75rem; padding:4px 10px; border-color:var(--gold); color:var(--gold);">+ Set Permanent Username</button>
-                `}
-              </div>
-              <div style="font-size:0.75rem; color:var(--muted); font-weight:600; margin-top:4px; display:flex; align-items:center; gap:4px;">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                Joined ${joinedDateStr}
-              </div>
-              ${hasCustomAvatar ? `<button onclick="removeProfileAvatar()" style="background:none; border:none; color:var(--muted); font-size:0.75rem; cursor:pointer; padding:0; margin-top:4px;">Remove photo</button>` : ''}
-            </div>
-
-            <div class="address-pill-copy" onclick="navigator.clipboard.writeText('${userAccount}'); showToastNotification('Address Copied', 'Address copied to clipboard.', false);">
-              <span>${userAccount.substring(0,6)}...${userAccount.substring(userAccount.length-4)}</span>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-            </div>
-          </div>
+        <!-- Address Pill -->
+        <div class="address-pill-copy" onclick="navigator.clipboard.writeText('${userAccount}'); showToastNotification('Address Copied', 'Address copied to clipboard.', false);" style="padding:6px 14px; border-radius:20px; border:1px solid var(--border); background:var(--bg-subtle); font-family:var(--font-mono); font-size:0.82rem; font-weight:600; color:var(--muted); display:inline-flex; align-items:center; gap:6px; cursor:pointer;">
+          <span>${userAccount.substring(0,6)}...${userAccount.substring(userAccount.length-4)}</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
         </div>
       </div>
 
-      <!-- Embedded 4-Column User Stat Section -->
-      <div class="profile-stats-bar-4col" style="margin:0; border-radius:12px; border:1px solid var(--border);">
-        <div class="stat-col">
-          <div class="stat-val">${bountiesPosted}</div>
-          <div class="stat-lbl">MY BOUNTIES</div>
+      <!-- Bottom 4-Column Grid -->
+      <div style="border-top:1px solid var(--border); display:grid; grid-template-columns:repeat(4, 1fr); background:var(--card);">
+        <div style="padding:14px 8px; text-align:center; border-right:1px solid var(--border);">
+          <div style="font-size:1.25rem; font-weight:800; color:var(--ink); line-height:1.2;">${bountiesPosted}</div>
+          <div style="font-size:0.65rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; margin-top:4px;">DEALS</div>
         </div>
-        <div class="stat-col">
-          <div class="stat-val">${workerCompleted}</div>
-          <div class="stat-lbl">COMPLETED</div>
+        <div style="padding:14px 8px; text-align:center; border-right:1px solid var(--border);">
+          <div style="font-size:1.25rem; font-weight:800; color:var(--ink); line-height:1.2;">${workerCompleted}</div>
+          <div style="font-size:0.65rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; margin-top:4px;">COMPLETED</div>
         </div>
-        <div class="stat-col">
-          <div class="stat-val">${ratingStr}</div>
-          <div class="stat-lbl">RATING</div>
+        <div style="padding:14px 8px; text-align:center; border-right:1px solid var(--border);">
+          <div style="font-size:1.25rem; font-weight:800; color:var(--ink); line-height:1.2;">${ratingStr}</div>
+          <div style="font-size:0.65rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; margin-top:4px;">RATING</div>
         </div>
-        <div class="stat-col">
-          <div class="stat-val">${rep.reports || 0}</div>
-          <div class="stat-lbl">REPORTS</div>
+        <div style="padding:14px 8px; text-align:center;">
+          <div style="font-size:1.25rem; font-weight:800; color:var(--ink); line-height:1.2;">0%</div>
+          <div style="font-size:0.65rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; margin-top:4px;">DISPUTES</div>
         </div>
       </div>
+
     </div>
 
     <!-- Global Protocol Stats (Compact) -->
@@ -1326,8 +1330,6 @@ function renderProfile() {
       <div onclick="showView('registry')" style="display:flex; align-items:center; justify-content:space-between; padding:8px 10px; background:var(--bg); border:1px solid var(--border); border-radius:10px; cursor:pointer; font-size:0.78rem; font-weight:700; color:var(--ink);">
         <span>📋 Global Bounty Registry</span>
         <span style="color:var(--gold); font-weight:800;">&rarr;</span>
-      </div>
-    </div>>
       </div>
     </div>
 
