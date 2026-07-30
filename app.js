@@ -69,9 +69,46 @@ function isSameNimiqAddress(addr1, addr2) {
 function getEffectiveSlotsRemaining(bounty) {
   const bId = String(bounty.id);
   const total = parseInt(bounty.slotsTotal || 5);
-  const pendingCount = pendingSubmissions.filter(s => String(s.bountyId) === bId && s.status === 'pending').length;
+  // Include 'pending' and 'rejected' so a rejected slot remains reserved for the rejected worker!
+  const pendingCount = pendingSubmissions.filter(s => String(s.bountyId) === bId && (s.status === 'pending' || s.status === 'rejected')).length;
   const approvedCount = approvedPayoutsHistory.filter(p => String(p.bountyId) === bId).length;
   return Math.max(0, total - (pendingCount + approvedCount));
+}
+
+// Helper: Calculate Poster Rating & Reputation Stars
+function getPosterRating(posterAddress) {
+  if (!posterAddress) return { score: '5.0', stars: '⭐ 5.0', label: 'New Poster', count: 0, HTML: '' };
+  const paidCount = approvedPayoutsHistory.filter(p => p.posterAddress && isSameNimiqAddress(p.posterAddress, posterAddress)).length;
+  const rejectedCount = pendingSubmissions.filter(s => s.posterAddress && isSameNimiqAddress(s.posterAddress, posterAddress) && s.status === 'rejected').length;
+  const rep = getReputation(posterAddress);
+  const reportsCount = rep.reports || 0;
+
+  if (paidCount === 0 && rejectedCount === 0 && reportsCount === 0) {
+    return {
+      score: '5.0',
+      stars: '⭐ 5.0',
+      label: 'New Poster',
+      count: 0,
+      HTML: `<span style="font-size:0.7rem; font-weight:700; color:var(--gold-text); background:var(--gold-tint); border:1px solid var(--gold-border); padding:2px 7px; border-radius:6px; display:inline-flex; align-items:center; gap:3px;">⭐ 5.0 (New Poster)</span>`
+    };
+  }
+
+  let numeric = 5.0 - (rejectedCount * 0.25) - (reportsCount * 0.5);
+  if (paidCount > 0) numeric += Math.min(0.5, paidCount * 0.1);
+  numeric = Math.max(1.0, Math.min(5.0, numeric));
+  const scoreStr = numeric.toFixed(1);
+
+  const badgeColor = numeric >= 4.0 ? 'var(--gold-text)' : (numeric >= 2.5 ? '#f59e0b' : 'var(--danger)');
+  const badgeBg = numeric >= 4.0 ? 'var(--gold-tint)' : (numeric >= 2.5 ? 'rgba(245,158,11,0.12)' : 'rgba(239,68,68,0.12)');
+  const badgeBorder = numeric >= 4.0 ? 'var(--gold-border)' : (numeric >= 2.5 ? 'rgba(245,158,11,0.3)' : 'rgba(239,68,68,0.3)');
+
+  return {
+    score: scoreStr,
+    stars: `⭐ ${scoreStr}`,
+    label: `${paidCount} Paid`,
+    count: paidCount,
+    HTML: `<span style="font-size:0.7rem; font-weight:800; color:${badgeColor}; background:${badgeBg}; border:1px solid ${badgeBorder}; padding:2px 7px; border-radius:6px; display:inline-flex; align-items:center; gap:3px;" title="${paidCount} paid payouts, ${rejectedCount} rejections, ${reportsCount} reports">⭐ ${scoreStr} (${paidCount} Paid)</span>`
+  };
 }
 
 // Helper: Get User Profile Data
@@ -1027,26 +1064,29 @@ function renderDedicatedOrders() {
   // 2. Rejected Submissions Section
   if (myRejected.length > 0) {
     html += `<h4 style="font-size:0.9rem; font-weight:800; color:var(--danger); margin-top:20px; margin-bottom:10px;">❌ Rejected Tasks / Needs Action (${myRejected.length})</h4>`;
-    html += myRejected.map(s => `
-      <div style="background:rgba(239,68,68,0.05); border:1px solid rgba(239,68,68,0.25); border-radius:14px; padding:16px; margin-bottom:12px;">
-        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
-          <div>
-            <strong style="font-size:0.95rem; color:var(--ink); display:block;">${s.bountyTitle}</strong>
-            <span style="font-size:0.78rem; color:var(--muted);">Submitted: ${s.submittedAt || 'Recently'}</span>
+    html += myRejected.map(s => {
+      const posterRating = getPosterRating(s.posterAddress);
+      return `
+        <div style="background:rgba(239,68,68,0.05); border:1.5px solid rgba(239,68,68,0.3); border-radius:16px; padding:18px; margin-bottom:12px;">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
+            <div>
+              <strong style="font-size:1rem; color:var(--ink); display:block;">${s.bountyTitle}</strong>
+              <div style="font-size:0.78rem; color:var(--muted); margin-top:2px;">Poster: ${getUserDisplayName(s.posterAddress)} &bull; ${posterRating.HTML}</div>
+            </div>
+            <span style="font-size:0.75rem; background:rgba(239,68,68,0.15); color:var(--danger); border:1px solid rgba(239,68,68,0.3); padding:2px 8px; border-radius:6px; font-weight:800; text-transform:uppercase;">❌ Rejected</span>
           </div>
-          <span style="font-size:0.75rem; background:rgba(239,68,68,0.15); color:var(--danger); padding:2px 8px; border-radius:6px; font-weight:800; text-transform:uppercase;">Rejected</span>
-        </div>
 
-        <div style="font-size:0.83rem; color:var(--ink); background:var(--card); border:1px solid rgba(239,68,68,0.2); padding:10px 12px; border-radius:10px; margin-bottom:12px;">
-          💬 <strong>Poster's Rejection Reason:</strong> ${s.rejectionReason || 'No reason provided.'}
-        </div>
+          <div style="font-size:0.85rem; color:var(--ink); background:var(--card); border:1px solid rgba(239,68,68,0.25); padding:12px 14px; border-radius:12px; margin-bottom:14px; line-height:1.5;">
+            💬 <strong>Poster's Rejection Reason:</strong> ${s.rejectionReason || 'No reason provided by poster.'}
+          </div>
 
-        <div style="display:flex; gap:10px; flex-wrap:wrap;">
-          <button onclick="openSubmitProofModal('${s.bountyId}')" class="btn-primary-sm" style="font-size:0.78rem; padding:6px 12px;">🔄 Resubmit Proof</button>
-          <button onclick="openReportPosterModal('${s.posterAddress}', '${s.bountyTitle}')" class="btn-ghost-sm" style="color:var(--danger); border-color:rgba(239,68,68,0.3); font-size:0.78rem; padding:6px 12px;">🚩 Report Poster</button>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button onclick="openSubmitProofModal('${s.bountyId}')" class="btn-primary-sm" style="font-size:0.8rem; padding:8px 14px;">🔄 Resubmit Proof &rarr;</button>
+            <button onclick="openReportPosterModal('${s.posterAddress}', '${s.bountyTitle}')" class="btn-ghost-sm" style="color:var(--danger); border-color:rgba(239,68,68,0.3); font-size:0.8rem; padding:8px 14px;">🚩 Report Poster</button>
+          </div>
         </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
   }
 
   // 3. Approved & Paid Out Section
@@ -1559,23 +1599,22 @@ function renderBounties() {
     const matchesSearch = b.title.toLowerCase().includes(searchQuery) || (b.instructions || b.description || '').toLowerCase().includes(searchQuery);
     const matchesCat = categoryFilter === 'all' || b.category === categoryFilter;
 
-    const myApprovedPayout = userAccount
-      ? (approvedPayoutsHistory.some(p => String(p.bountyId) === String(b.id) && p.workerAddress && isSameNimiqAddress(p.workerAddress, userAccount)) ||
-         pendingSubmissions.some(s => String(s.bountyId) === String(b.id) && s.workerAddress && isSameNimiqAddress(s.workerAddress, userAccount) && s.status === 'approved'))
-      : false;
+    if (!userAccount) {
+      // Disconnected or new user sees all active bounties!
+      return matchesSearch && matchesCat && getEffectiveSlotsRemaining(b) > 0;
+    }
 
-    const hasPendingSub = userAccount
-      ? pendingSubmissions.some(s => String(s.bountyId) === String(b.id) && s.workerAddress && isSameNimiqAddress(s.workerAddress, userAccount) && s.status === 'pending')
-      : false;
+    const myApprovedPayout = approvedPayoutsHistory.some(p => String(p.bountyId) === String(b.id) && p.workerAddress && isSameNimiqAddress(p.workerAddress, userAccount)) ||
+      pendingSubmissions.some(s => String(s.bountyId) === String(b.id) && s.workerAddress && isSameNimiqAddress(s.workerAddress, userAccount) && s.status === 'approved');
 
-    const isPublisher = userAccount
-      ? isSameNimiqAddress(b.posterAddress, userAccount)
-      : false;
+    const hasPendingSub = pendingSubmissions.some(s => String(s.bountyId) === String(b.id) && s.workerAddress && isSameNimiqAddress(s.workerAddress, userAccount) && s.status === 'pending');
+    const hasRejectedSub = pendingSubmissions.some(s => String(s.bountyId) === String(b.id) && s.workerAddress && isSameNimiqAddress(s.workerAddress, userAccount) && s.status === 'rejected');
+
+    const isPublisher = isSameNimiqAddress(b.posterAddress, userAccount);
 
     if (workerSubtab === 'active') {
-      return matchesSearch && matchesCat && getEffectiveSlotsRemaining(b) > 0 && !myApprovedPayout && !hasPendingSub && !isPublisher;
+      return matchesSearch && matchesCat && getEffectiveSlotsRemaining(b) > 0 && !myApprovedPayout && !hasPendingSub && !hasRejectedSub && !isPublisher;
     } else {
-      const hasRejectedSub = userAccount ? pendingSubmissions.some(s => String(s.bountyId) === String(b.id) && s.workerAddress && isSameNimiqAddress(s.workerAddress, userAccount) && s.status === 'rejected') : false;
       return matchesSearch && matchesCat && (myApprovedPayout || hasPendingSub || hasRejectedSub);
     }
   });
@@ -1625,10 +1664,55 @@ function renderBounties() {
       btnDisabled = true;
     }
 
+    const posterRating = getPosterRating(b.posterAddress);
     const posterRep = getReputation(b.posterAddress);
     const posterDisplayName = (b.sponsor && String(b.sponsor).trim() && !String(b.sponsor).startsWith('NQ'))
       ? String(b.sponsor).trim().toUpperCase()
       : getUserDisplayName(b.posterAddress);
+
+    const hasRejectedSub = userAccount ? pendingSubmissions.some(s => String(s.bountyId) === String(b.id) && s.workerAddress && isSameNimiqAddress(s.workerAddress, userAccount) && s.status === 'rejected') : false;
+    const rejSub = hasRejectedSub ? pendingSubmissions.find(s => String(s.bountyId) === String(b.id) && s.workerAddress && isSameNimiqAddress(s.workerAddress, userAccount) && s.status === 'rejected') : null;
+
+    if (hasRejectedSub && rejSub) {
+      return `
+        <div class="bounty-card" style="border:1.5px solid rgba(239,68,68,0.35); background:var(--card);">
+          <div>
+            <div class="bounty-card-header">
+              <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <span class="bounty-category-tag">${b.categoryName || b.category || 'General'}</span>
+                <span style="font-size:0.72rem; color:var(--danger); font-weight:800; background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.3); padding:2px 8px; border-radius:6px; text-transform:uppercase;">❌ REJECTED</span>
+                ${posterRating.HTML}
+                ${posterRep.isFlagged ? `<span style="background:rgba(220,38,38,0.15); color:#dc2626; border:1px solid rgba(220,38,38,0.3); font-size:0.65rem; font-weight:800; padding:2px 6px; border-radius:4px; text-transform:uppercase;">⚠️ FLAGGED (3+ REPORTS)</span>` : ''}
+              </div>
+              <span class="bounty-reward">${b.reward} NIM</span>
+            </div>
+
+            <h4 class="bounty-title">${b.title}</h4>
+            <p class="bounty-desc">${b.instructions || b.description}</p>
+
+            <div style="font-size:0.83rem; color:var(--ink); background:rgba(239,68,68,0.06); border:1px solid rgba(239,68,68,0.25); padding:12px 14px; border-radius:12px; margin:12px 0; line-height:1.5;">
+              💬 <strong>Poster's Rejection Reason:</strong> ${rejSub.rejectionReason || 'No reason provided by poster.'}
+            </div>
+          </div>
+
+          <div>
+            <div class="bounty-meta-row" style="margin-bottom:12px;">
+              <span>Poster: <strong>${posterDisplayName}</strong></span>
+              <span>Slots: <strong>Reserved for You</strong></span>
+            </div>
+
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+              <button class="btn-primary-sm" onclick="openSubmitProofModal('${b.id}')" style="flex:1; justify-content:center; padding:10px;">
+                🔄 Resubmit Proof &rarr;
+              </button>
+              <button class="btn-ghost-sm" onclick="openReportPosterModal('${b.posterAddress}', '${b.title}')" style="color:var(--danger); border-color:rgba(239,68,68,0.3); padding:10px; justify-content:center;">
+                🚩 Report Poster
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
 
     return `
       <div class="bounty-card">
@@ -1636,6 +1720,7 @@ function renderBounties() {
           <div class="bounty-card-header">
             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
               <span class="bounty-category-tag">${b.categoryName || b.category || 'General'}</span>
+              ${posterRating.HTML}
               ${posterRep.isFlagged ? `<span style="background:rgba(220,38,38,0.15); color:#dc2626; border:1px solid rgba(220,38,38,0.3); font-size:0.65rem; font-weight:800; padding:2px 6px; border-radius:4px; text-transform:uppercase;">⚠️ FLAGGED (3+ REPORTS)</span>` : ''}
               ${getBountyTimeLeftStr(b, userAccount)}
             </div>
@@ -2918,6 +3003,7 @@ function renderGlobalRegistry() {
       ? String(b.sponsor).trim().toUpperCase()
       : getUserDisplayName(b.posterAddress);
 
+    const posterRating = getPosterRating(b.posterAddress);
     const isSlotsZero = getEffectiveSlotsRemaining(b) <= 0;
     const timeLeftStr = getBountyTimeLeftStr(b);
     const createdDate = b.createdAt
@@ -2929,7 +3015,8 @@ function renderGlobalRegistry() {
         <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; flex-wrap:wrap;">
           <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
             <span class="bounty-category-tag">${b.categoryName || b.category || 'General'}</span>
-            ${getBountyTimeLeftStr(b)}
+            ${posterRating.HTML}
+            ${timeLeftStr}
           </div>
           <span style="font-size:1.1rem; font-weight:900; color:var(--gold-text);">${b.reward} NIM</span>
         </div>
