@@ -219,19 +219,19 @@ async function fetchGlobalPublicBounties() {
         localStorage.setItem(STORAGE_KEY_PAID_HISTORY, JSON.stringify(approvedPayoutsHistory));
       }
 
-      // Merge pending submissions — also UPDATE status of existing submissions (e.g. approved/rejected)
+      // Merge pending submissions — update status of existing subs from server
       if (Array.isArray(data.pendingSubmissions)) {
         const serverSubIds = new Set(data.pendingSubmissions.map(s => s.id));
         const existingSubIds = new Set(pendingSubmissions.map(s => s.id));
 
-        // Add brand new subs from server (other workers' submissions for poster view)
+        // Add new subs from server (other workers' submissions visible to poster)
         data.pendingSubmissions.forEach(ss => {
           if (!existingSubIds.has(ss.id)) {
             pendingSubmissions.unshift(ss);
             existingSubIds.add(ss.id);
             stateChanged = true;
           } else {
-            // Update status if server has a newer one
+            // Update status if server has a newer one (e.g. rejected)
             const idx = pendingSubmissions.findIndex(s => s.id === ss.id);
             if (idx !== -1 && ss.status && ss.status !== pendingSubmissions[idx].status) {
               pendingSubmissions[idx].status = ss.status;
@@ -240,36 +240,31 @@ async function fetchGlobalPublicBounties() {
             }
           }
         });
-
-        // If a local sub is GONE from server, it was approved/purged — remove it locally too
-        const prevLen = pendingSubmissions.length;
-        pendingSubmissions = pendingSubmissions.filter(s => {
-          // Always keep subs that belong to the current user as a poster (not submitted by current user as worker)
-          // Only auto-remove worker's own submissions that server has purged
-          if (!userAccount) return true;
-          const isMyWorkerSub = isSameNimiqAddress(s.workerAddress, userAccount);
-          if (isMyWorkerSub && !serverSubIds.has(s.id)) {
-            stateChanged = true;
-            return false; // server purged it (approved/rejected)
-          }
-          return true;
-        });
-        if (pendingSubmissions.length !== prevLen) stateChanged = true;
       }
 
-      // Always run local purge — remove any local sub whose bountyId+workerAddress matches an approved payout
+      // Mark approved + purge: for any local pending sub whose bountyId+workerAddr matches
+      // an approved payout → set status 'approved' (so History shows Paid Out), then remove after
       {
         const approvedKeys = new Set(
           approvedPayoutsHistory.map(p => String(p.bountyId) + '_' + (p.workerAddress || '').toUpperCase().replace(/\s+/g,''))
         );
-        const prevSubLen = pendingSubmissions.length;
-        pendingSubmissions = pendingSubmissions.filter(s => {
+        let changed = false;
+        pendingSubmissions = pendingSubmissions.map(s => {
           const key = String(s.bountyId) + '_' + (s.workerAddress || '').toUpperCase().replace(/\s+/g,'');
-          return !approvedKeys.has(key);
+          if (approvedKeys.has(key) && s.status !== 'approved') {
+            changed = true;
+            return { ...s, status: 'approved' };
+          }
+          return s;
         });
-        if (pendingSubmissions.length !== prevSubLen) stateChanged = true;
+        if (changed) stateChanged = true;
       }
-      localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions));
+      // Save subs to localStorage (strip base64 images)
+      const safeForStorage = pendingSubmissions.map(s => {
+        if (s.content && s.content.startsWith('data:image')) return { ...s, content: `[LOCAL_IMG:${s.id}]` };
+        return s;
+      });
+      try { localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(safeForStorage)); } catch(e) {}
 
       const newHash = `${bounties.length}-${pendingSubmissions.length}-${approvedPayoutsHistory.length}-${userAccount}`;
       if (stateChanged || newHash !== lastRenderHash) {
@@ -1362,11 +1357,12 @@ function renderBounties() {
     const matchesCat = categoryFilter === 'all' || b.category === categoryFilter;
 
     const myApprovedPayout = userAccount
-      ? approvedPayoutsHistory.some(p => String(p.bountyId) === String(b.id) && p.workerAddress && isSameNimiqAddress(p.workerAddress, userAccount))
+      ? (approvedPayoutsHistory.some(p => String(p.bountyId) === String(b.id) && p.workerAddress && isSameNimiqAddress(p.workerAddress, userAccount)) ||
+         pendingSubmissions.some(s => String(s.bountyId) === String(b.id) && s.workerAddress && isSameNimiqAddress(s.workerAddress, userAccount) && s.status === 'approved'))
       : false;
 
     const hasPendingSub = userAccount
-      ? pendingSubmissions.some(s => String(s.bountyId) === String(b.id) && s.workerAddress && isSameNimiqAddress(s.workerAddress, userAccount))
+      ? pendingSubmissions.some(s => String(s.bountyId) === String(b.id) && s.workerAddress && isSameNimiqAddress(s.workerAddress, userAccount) && s.status === 'pending')
       : false;
 
     const isPublisher = userAccount
@@ -1376,7 +1372,7 @@ function renderBounties() {
     if (workerSubtab === 'active') {
       return matchesSearch && matchesCat && (b.slotsRemaining === undefined || b.slotsRemaining > 0) && !myApprovedPayout && !hasPendingSub && !isPublisher;
     } else {
-      return matchesSearch && matchesCat && (myApprovedPayout || hasPendingSub || (b.slotsRemaining !== undefined && b.slotsRemaining <= 0));
+      return matchesSearch && matchesCat && (myApprovedPayout || hasPendingSub);
     }
   });
 
@@ -1400,19 +1396,19 @@ function renderBounties() {
   grid.innerHTML = filtered.map(b => {
     const isPublisher = isSameNimiqAddress(b.posterAddress, userAccount);
     const hasPendingSub = userAccount ? pendingSubmissions.some(s => String(s.bountyId) === String(b.id) && s.workerAddress && isSameNimiqAddress(s.workerAddress, userAccount) && s.status === 'pending') : false;
-    const hasApproved = userAccount ? approvedPayoutsHistory.some(p => String(p.bountyId) === String(b.id) && p.workerAddress && isSameNimiqAddress(p.workerAddress, userAccount)) : false;
+    const hasApproved = userAccount
+      ? (approvedPayoutsHistory.some(p => String(p.bountyId) === String(b.id) && p.workerAddress && isSameNimiqAddress(p.workerAddress, userAccount)) ||
+         pendingSubmissions.some(s => String(s.bountyId) === String(b.id) && s.workerAddress && isSameNimiqAddress(s.workerAddress, userAccount) && s.status === 'approved'))
+      : false;
 
-    let btnLabel = 'Participate & Earn NIM &rarr;';
+    let btnLabel = 'Participate &amp; Earn NIM &rarr;';
     let btnDisabled = false;
 
     if (hasApproved) {
-      btnLabel = `<span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--emerald)" stroke-width="2.5" style="margin-right:6px; vertical-align:middle;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Paid Out Successfully</span>`;
+      btnLabel = `<span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" style="margin-right:6px; vertical-align:middle;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Paid Out Successfully</span>`;
       btnDisabled = true;
     } else if (hasPendingSub) {
-      btnLabel = `<span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px; vertical-align:middle;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 16 14"/></svg> Proof Pending Review</span>`;
-      btnDisabled = true;
-    } else if (b.slotsRemaining !== undefined && b.slotsRemaining <= 0) {
-      btnLabel = `<span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px; vertical-align:middle;"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg> All Slots Claimed &amp; Paid Out</span>`;
+      btnLabel = `<span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px; vertical-align:middle;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Proof Pending Review</span>`;
       btnDisabled = true;
     } else if (isPublisher) {
       btnLabel = `<span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px; vertical-align:middle;"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg> Publisher (Cannot Claim)</span>`;
