@@ -86,6 +86,14 @@ function getProfile(walletAddress) {
     allProfiles[clean].joinedAt = Date.now();
     localStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(allProfiles));
   }
+
+  // Persistent avatar fallback check
+  const localAvatar = localStorage.getItem(`nimbounty_avatar_${clean}`);
+  if (localAvatar && !allProfiles[clean].avatarUrl) {
+    allProfiles[clean].avatarUrl = localAvatar;
+    localStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(allProfiles));
+  }
+
   return allProfiles[clean];
 }
 
@@ -96,6 +104,14 @@ function saveProfile(walletAddress, profileData) {
   const allProfiles = JSON.parse(localStorage.getItem(STORAGE_KEY_PROFILE) || '{}');
   allProfiles[clean] = profileData;
   localStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(allProfiles));
+
+  // Dedicated persistent avatar key in localStorage (never wiped by server polling)
+  if (profileData.avatarUrl) {
+    localStorage.setItem(`nimbounty_avatar_${clean}`, profileData.avatarUrl);
+  } else {
+    localStorage.removeItem(`nimbounty_avatar_${clean}`);
+  }
+
   pushUserProfile(clean, profileData);
 }
 
@@ -286,13 +302,16 @@ async function fetchGlobalPublicBounties() {
     });
     try { localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(safeForStorage)); } catch(e) {}
 
-    // 4. Merge global user profiles
+    // 4. Merge global user profiles (PRESERVE custom local avatars)
     if (data.profiles && typeof data.profiles === 'object') {
       const allProfiles = JSON.parse(localStorage.getItem(STORAGE_KEY_PROFILE) || '{}');
       Object.keys(data.profiles).forEach(cleanAddr => {
         const incoming = data.profiles[cleanAddr];
         if (incoming && incoming.username) {
-          allProfiles[cleanAddr] = { ...allProfiles[cleanAddr], ...incoming };
+          const currentLocal = allProfiles[cleanAddr] || {};
+          const localAvatar = localStorage.getItem(`nimbounty_avatar_${cleanAddr}`);
+          const preservedAvatar = currentLocal.avatarUrl || localAvatar || incoming.avatarUrl || null;
+          allProfiles[cleanAddr] = { ...currentLocal, ...incoming, avatarUrl: preservedAvatar };
         }
       });
       localStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(allProfiles));
@@ -1167,6 +1186,8 @@ function uploadProfileAvatar(event) {
 
 function removeProfileAvatar() {
   if (!userAccount) return;
+  const clean = userAccount.replace(/\s+/g, '').toUpperCase();
+  localStorage.removeItem(`nimbounty_avatar_${clean}`);
   const profile = getProfile(userAccount);
   delete profile.avatarUrl;
   saveProfile(userAccount, profile);
@@ -1222,65 +1243,64 @@ function renderProfile() {
     <div style="display:flex; align-items:center; gap:8px; margin-bottom:20px; font-size:0.75rem; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:0.06em;">
       <span>USER PROFILE</span>
     </div>
-
-    <!-- Profile Header Card (Screenshot 1 Layout) -->
-    <div class="profile-card-xcrow">
-      <div style="position:relative;">
-        <div class="profile-avatar-circle">
-          ${avatarSvg}
-        </div>
-        <button class="profile-camera-badge" onclick="document.getElementById('profile-avatar-input').click()" title="Change Profile Picture">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-        </button>
-        <input type="file" id="profile-avatar-input" accept="image/*" onchange="uploadProfileAvatar(event)" style="display:none;" />
-      </div>
-
-      <div style="flex:1; min-width:0;">
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
-          <div>
-            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-              <h3 style="font-size:1.3rem; font-weight:900; color:var(--ink); margin:0; letter-spacing:-0.02em;">${displayUsername}</h3>
-              ${profile.username ? `
-                <button onclick="openSetUsernameModal()" title="Sync username globally" style="background:none; border:none; cursor:pointer; padding:2px; color:var(--muted); display:inline-flex; align-items:center; opacity:0.6;" >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-                </button>
-              ` : `
-                <button class="btn-ghost-sm" onclick="openSetUsernameModal()" style="font-size:0.75rem; padding:4px 10px; border-color:var(--gold); color:var(--gold);">+ Set Permanent Username</button>
-              `}
-            </div>
-            <div style="font-size:0.75rem; color:var(--muted); font-weight:600; margin-top:4px; display:flex; align-items:center; gap:4px;">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-              Joined ${joinedDateStr}
-            </div>
-            ${hasCustomAvatar ? `<button onclick="removeProfileAvatar()" style="background:none; border:none; color:var(--muted); font-size:0.75rem; cursor:pointer; padding:0; margin-top:4px;">Remove photo</button>` : ''}
+    <div class="profile-card-xcrow" style="margin-bottom:16px;">
+      <div style="display:flex; gap:14px; align-items:flex-start; margin-bottom:16px;">
+        <div style="position:relative; flex-shrink:0;">
+          <div class="profile-avatar-circle">
+            ${avatarSvg}
           </div>
-
-          <div class="address-pill-copy" onclick="navigator.clipboard.writeText('${userAccount}'); showToastNotification('Address Copied', 'Address copied to clipboard.', false);">
-            <span>${userAccount.substring(0,6)}...${userAccount.substring(userAccount.length-4)}</span>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-          </div>
+          <button class="profile-camera-badge" onclick="document.getElementById('profile-avatar-input').click()" title="Change Profile Picture">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          </button>
+          <input type="file" id="profile-avatar-input" accept="image/*" onchange="uploadProfileAvatar(event)" style="display:none;" />
         </div>
 
-      </div>
-    </div>
+        <div style="flex:1; min-width:0;">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+            <div>
+              <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <h3 style="font-size:1.3rem; font-weight:900; color:var(--ink); margin:0; letter-spacing:-0.02em;">${displayUsername}</h3>
+                ${profile.username ? `
+                  <button onclick="openSetUsernameModal()" title="Sync username globally" style="background:none; border:none; cursor:pointer; padding:2px; color:var(--muted); display:inline-flex; align-items:center; opacity:0.6;" >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                  </button>
+                ` : `
+                  <button class="btn-ghost-sm" onclick="openSetUsernameModal()" style="font-size:0.75rem; padding:4px 10px; border-color:var(--gold); color:var(--gold);">+ Set Permanent Username</button>
+                `}
+              </div>
+              <div style="font-size:0.75rem; color:var(--muted); font-weight:600; margin-top:4px; display:flex; align-items:center; gap:4px;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                Joined ${joinedDateStr}
+              </div>
+              ${hasCustomAvatar ? `<button onclick="removeProfileAvatar()" style="background:none; border:none; color:var(--muted); font-size:0.75rem; cursor:pointer; padding:0; margin-top:4px;">Remove photo</button>` : ''}
+            </div>
 
-    <!-- 4-Column Stat Box (Screenshot 1 Layout) -->
-    <div class="profile-stats-bar-4col">
-      <div class="stat-col">
-        <div class="stat-val">${bountiesPosted}</div>
-        <div class="stat-lbl">MY BOUNTIES</div>
+            <div class="address-pill-copy" onclick="navigator.clipboard.writeText('${userAccount}'); showToastNotification('Address Copied', 'Address copied to clipboard.', false);">
+              <span>${userAccount.substring(0,6)}...${userAccount.substring(userAccount.length-4)}</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="stat-col">
-        <div class="stat-val">${workerCompleted}</div>
-        <div class="stat-lbl">COMPLETED</div>
-      </div>
-      <div class="stat-col">
-        <div class="stat-val">${ratingStr}</div>
-        <div class="stat-lbl">RATING</div>
-      </div>
-      <div class="stat-col">
-        <div class="stat-val">${rep.reports || 0}</div>
-        <div class="stat-lbl">REPORTS</div>
+
+      <!-- Embedded 4-Column User Stat Section -->
+      <div class="profile-stats-bar-4col" style="margin:0; border-radius:12px; border:1px solid var(--border);">
+        <div class="stat-col">
+          <div class="stat-val">${bountiesPosted}</div>
+          <div class="stat-lbl">MY BOUNTIES</div>
+        </div>
+        <div class="stat-col">
+          <div class="stat-val">${workerCompleted}</div>
+          <div class="stat-lbl">COMPLETED</div>
+        </div>
+        <div class="stat-col">
+          <div class="stat-val">${ratingStr}</div>
+          <div class="stat-lbl">RATING</div>
+        </div>
+        <div class="stat-col">
+          <div class="stat-val">${rep.reports || 0}</div>
+          <div class="stat-lbl">REPORTS</div>
+        </div>
       </div>
     </div>
 
@@ -1296,16 +1316,18 @@ function renderProfile() {
       <div style="display:flex; gap:10px; margin-bottom:10px;">
         <div style="flex:1; background:var(--bg-subtle); border:1px solid var(--border); border-radius:10px; padding:10px; text-align:center;">
           <div style="font-size:1.1rem; font-weight:900; color:var(--ink);">${bounties.length}</div>
-          <div style="font-size:0.6rem; font-weight:800; color:var(--muted); text-transform:uppercase;">TASKS</div>
+          <div style="font-size:0.6rem; font-weight:800; color:var(--muted); text-transform:uppercase;">TOTAL TASK CREATED</div>
         </div>
         <div style="flex:1; background:var(--bg-subtle); border:1px solid var(--border); border-radius:10px; padding:10px; text-align:center;">
           <div style="font-size:1.1rem; font-weight:900; color:var(--emerald);">${approvedPayoutsHistory.reduce((acc, p) => acc + (parseFloat(p.reward) || 0), 0).toFixed(1)}</div>
-          <div style="font-size:0.6rem; font-weight:800; color:var(--muted); text-transform:uppercase;">NIM PAID</div>
+          <div style="font-size:0.6rem; font-weight:800; color:var(--muted); text-transform:uppercase;">TOTAL NIM PAID OUT</div>
         </div>
       </div>
       <div onclick="showView('registry')" style="display:flex; align-items:center; justify-content:space-between; padding:8px 10px; background:var(--bg); border:1px solid var(--border); border-radius:10px; cursor:pointer; font-size:0.78rem; font-weight:700; color:var(--ink);">
         <span>📋 Global Bounty Registry</span>
         <span style="color:var(--gold); font-weight:800;">&rarr;</span>
+      </div>
+    </div>>
       </div>
     </div>
 
