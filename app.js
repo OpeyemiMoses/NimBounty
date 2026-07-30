@@ -5,22 +5,25 @@
 // Production API URL
 const PRODUCTION_URL = 'https://nim-bounty.vercel.app';
 
-// Storage Keys — Version 7 (Total Clean Slate)
-const STORAGE_KEY_USER_ACCT = 'nimbounty_user_wallet_v7';
-const STORAGE_KEY_PROFILE = 'nimbounty_profile_v7';
-const STORAGE_KEY_THEME = 'nimbounty_theme_v7';
-const STORAGE_KEY_LOCAL_BOUNTIES = 'nimbounty_pools_v7';
-const STORAGE_KEY_SUBS = 'nimbounty_subs_v7';
-const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v7';
-const STORAGE_KEY_REPUTATION = 'nimbounty_reputation_v7';
-const STORAGE_KEY_ONBOARDED_GLOBAL = 'nimbounty_onboarded_global_v7';
+// Storage Keys — Version 8 (Total Clean Slate)
+const STORAGE_KEY_USER_ACCT = 'nimbounty_user_wallet_v8';
+const STORAGE_KEY_PROFILE = 'nimbounty_profile_v8';
+const STORAGE_KEY_THEME = 'nimbounty_theme_v8';
+const STORAGE_KEY_LOCAL_BOUNTIES = 'nimbounty_pools_v8';
+const STORAGE_KEY_SUBS = 'nimbounty_subs_v8';
+const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v8';
+const STORAGE_KEY_REPUTATION = 'nimbounty_reputation_v8';
+const STORAGE_KEY_ONBOARDED_GLOBAL = 'nimbounty_onboarded_global_v8';
 
-// Clear all legacy local storage cache
+// Clear all legacy local storage cache (v1–v7)
 try {
-  ['v1','v2','v3','v4','v5','v6'].forEach(v => {
+  ['v1','v2','v3','v4','v5','v6','v7'].forEach(v => {
     localStorage.removeItem(`nimbounty_pools_${v}`);
     localStorage.removeItem(`nimbounty_subs_${v}`);
     localStorage.removeItem(`nimbounty_approved_payouts_history_${v}`);
+    localStorage.removeItem(`nimbounty_profile_${v}`);
+    localStorage.removeItem(`nimbounty_reputation_${v}`);
+    localStorage.removeItem(`nimbounty_onboarded_global_${v}`);
   });
 } catch(e) {}
 
@@ -1164,9 +1167,9 @@ function renderProfile() {
     : `<svg viewBox="0 0 64 64" width="48" height="48" fill="none" stroke="var(--gold)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M32 6L6 19l26 13 26-13L32 6zM6 45l26 13 26-13M6 32l26 13 26-13"/></svg>`;
 
   el.innerHTML = `
-    <!-- Top Header Navigation inside Profile -->
+    <!-- Top Header Navigation -->
     <div style="display:flex; align-items:center; gap:8px; margin-bottom:20px; font-size:0.75rem; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:0.06em;">
-      <span>PROFILE</span> &bull; <span>TRADER PROFILE</span>
+      <span>USER PROFILE</span>
     </div>
 
     <!-- Profile Header Card (Screenshot 1 Layout) -->
