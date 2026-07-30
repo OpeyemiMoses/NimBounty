@@ -221,15 +221,17 @@ async function fetchGlobalPublicBounties() {
 
       // Merge pending submissions — also UPDATE status of existing submissions (e.g. approved/rejected)
       if (Array.isArray(data.pendingSubmissions)) {
+        const serverSubIds = new Set(data.pendingSubmissions.map(s => s.id));
         const existingSubIds = new Set(pendingSubmissions.map(s => s.id));
+
+        // Add brand new subs from server (other workers' submissions for poster view)
         data.pendingSubmissions.forEach(ss => {
           if (!existingSubIds.has(ss.id)) {
-            // Brand new submission from another user — add it
             pendingSubmissions.unshift(ss);
             existingSubIds.add(ss.id);
             stateChanged = true;
           } else {
-            // Existing submission — update status if the server has a newer one
+            // Update status if server has a newer one
             const idx = pendingSubmissions.findIndex(s => s.id === ss.id);
             if (idx !== -1 && ss.status && ss.status !== pendingSubmissions[idx].status) {
               pendingSubmissions[idx].status = ss.status;
@@ -238,10 +240,25 @@ async function fetchGlobalPublicBounties() {
             }
           }
         });
+
+        // If a local sub is GONE from server, it was approved/purged — remove it locally too
+        const prevLen = pendingSubmissions.length;
+        pendingSubmissions = pendingSubmissions.filter(s => {
+          // Always keep subs that belong to the current user as a poster (not submitted by current user as worker)
+          // Only auto-remove worker's own submissions that server has purged
+          if (!userAccount) return true;
+          const isMyWorkerSub = isSameNimiqAddress(s.workerAddress, userAccount);
+          if (isMyWorkerSub && !serverSubIds.has(s.id)) {
+            stateChanged = true;
+            return false; // server purged it (approved/rejected)
+          }
+          return true;
+        });
+        if (pendingSubmissions.length !== prevLen) stateChanged = true;
       }
 
-      // Automatically purge local pendingSubmissions that match an entry in approvedPayoutsHistory
-      if (approvedPayoutsHistory.length > 0) {
+      // Always run local purge — remove any local sub whose bountyId+workerAddress matches an approved payout
+      {
         const approvedKeys = new Set(
           approvedPayoutsHistory.map(p => String(p.bountyId) + '_' + (p.workerAddress || '').toUpperCase().replace(/\s+/g,''))
         );
@@ -251,8 +268,8 @@ async function fetchGlobalPublicBounties() {
           return !approvedKeys.has(key);
         });
         if (pendingSubmissions.length !== prevSubLen) stateChanged = true;
-        localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions));
       }
+      localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions));
 
       const newHash = `${bounties.length}-${pendingSubmissions.length}-${approvedPayoutsHistory.length}-${userAccount}`;
       if (stateChanged || newHash !== lastRenderHash) {
