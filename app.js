@@ -1290,7 +1290,7 @@ function renderProfile() {
       <div style="border-top:1px solid var(--border); display:grid; grid-template-columns:repeat(4, 1fr); background:var(--card);">
         <div style="padding:14px 8px; text-align:center; border-right:1px solid var(--border);">
           <div style="font-size:1.25rem; font-weight:800; color:var(--ink); line-height:1.2;">${bountiesPosted}</div>
-          <div style="font-size:0.65rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; margin-top:4px;">DEALS</div>
+          <div style="font-size:0.65rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; margin-top:4px;">MY BOUNTIES</div>
         </div>
         <div style="padding:14px 8px; text-align:center; border-right:1px solid var(--border);">
           <div style="font-size:1.25rem; font-weight:800; color:var(--ink); line-height:1.2;">${workerCompleted}</div>
@@ -1301,8 +1301,8 @@ function renderProfile() {
           <div style="font-size:0.65rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; margin-top:4px;">RATING</div>
         </div>
         <div style="padding:14px 8px; text-align:center;">
-          <div style="font-size:1.25rem; font-weight:800; color:var(--ink); line-height:1.2;">0%</div>
-          <div style="font-size:0.65rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; margin-top:4px;">DISPUTES</div>
+          <div style="font-size:1.25rem; font-weight:800; color:var(--ink); line-height:1.2;">${rep.reports || 0}</div>
+          <div style="font-size:0.65rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; margin-top:4px;">REPORTS</div>
         </div>
       </div>
 
