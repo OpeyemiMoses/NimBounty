@@ -974,32 +974,40 @@ function switchPosterSubtab(subtab) {
 }
 
 function renderDedicatedOrders() {
-  const container = document.getElementById('worker-orders-list');
-  if (!container) return;
+  const lists = [
+    document.getElementById('dedicated-orders-list'),
+    document.getElementById('worker-orders-list')
+  ].filter(Boolean);
+
+  if (!lists.length) return;
 
   if (!isRealWalletConnected()) {
-    container.innerHTML = createEmptyStateHTML(
+    const empty = createEmptyStateHTML(
       'Wallet Required',
-      'Please connect your Nimiq Pay wallet to view your completed orders and payout history.',
-      `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`
+      'Connect your Nimiq Pay wallet to view your submitted orders and payout history.',
+      `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>`
     );
+    lists.forEach(el => el.innerHTML = empty);
     return;
   }
 
   const myApproved = approvedPayoutsHistory.filter(p => p.workerAddress && isSameNimiqAddress(p.workerAddress, userAccount));
-  const myPending = pendingSubmissions.filter(s => s.workerAddress && isSameNimiqAddress(s.workerAddress, userAccount));
+  const myPending = pendingSubmissions.filter(s => s.workerAddress && isSameNimiqAddress(s.workerAddress, userAccount) && s.status === 'pending');
+  const myRejected = pendingSubmissions.filter(s => s.workerAddress && isSameNimiqAddress(s.workerAddress, userAccount) && s.status === 'rejected');
 
-  if (myApproved.length === 0 && myPending.length === 0) {
-    container.innerHTML = createEmptyStateHTML(
-      'No Orders Yet',
-      'You have not submitted proof or received payouts for any bounties yet. Complete active bounties in Worker Mode to start building your order history!',
+  if (myApproved.length === 0 && myPending.length === 0 && myRejected.length === 0) {
+    const empty = createEmptyStateHTML(
+      'No Submission Orders',
+      'Your completed task payouts and order history will appear here once you complete bounties.',
       `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>`
     );
+    lists.forEach(el => el.innerHTML = empty);
     return;
   }
 
   let html = '';
 
+  // 1. Pending Review Section
   if (myPending.length > 0) {
     html += `<h4 style="font-size:0.9rem; font-weight:800; color:var(--gold); margin-bottom:10px;">⏳ Pending Poster Review (${myPending.length})</h4>`;
     html += myPending.map(s => `
@@ -1016,6 +1024,32 @@ function renderDedicatedOrders() {
     `).join('');
   }
 
+  // 2. Rejected Submissions Section
+  if (myRejected.length > 0) {
+    html += `<h4 style="font-size:0.9rem; font-weight:800; color:var(--danger); margin-top:20px; margin-bottom:10px;">❌ Rejected Tasks / Needs Action (${myRejected.length})</h4>`;
+    html += myRejected.map(s => `
+      <div style="background:rgba(239,68,68,0.05); border:1px solid rgba(239,68,68,0.25); border-radius:14px; padding:16px; margin-bottom:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
+          <div>
+            <strong style="font-size:0.95rem; color:var(--ink); display:block;">${s.bountyTitle}</strong>
+            <span style="font-size:0.78rem; color:var(--muted);">Submitted: ${s.submittedAt || 'Recently'}</span>
+          </div>
+          <span style="font-size:0.75rem; background:rgba(239,68,68,0.15); color:var(--danger); padding:2px 8px; border-radius:6px; font-weight:800; text-transform:uppercase;">Rejected</span>
+        </div>
+
+        <div style="font-size:0.83rem; color:var(--ink); background:var(--card); border:1px solid rgba(239,68,68,0.2); padding:10px 12px; border-radius:10px; margin-bottom:12px;">
+          💬 <strong>Poster's Rejection Reason:</strong> ${s.rejectionReason || 'No reason provided.'}
+        </div>
+
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button onclick="openSubmitProofModal('${s.bountyId}')" class="btn-primary-sm" style="font-size:0.78rem; padding:6px 12px;">🔄 Resubmit Proof</button>
+          <button onclick="openReportPosterModal('${s.posterAddress}', '${s.bountyTitle}')" class="btn-ghost-sm" style="color:var(--danger); border-color:rgba(239,68,68,0.3); font-size:0.78rem; padding:6px 12px;">🚩 Report Poster</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // 3. Approved & Paid Out Section
   if (myApproved.length > 0) {
     html += `<h4 style="font-size:0.9rem; font-weight:800; color:var(--emerald); margin-top:20px; margin-bottom:10px;">✅ Approved &amp; Paid Out (${myApproved.length})</h4>`;
     html += myApproved.map(p => `
@@ -1032,7 +1066,7 @@ function renderDedicatedOrders() {
     `).join('');
   }
 
-  container.innerHTML = html;
+  lists.forEach(el => el.innerHTML = html);
 }
 
 // ==========================================
@@ -1541,7 +1575,8 @@ function renderBounties() {
     if (workerSubtab === 'active') {
       return matchesSearch && matchesCat && getEffectiveSlotsRemaining(b) > 0 && !myApprovedPayout && !hasPendingSub && !isPublisher;
     } else {
-      return matchesSearch && matchesCat && (myApprovedPayout || hasPendingSub);
+      const hasRejectedSub = userAccount ? pendingSubmissions.some(s => String(s.bountyId) === String(b.id) && s.workerAddress && isSameNimiqAddress(s.workerAddress, userAccount) && s.status === 'rejected') : false;
+      return matchesSearch && matchesCat && (myApprovedPayout || hasPendingSub || hasRejectedSub);
     }
   });
 
@@ -1570,6 +1605,8 @@ function renderBounties() {
          pendingSubmissions.some(s => String(s.bountyId) === String(b.id) && s.workerAddress && isSameNimiqAddress(s.workerAddress, userAccount) && s.status === 'approved'))
       : false;
 
+    const hasRejectedSub = userAccount ? pendingSubmissions.some(s => String(s.bountyId) === String(b.id) && s.workerAddress && isSameNimiqAddress(s.workerAddress, userAccount) && s.status === 'rejected') : false;
+
     let btnLabel = 'Participate &amp; Earn NIM &rarr;';
     let btnDisabled = false;
 
@@ -1579,6 +1616,10 @@ function renderBounties() {
     } else if (hasPendingSub) {
       btnLabel = `<span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px; vertical-align:middle;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Proof Pending Review</span>`;
       btnDisabled = true;
+    } else if (hasRejectedSub) {
+      const rejSub = pendingSubmissions.find(s => String(s.bountyId) === String(b.id) && s.workerAddress && isSameNimiqAddress(s.workerAddress, userAccount) && s.status === 'rejected');
+      btnLabel = `<span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" style="margin-right:6px; vertical-align:middle;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Rejected: Resubmit Proof &rarr;</span>`;
+      btnDisabled = false;
     } else if (isPublisher) {
       btnLabel = `<span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px; vertical-align:middle;"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg> Publisher (Cannot Claim)</span>`;
       btnDisabled = true;
@@ -2397,10 +2438,11 @@ async function submitTaskRejectionWithReason() {
     sub.rejectionReason = val;
     localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions));
 
+    // Push updated rejection status & reason to global server so worker receives rejection instantly
+    await pushNewSubmission(sub);
+
     if (flagSpamCheck && flagSpamCheck.checked && sub.workerAddress) {
       await pushNewReport(sub.workerAddress, `Fake/Spam proof submitted for task: "${sub.bountyTitle}" - Reason: ${val}`);
-    } else {
-      syncGlobalPublicBounties(null, true);
     }
   }
 
@@ -2408,6 +2450,8 @@ async function submitTaskRejectionWithReason() {
   if (flagSpamCheck) flagSpamCheck.checked = false;
   if (reasonInput) reasonInput.value = '';
   renderPosterDashboard();
+  renderDedicatedOrders();
+  renderBounties();
   showToastNotification('Task Rejected', 'Worker notified of rejection reason. Task slot remains open.', false);
 }
 
