@@ -1,137 +1,260 @@
-# NimBounty ⚡ 
+# ⚡ NimBounty — Instant Micro-Task & Crowd-Testing Protocol on Nimiq Pay
 
-> **Proof-First Task Board & Instant NIM Micro-Rewards Engine powered by Nimiq Pay.**
+[![License: MIT](https://img.shields.io/badge/License-MIT-gold.svg)](LICENSE)
+[![Framework](https://img.shields.io/badge/Framework-Nimiq_Pay_Mini_Apps-1a7a4a.svg)](https://nimiq.dev/mini-apps)
+[![Network](https://img.shields.io/badge/Network-Nimiq_Mainnet_%7C_EVM-blue.svg)](https://nimiq.com)
+[![Status](https://img.shields.io/badge/Status-Live_on_Mainnet-brightgreen.svg)](https://nim-bounty.vercel.app)
+[![Deploy](https://img.shields.io/badge/Deployed-Vercel-black.svg)](https://nim-bounty.vercel.app)
 
-[![Live Demo](https://img.shields.io/badge/Live_App-nim--bounty.vercel.app-ffc72c?style=for-the-badge&logo=vercel&logoColor=black)](https://nim-bounty.vercel.app)
-[![Nimiq Pay Mini App](https://img.shields.io/badge/Nimiq_Pay-Mini_App-e6a800?style=for-the-badge&logo=nimiq&logoColor=black)](https://nimiq.com)
-[![License: MIT](https://img.shields.io/badge/License-MIT-10b981?style=for-the-badge)](./LICENSE)
-[![Build Status](https://img.shields.io/badge/Vercel-Deploys_Live-000000?style=for-the-badge&logo=vercel)](https://vercel.com)
-
----
-
-## 📌 Project Overview
-
-**NimBounty** is a mobile-first, decentralized task marketplace built specifically for the **Nimiq Pay Mini App** ecosystem. It bridges task requesters (Posters) and contributors (Workers) through cryptographic proof receipts and instant, zero-custody NIM settlements.
-
-Whether it's app testing, UI/UX feedback, social shares, bug hunting, or local fact verification, NimBounty eliminates long proposals, platform custody fees, and delayed payouts:
-1. **Define** — Requesters publish task bounty pools specifying proof requirements and NIM rewards.
-2. **Do & Prove** — Workers complete tasks, attach evidence (text, link, or screenshot CDN), and sign an off-chain receipt via Nimiq Pay.
-3. **Verify & Settle** — Requesters review proof and trigger instant on-chain NIM settlement directly inside Nimiq Pay.
+> **Live App:** [https://nim-bounty.vercel.app](https://nim-bounty.vercel.app)
 
 ---
 
-## ✨ Key Features
+## 🧩 The Problem
 
-### 🔄 Dual Role System (Worker vs. Poster Mode)
-- **Worker Mode**: Browse active bounty pools, claim reservation slots, and submit proof packages.
-- **Poster Mode**: Publish new task campaigns, set escrow budgets, review pending submissions, and payout workers with 1-click.
+The global gig economy is broken for small-scale tasks:
 
-### 🔐 Cryptographic Off-Chain Signature Protocol
-- Powered by `@nimiq/mini-app-sdk` (`provider.sign()`).
-- Workers and posters sign cryptographic proof receipts directly in Nimiq Pay without spending gas or transferring funds.
+- **Platforms like Fiverr, Upwork, and MTurk** charge **20–30% commission fees**, making micro-payments economically unviable.
+- **Traditional payment rails** (Stripe, PayPal) impose a fixed fee of ~$0.30 per transaction, meaning a $1.00 task payout loses 30% immediately — and $0.10 tasks are simply impossible.
+- **Freelance platforms have $50+ minimum withdrawal thresholds**, locking out workers in emerging markets who complete small tasks for $1–$5 each.
+- **Builders and startups** need fast, affordable feedback loops — real user testing, app reviews, social amplification — but can't afford traditional research firms or influencer agencies.
+- **Centralized escrow intermediaries** hold worker funds and charge fees for their custody, adding a layer of bureaucracy and trust risk.
+- **Bot farming and Sybil attacks** on traditional crowdsourcing platforms (e.g., MTurk) corrupt data quality and allow single actors to farm multiple rewards.
 
-### ⚡ Instant NIM Settlement Engine
-- Uses Nimiq Pay's native `sendBasicTransactionWithData()` method.
-- Payments transfer directly from requester to worker in seconds with on-chain memo tracking (`NIMBOUNTY_PAYOUT:bounty-id`).
-
-### 🏆 Global Real-Time Leaderboard & Profile Sync
-- Tracks total NIM earned and completed task counts globally.
-- Real-time profile engine syncs user handles (`@USERNAME`) across all devices instantly.
-
-### 📸 Multi-Format Proof Pipeline
-- Supports written feedback, proof URL links, and direct screenshot image attachments.
-- Integrated cloud CDN ([catbox.moe](https://catbox.moe)) compresses and uploads screenshots to ~35-byte HTTPS URLs for mobile WebView compatibility.
-
-### ⏳ Live Expiration & Slot Tracking
-- Dynamic time-left badges (e.g. `⏳ 14d 2h left`) show remaining campaign duration.
-- Real-time slot management prevents over-allocation.
+The result: legitimate micro-task economies fail to launch, workers in emerging markets are excluded, and builders get low-quality feedback that doesn't reflect real users.
 
 ---
 
-## 🛠️ Nimiq Pay SDK Integration
+## 💡 How NimBounty is the Solution
 
-NimBounty leverages Nimiq's Mini App SDK to deliver a native wallet experience:
+**NimBounty** is a non-custodial, peer-to-peer micro-task bounty protocol built natively on the **Nimiq Pay Mini Apps Framework** — the only mobile payment stack designed from the ground up for instant, feeless micro-payments.
 
-| SDK Method | Purpose in NimBounty |
-| :--- | :--- |
-| `init({ timeout: 5000 })` | Initializes connection with Nimiq Pay container |
-| `listAccounts()` | Discovers connected user's Nimiq address |
-| `provider.sign(jsonPayload)` | Off-chain cryptographic signature for proof receipts & campaign creation (0 NIM cost) |
-| `sendBasicTransactionWithData({ recipient, value, data })` | Executes instant on-chain NIM payment with memo link |
+Here's how NimBounty solves every problem above:
 
-```javascript
-// Example: Instant NIM Settlement to Worker in NimBounty
-const lunaValue = Math.round(parseFloat(rewardNIM) * 100000); // 1 NIM = 100,000 Luna
+| Problem | NimBounty Solution |
+|---|---|
+| 20–30% platform fees | **0% platform commission.** Poster pays worker directly, wallet-to-wallet. |
+| $0.30 fixed transaction fees | **Nimiq Pay's near-zero fee rails** make $0.10–$5 tasks economically viable. |
+| $50 minimum withdrawal | **Any amount, any time.** Workers receive NIM directly to their wallet on approval. |
+| No affordable feedback channel | **Task pools are free to create.** Post a task with 1 click, no upfront deposit required. |
+| Custodial escrow risk | **Non-custodial by design.** Funds stay in poster's wallet until the moment of payout. |
+| Bot farming & Sybil attacks | **Hardware-bound anti-Sybil:** Nimiq's `requestDeviceIdentifier` API locks 1 device to 1 task slot. |
+| No proof of work integrity | **Off-chain proof signatures:** Workers sign submissions with Nimiq wallet keys at zero gas cost. |
 
-const txHash = await provider.sendBasicTransactionWithData({
-  recipient: workerNimiqAddress,
-  value: lunaValue,
-  data: `NIMBOUNTY_PAYOUT:${bountyId}`
-});
+NimBounty connects **task posters** (builders, startups, researchers) with **workers** (testers, community members, content creators) through a trustless, direct settlement protocol powered by Nimiq Pay.
+
+---
+
+## 🔑 Key Features
+
+### For Task Posters
+- **Free Task Publishing** — Create bounty pools instantly with no upfront deposit. Set reward amount, worker slots, proof type, and deadline.
+- **Rich Proof Types** — Request text feedback, URL links, Twitter/X handles, screenshots, or combined image + text proof.
+- **Off-Chain Approval Signature** — Sign your approval decision off-chain with your Nimiq Pay keys (zero gas fees).
+- **Direct Wallet Payout** — Approve a worker's proof and pay them directly from your connected Nimiq Pay wallet, wallet-to-wallet, with one click.
+- **Campaign Dashboard** — Manage all published pools and review submitted worker proofs from a dedicated Poster Mode console.
+- **Real-Time Submissions Queue** — View, approve, or reject worker submissions as they arrive with a live global sync engine.
+
+### For Workers
+- **Browse Live Bounties** — Discover and filter active task pools in the global worker dashboard.
+- **Off-Chain Proof Submission** — Sign and submit proof with your Nimiq wallet keys at **zero gas cost**. No transaction fees.
+- **Anti-Sybil Protection** — One physical device, one slot per bounty pool. Prevents multi-account farming.
+- **Proof History Tracking** — Track pending submissions and approved payouts in a dedicated history tab.
+- **Instant Payout on Approval** — Receive NIM directly from poster's wallet the moment your proof is approved.
+
+### Platform-Wide
+- ⚡ **Nimiq Pay Mini App SDK Integration** — Native wallet provider, device ID, and transaction signing.
+- 🌍 **Global Real-Time Sync** — All bounties and submissions are synchronized globally via a persistent serverless backend.
+- 🎨 **Dark/Light Theme Toggle** — Full system-aware theming with Nimiq Gold design tokens.
+- 🔊 **Audio FX + Confetti Animations** — Premium micro-interactions for submission and payout events.
+- 📱 **Mobile-First Design** — Built and optimized for Nimiq Pay's mobile WebView sandbox.
+- 🔗 **Shareable Bounty Links** — Posters can share unique deep-link URLs that auto-import specific bounties for workers.
+
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Technology |
+|---|---|
+| **Frontend** | Vanilla HTML5, CSS3 (Custom Design Tokens), ES6+ JavaScript |
+| **Typography** | Work Sans, Instrument Serif, Geist Mono (Google Fonts) |
+| **Web3 SDK** | `@nimiq/mini-app-sdk` — `init()`, `listAccounts()`, `requestDeviceIdentifier()`, `sendBasicTransaction()` |
+| **EVM Support** | `window.ethereum` provider (Polygon, Base, Arbitrum USDT payouts) |
+| **Backend API** | Vercel Serverless Functions (Node.js 18+) |
+| **Persistent Store** | JSONBlob REST API (global bounty + submission sync) |
+| **Deployment** | Vercel (auto-deploys from GitHub `main` branch) |
+| **Icons** | Inline SVG (zero external dependencies) |
+| **Version Control** | Git + GitHub |
+
+---
+
+## 🚀 How to Run Locally
+
+### Prerequisites
+
+- **Node.js v18+** installed ([nodejs.org](https://nodejs.org))
+- **Git** installed
+- **Nimiq Pay Mobile App** ([iOS](https://apps.apple.com/app/id6471844738) / [Android](https://play.google.com/store/apps/details?id=com.nimiq.pay)) for full wallet functionality
+- **Vercel CLI** (optional, for testing serverless API locally)
+
+---
+
+### Step 1 — Clone the Repository
+
+```bash
+git clone https://github.com/OpeyemiMoses/NimBounty.git
+cd NimBounty
 ```
 
 ---
 
-## 🏗️ Technical Architecture
+### Step 2 — Install Dependencies
 
-NimBounty is built with a lightweight, high-performance web architecture:
-
-- **Frontend**: Vanilla JavaScript (ESNext), Semantic HTML5, Custom Modern CSS Design System (Light/Dark themes, glassmorphism accents).
-- **Backend API**: Vercel Serverless Server Engine (`/api/bounties`).
-- **Data Persistence**: JSONBlob Cloud Store with optimistic real-time polling synchronization (2-second interval).
-- **Media Delivery**: Catbox.moe API for anonymous, instant screenshot hosting.
+```bash
+npm install
+```
 
 ---
 
-## 🚀 Getting Started & Local Development
+### Step 3 — Run a Local Dev Server
 
-### Prerequisites
-- [Node.js](https://nodejs.org/) v18.0 or higher
-- A browser with Nimiq Pay Mini App container or supported web wallet
+**Option A — Python (no install needed):**
+```bash
+python -m http.server 8080
+```
 
-### Installation
+**Option B — Node `http-server`:**
+```bash
+npx http-server -p 8080
+```
 
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/OpeyemiMoses/NimBounty.git
-   cd NimBounty
-   ```
-
-2. **Run locally using any local web server** (e.g. VS Code Live Server or `npx serve`):
-   ```bash
-   npx serve .
-   ```
-
-3. **Open in browser**:
-   Navigate to `http://localhost:3000` (or local port shown).
+**Option C — Vercel Dev (with API routes):**
+```bash
+npx vercel dev
+```
+> This runs the `api/bounties.js` serverless function locally alongside the frontend.
 
 ---
 
-## 🔒 Security & Privacy
+### Step 4 — Access in Browser
 
-- **Zero Key Storage**: NimBounty never requests, handles, or stores private keys or seed phrases.
-- **Native Wallet Authority**: All signature requests and payment approvals occur inside the user's Nimiq Pay wallet.
-- **Client-Side Validation**: Addresses and inputs are validated before submitting transactions.
-
----
-
-## 🔮 Future Roadmap (V2 Custody Escrow Vault)
-
-Future iterations of NimBounty will introduce an automated **Custody Escrow Vault**:
-- **Upfront Escrow Deposit**: Posters deposit pool funds into a smart custody address upon campaign publishing.
-- **Automated Backend Release**: Approved payouts auto-release via a Node.js signer microservice (`@nimiq/core`).
-- **Dispute Resolution & Auto-Refunds**: Automated refunds for expired, unclaimed slots after campaign deadlines.
+```
+http://localhost:8080
+```
 
 ---
 
-## 🤝 Contributing
+### Step 5 — Test in Nimiq Pay Mobile App
 
-Contributions are welcome! Please see our [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines on opening issues, suggesting features, and submitting pull requests.
+Open Nimiq Pay on your phone and navigate to the Mini Apps section, then paste:
 
-Please adhere to our [Code of Conduct](./CODE_OF_CONDUCT.md) in all community interactions.
+```
+http://YOUR_LOCAL_IP:8080
+```
+
+Replace `YOUR_LOCAL_IP` with your local network IP (e.g., `192.168.1.10`).
+
+> **Tip:** Run `ipconfig` (Windows) or `ifconfig` (Mac/Linux) to find your local IP.
+
+---
+
+### Environment Variables (for Vercel deployment)
+
+Create a `.env` file at the project root:
+
+```env
+# No secrets required for current direct wallet payout model.
+# The following is reserved for the upcoming on-chain Escrow Vault (see Roadmap).
+# ESCROW_MNEMONIC=your_twelve_word_escrow_vault_seed_phrase_here
+```
+
+---
+
+## 📁 Project Structure
+
+```
+NimBounty/
+├── index.html          # Landing page + App Console SPA
+├── app.js              # Core application logic & state engine
+├── api/
+│   └── bounties.js     # Vercel serverless sync API (JSONBlob backend)
+├── package.json        # Project dependencies
+├── vercel.json         # Vercel deployment config (if present)
+├── .gitignore          # Excludes node_modules, .env, .vercel/
+└── README.md           # This file
+```
+
+---
+
+## 🗺️ Roadmap
+
+### ✅ Phase 1 — Core Protocol (Live)
+- [x] Nimiq Pay Mini App SDK integration
+- [x] Worker Mode + Poster Mode dual-console
+- [x] Hardware anti-Sybil device locking via `requestDeviceIdentifier`
+- [x] Off-chain proof submission signatures (worker, zero gas)
+- [x] Off-chain approval signatures (poster, zero gas)
+- [x] Direct wallet-to-wallet payout (poster → worker on approval)
+- [x] Global real-time sync via Vercel serverless + JSONBlob
+- [x] Shareable bounty deep links
+- [x] Dark/Light theme + audio FX + confetti micro-animations
+
+### 🔧 Phase 2 — On-Chain Escrow Vaults (In Development)
+> The next major upgrade introduces **trustless on-chain escrow** — removing any reliance on poster goodwill for payment.
+
+- [ ] **Automatic Escrow Vault Deposit** — Poster locks total reward pool (NIM) into a smart escrow wallet at task creation time.
+- [ ] **Serverless Escrow Disburser** — Upon poster approval, a Vercel backend function signs and broadcasts a NIM transaction *from* the escrow vault *to* the worker, requiring no further poster action.
+- [ ] **24-Hour Auto-Release Safeguard** — If a poster fails to review a submission within 24 hours, the escrow vault automatically releases the reward to the worker to protect their labor.
+- [ ] **Poster Reclaim on Expiry** — If a bounty pool expires with unclaimed slots, the poster can withdraw unused NIM from the vault.
+- [ ] **Escrow Audit Trail** — Full on-chain transaction history for every bounty disbursement viewable on Nimiq's blockchain explorer.
+
+### 🌐 Phase 3 — Ecosystem Expansion
+- [ ] USDT/ERC-20 token bounty pools (EVM multi-chain)
+- [ ] Task category marketplace with search and filter
+- [ ] Reputation scoring for workers (based on approval rate)
+- [ ] Dispute resolution flow
+- [ ] NimBounty DAO governance token for protocol parameters
 
 ---
 
 ## 📄 License
 
-This project is licensed under the **MIT License** — see the [LICENSE](./LICENSE) file for details.
+Distributed under the **MIT License**.
+
+```
+MIT License
+
+Copyright (c) 2024 NimBounty Contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+See [`LICENSE`](LICENSE) for details.
+
+---
+
+## 🔐 Security
+
+Please review our [`SECURITY.md`](SECURITY.md) for details on vulnerability disclosure and security practices.
+
+---
+
+<p align="center">
+  Built with ⚡ on <a href="https://nimiq.com">Nimiq Pay</a> • <a href="https://nim-bounty.vercel.app">Live App</a> • <a href="https://github.com/OpeyemiMoses/NimBounty">GitHub</a>
+</p>
