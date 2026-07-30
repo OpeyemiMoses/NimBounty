@@ -737,6 +737,26 @@
     </main>
   </div>
 
+  <!-- DEDICATED VIEW: GLOBAL BOUNTY REGISTRY PAGE -->
+  <div id="view-registry" class="page-view" style="display: none;">
+    <main class="console-main">
+      <div class="paper-card" style="background:var(--card); border:1px solid var(--border); border-radius:20px; padding:24px;">
+        <div style="display:flex; flex-direction:column; align-items:flex-start; gap:10px; margin-bottom:18px;">
+          <button class="btn-ghost-sm" onclick="showView('app')" style="padding:7px 14px; font-size:0.82rem;">&larr; Back to App</button>
+          <div style="display:flex; align-items:center; justify-content:space-between; width:100%; flex-wrap:wrap; gap:10px;">
+            <div>
+              <h2 style="font-size:1.4rem; font-weight:900; color:var(--ink); margin:0; letter-spacing:-0.02em;">Global Bounty Registry</h2>
+              <p style="font-size:0.85rem; color:var(--muted); margin:4px 0 0;">Public live ledger of all bounty pools created on NimBounty with real creator addresses &amp; rewards.</p>
+            </div>
+            <span style="background:var(--gold-tint); color:var(--gold); border:1px solid var(--gold-border); padding:4px 12px; border-radius:10px; font-size:0.75rem; font-weight:800;" id="registry-count-badge">0 Bounties</span>
+          </div>
+        </div>
+
+        <div id="global-registry-list"></div>
+      </div>
+    </main>
+  </div>
+
   <!-- MODE SWITCH MODAL -->
   <div class="modal-overlay" id="modal-mode-switch" style="display:none;">
     <div class="modal-paper paper-card rise-in" style="max-width:380px; text-align:center;">

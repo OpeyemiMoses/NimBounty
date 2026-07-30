@@ -334,6 +334,7 @@ async function fetchGlobalPublicBounties() {
         renderProfile();
         renderDedicatedOrders();
         renderLeaderboard();
+        renderGlobalRegistry();
         updateWalletUI(); // Refresh NIM earned badge and wallet status
       }
     }
@@ -704,6 +705,7 @@ function showView(viewName) {
     landing: document.getElementById('view-landing'),
     app: document.getElementById('view-app'),
     orders: document.getElementById('view-orders'),
+    registry: document.getElementById('view-registry'),
     faq: document.getElementById('view-faq'),
     protections: document.getElementById('view-protections'),
     'how-it-works': document.getElementById('view-how-it-works')
@@ -762,6 +764,7 @@ function showView(viewName) {
 
   if (views[viewName]) {
     views[viewName].style.display = 'block';
+    if (viewName === 'registry') renderGlobalRegistry();
   } else if (views.app) {
     views.app.style.display = 'block';
   }
@@ -1000,7 +1003,7 @@ function renderMobileBottomNav() {
   if (currentRole === 'worker') {
     nav.innerHTML = `
       <button class="mobile-bottom-tab ${currentView === 'app' && workerSubtab === 'active' && !isProfileOpen ? 'active' : ''}" onclick="switchMobileTab('active')">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
         Active
       </button>
       <button class="mobile-bottom-tab ${currentView === 'app' && workerSubtab === 'history' && !isProfileOpen ? 'active' : ''}" onclick="switchMobileTab('history')">
@@ -1282,6 +1285,40 @@ function renderProfile() {
       <div class="stat-col">
         <div class="stat-val">${rep.reports || 0}</div>
         <div class="stat-lbl">REPORTS</div>
+      </div>
+    </div>
+
+    <!-- Global Protocol Stats Card (Real-Time Live) -->
+    <div style="background:var(--card); border:1.5px solid var(--gold); border-radius:18px; padding:20px; margin-bottom:16px; box-shadow:0 8px 24px rgba(255,199,44,0.08); background:linear-gradient(135deg, rgba(255,199,44,0.06) 0%, rgba(255,199,44,0.01) 100%);">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <div style="width:10px; height:10px; border-radius:50%; background:var(--emerald); box-shadow:0 0 8px var(--emerald);"></div>
+          <span style="font-size:0.75rem; font-weight:800; color:var(--ink); text-transform:uppercase; letter-spacing:0.06em;">GLOBAL PROTOCOL STATS</span>
+        </div>
+        <span style="font-size:0.68rem; background:var(--gold); color:#1a1917; font-weight:800; padding:2px 8px; border-radius:6px; text-transform:uppercase;">LIVE ENGINE</span>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px;">
+        <div style="background:var(--bg-subtle); border:1px solid var(--border); border-radius:14px; padding:14px; text-align:center;">
+          <div style="font-size:1.4rem; font-weight:900; color:var(--ink); line-height:1.2;">${bounties.length}</div>
+          <div style="font-size:0.68rem; font-weight:800; color:var(--muted); margin-top:4px; text-transform:uppercase; letter-spacing:0.04em;">TOTAL TASKS CREATED</div>
+        </div>
+        <div style="background:var(--bg-subtle); border:1px solid var(--border); border-radius:14px; padding:14px; text-align:center;">
+          <div style="font-size:1.4rem; font-weight:900; color:var(--emerald); line-height:1.2;">${approvedPayoutsHistory.reduce((acc, p) => acc + (parseFloat(p.reward) || 0), 0).toFixed(1)} NIM</div>
+          <div style="font-size:0.68rem; font-weight:800; color:var(--muted); margin-top:4px; text-transform:uppercase; letter-spacing:0.04em;">TOTAL REWARDS PAID</div>
+        </div>
+      </div>
+
+      <!-- Global Registry Page Link Card -->
+      <div onclick="showView('registry')" style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 14px; background:var(--bg); border:1px solid var(--gold-border); border-radius:12px; cursor:pointer; transition:all 0.2s;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          <div>
+            <div style="font-size:0.85rem; font-weight:800; color:var(--ink);">View Global Bounty Registry</div>
+            <div style="font-size:0.72rem; color:var(--muted);">Public live ledger of all bounty pools &amp; creator handles</div>
+          </div>
+        </div>
+        <span style="color:var(--gold); font-weight:800;">&rarr;</span>
       </div>
     </div>
 
@@ -2616,4 +2653,59 @@ function openLeaderboardModal() {
   renderLeaderboard();
   const modal = document.getElementById('modal-leaderboard');
   if (modal) modal.style.display = 'flex';
+}
+
+function renderGlobalRegistry() {
+  const container = document.getElementById('global-registry-list');
+  const countBadge = document.getElementById('registry-count-badge');
+  if (!container) return;
+
+  if (countBadge) countBadge.textContent = `${bounties.length} Bounties Created`;
+
+  if (bounties.length === 0) {
+    container.innerHTML = createEmptyStateHTML(
+      'No Bounties Created Yet',
+      'No bounty pools have been published to the global ledger yet. Be the first to publish a task!',
+      `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`
+    );
+    return;
+  }
+
+  container.innerHTML = bounties.map(b => {
+    const creatorDisplayName = (b.sponsor && String(b.sponsor).trim() && !String(b.sponsor).startsWith('NQ'))
+      ? String(b.sponsor).trim().toUpperCase()
+      : getUserDisplayName(b.posterAddress);
+
+    const isSlotsZero = (b.slotsRemaining !== undefined && b.slotsRemaining <= 0);
+    const timeLeftStr = getBountyTimeLeftStr(b);
+    const createdDate = b.createdAt
+      ? new Date(b.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      : 'Live Campaign';
+
+    return `
+      <div style="background:var(--bg-subtle); border:1px solid var(--border); border-radius:16px; padding:18px; margin-bottom:12px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; flex-wrap:wrap;">
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <span class="bounty-category-tag">${b.categoryName || b.category || 'General'}</span>
+            <span style="font-size:0.72rem; color:var(--muted); font-weight:700; display:inline-flex; align-items:center; gap:4px; background:var(--card); padding:3px 8px; border-radius:6px; border:1px solid var(--border);">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> ${timeLeftStr}
+            </span>
+          </div>
+          <span style="font-size:1.1rem; font-weight:900; color:var(--gold-text);">${b.reward} NIM</span>
+        </div>
+
+        <h4 style="font-size:1.05rem; font-weight:800; color:var(--ink); margin-bottom:6px;">${b.title}</h4>
+        <p style="font-size:0.83rem; color:var(--muted); margin-bottom:12px; line-height:1.5;">${b.instructions || b.description || 'Task campaign'}</p>
+
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding-top:10px; border-top:1px dashed var(--border); font-size:0.78rem; flex-wrap:wrap;">
+          <div style="color:var(--muted);">
+            Created by: <strong style="color:var(--ink);">${creatorDisplayName}</strong> &bull; ${createdDate}
+          </div>
+          <div style="font-weight:700; color:${isSlotsZero ? 'var(--danger)' : 'var(--emerald)'};">
+            Slots Remaining: ${b.slotsRemaining !== undefined ? b.slotsRemaining : (b.slotsTotal || 5)} / ${b.slotsTotal || 5}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
 }
