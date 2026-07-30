@@ -1240,6 +1240,13 @@ function renderProfile() {
           <div>
             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
               <h3 style="font-size:1.3rem; font-weight:900; color:var(--ink); margin:0; letter-spacing:-0.02em;">${displayUsername}</h3>
+              ${profile.username ? `
+                <button onclick="openSetUsernameModal()" title="Sync username globally" style="background:none; border:none; cursor:pointer; padding:2px; color:var(--muted); display:inline-flex; align-items:center; opacity:0.6;" >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                </button>
+              ` : `
+                <button class="btn-ghost-sm" onclick="openSetUsernameModal()" style="font-size:0.75rem; padding:4px 10px; border-color:var(--gold); color:var(--gold);">+ Set Permanent Username</button>
+              `}
             </div>
             <div style="font-size:0.75rem; color:var(--muted); font-weight:600; margin-top:4px; display:flex; align-items:center; gap:4px;">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
@@ -1254,11 +1261,6 @@ function renderProfile() {
           </div>
         </div>
 
-        ${!profile.username ? `
-          <button class="btn-ghost-sm" onclick="openSetUsernameModal()" style="margin-top:10px; font-size:0.75rem; padding:4px 10px; border-color:var(--gold); color:var(--gold);">+ Set Permanent Username</button>
-        ` : `
-          <button class="btn-ghost-sm" onclick="openSetUsernameModal()" style="margin-top:10px; font-size:0.75rem; padding:4px 10px; border-color:var(--border); color:var(--muted);">⟳ Sync Username Globally</button>
-        `}
       </div>
     </div>
 
@@ -1372,12 +1374,12 @@ function openSetUsernameModal() {
 
   if (profile.username) {
     // Already set — allow re-sync to global server
-    if (input) input.value = profile.username;
-    if (titleEl) titleEl.textContent = 'Verify & Sync Username';
-    if (descEl) descEl.textContent = 'Your username is set. Confirm to re-sync it globally so it appears on the leaderboard and registry for all users.';
-    if (btnEl) btnEl.textContent = 'Sync Username Globally \u2192';
+    if (input) { input.value = profile.username; input.disabled = true; input.style.opacity = '0.5'; input.style.cursor = 'not-allowed'; }
+    if (titleEl) titleEl.textContent = 'Sync Username Globally';
+    if (descEl) descEl.textContent = 'Re-sync your username to the global server so it appears on the leaderboard and registry for all users.';
+    if (btnEl) btnEl.textContent = 'Sync \u2192';
   } else {
-    if (input) input.value = '';
+    if (input) { input.value = ''; input.disabled = false; input.style.opacity = '1'; input.style.cursor = ''; }
     if (titleEl) titleEl.textContent = 'Set Username';
     if (descEl) descEl.textContent = 'Choose a permanent username linked to your wallet address.';
     if (btnEl) btnEl.textContent = 'Set Username \u2192';
