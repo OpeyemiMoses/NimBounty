@@ -1670,7 +1670,6 @@ function renderBounties() {
       ? String(b.sponsor).trim().toUpperCase()
       : getUserDisplayName(b.posterAddress);
 
-    const hasRejectedSub = userAccount ? pendingSubmissions.some(s => String(s.bountyId) === String(b.id) && s.workerAddress && isSameNimiqAddress(s.workerAddress, userAccount) && s.status === 'rejected') : false;
     const rejSub = hasRejectedSub ? pendingSubmissions.find(s => String(s.bountyId) === String(b.id) && s.workerAddress && isSameNimiqAddress(s.workerAddress, userAccount) && s.status === 'rejected') : null;
 
     if (hasRejectedSub && rejSub) {
