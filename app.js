@@ -1553,6 +1553,7 @@ function openSubmitProofModal(bountyId) {
   if (document.getElementById('proof-text-input')) document.getElementById('proof-text-input').value = '';
   if (document.getElementById('proof-url-input')) document.getElementById('proof-url-input').value = '';
   if (document.getElementById('proof-image-file')) document.getElementById('proof-image-file').value = '';
+  if (document.getElementById('proof-image-url-input')) document.getElementById('proof-image-url-input').value = '';
   uploadedImageDataUrl = null;
 
   startClaimTimer(15 * 60);
@@ -1614,13 +1615,62 @@ async function processImageFileToDataUrl(file) {
   });
 }
 
+async function uploadScreenshotToCloud(file) {
+  try {
+    const formData = new FormData();
+    formData.append('reqtype', 'fileupload');
+    formData.append('fileToUpload', file);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+    const res = await fetch('https://catbox.moe/user/api.php', {
+      method: 'POST',
+      body: formData,
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+
+    if (res.ok) {
+      const url = (await res.text()).trim();
+      if (url.startsWith('http')) return url;
+    }
+  } catch (e) {}
+  return null;
+}
+
 async function previewScreenshot(event) {
   const file = event.target.files[0];
   if (file) {
-    uploadedImageDataUrl = await processImageFileToDataUrl(file);
+    showToastNotification('Processing Screenshot', 'Preparing screenshot proof...', false);
+
+    // 1. Try cloud upload first (returns instant ~35 byte HTTPS URL)
+    const cloudUrl = await uploadScreenshotToCloud(file);
+    if (cloudUrl) {
+      uploadedImageDataUrl = cloudUrl;
+      const urlInput = document.getElementById('proof-image-url-input');
+      if (urlInput) urlInput.value = cloudUrl;
+      showToastNotification('Uploaded', 'Screenshot ready for instant sync!', false);
+    } else {
+      // 2. Fallback to micro canvas compressed JPEG
+      uploadedImageDataUrl = await processImageFileToDataUrl(file);
+      showToastNotification('Screenshot Ready', 'Compressed screenshot ready.', false);
+    }
+
     const previewImg = document.getElementById('image-preview-img');
     const previewBox = document.getElementById('image-preview-box');
     if (previewImg && uploadedImageDataUrl) previewImg.src = uploadedImageDataUrl;
+    if (previewBox) previewBox.style.display = 'flex';
+  }
+}
+
+function handleImageUrlInput(event) {
+  const val = event.target.value.trim();
+  if (val) {
+    uploadedImageDataUrl = val;
+    const previewImg = document.getElementById('image-preview-img');
+    const previewBox = document.getElementById('image-preview-box');
+    if (previewImg) previewImg.src = val;
     if (previewBox) previewBox.style.display = 'flex';
   }
 }
@@ -1633,9 +1683,13 @@ async function handleSubmitProof() {
   let proofContent = '';
 
   if (pType === 'image' || pType === 'image_text') {
+    const urlInput = document.getElementById('proof-image-url-input');
+    const pastedUrl = urlInput ? urlInput.value.trim() : '';
+    if (pastedUrl) uploadedImageDataUrl = pastedUrl;
+
     const fileInput = document.getElementById('proof-image-file');
     if (!uploadedImageDataUrl && fileInput && fileInput.files && fileInput.files[0]) {
-      uploadedImageDataUrl = await processImageFileToDataUrl(fileInput.files[0]);
+      uploadedImageDataUrl = (await uploadScreenshotToCloud(fileInput.files[0])) || (await processImageFileToDataUrl(fileInput.files[0]));
     }
   }
 
@@ -1870,9 +1924,12 @@ function renderPosterDashboard() {
       let textContent = '';
       let linkContent = '';
 
-      if (content.startsWith('data:image')) {
-        // Direct screenshot
-        imageUrl = content;
+      if (content.startsWith('data:image') || content.startsWith('http://') || content.startsWith('https://')) {
+        if (content.match(/\.(jpeg|jpg|gif|png|webp)($|\?)/i) || content.includes('catbox.moe') || content.includes('imgur') || content.includes('postimg') || content.includes('ibb.co') || content.startsWith('data:image')) {
+          imageUrl = content;
+        } else {
+          linkContent = content;
+        }
       } else if (content.startsWith('{')) {
         // Combined text + image (feedback type)
         try {
@@ -1882,8 +1939,6 @@ function renderPosterDashboard() {
         } catch (e) {
           textContent = content;
         }
-      } else if (content.startsWith('http://') || content.startsWith('https://')) {
-        linkContent = content;
       } else {
         textContent = content;
       }

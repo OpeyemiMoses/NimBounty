@@ -820,14 +820,27 @@
             <input type="url" id="proof-url-input" placeholder="https://x.com/yourpost or link to proof..." style="width:100%; padding:10px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink);" />
           </div>
 
-          <div id="group-proof-image" style="display:none; flex-direction:column;">
-            <label style="font-size:0.82rem; font-weight:700; color:var(--muted); display:block; margin-bottom:4px;">Attach Screenshot Proof</label>
-            <input type="file" id="proof-image-file" accept="image/*" onchange="previewScreenshot(event)" style="font-size:0.8rem; color:var(--muted);" />
+          <div id="group-proof-image" style="display:none; flex-direction:column; gap:10px;">
+            <div>
+              <label style="font-size:0.82rem; font-weight:700; color:var(--muted); display:block; margin-bottom:4px;">1. Select Screenshot File</label>
+              <input type="file" id="proof-image-file" accept="image/*" onchange="previewScreenshot(event)" style="font-size:0.8rem; color:var(--muted);" />
+            </div>
+
+            <div style="display:flex; align-items:center; gap:8px; margin:2px 0;">
+              <div style="flex:1; height:1px; background:var(--border);"></div>
+              <span style="font-size:0.68rem; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:0.04em;">OR PASTE LINK</span>
+              <div style="flex:1; height:1px; background:var(--border);"></div>
+            </div>
+
+            <div>
+              <label style="font-size:0.82rem; font-weight:700; color:var(--muted); display:block; margin-bottom:4px;">2. Paste Screenshot Image URL (Imgur / Gyazo / Postimages / Drive link)</label>
+              <input type="url" id="proof-image-url-input" placeholder="https://i.imgur.com/xyz.png or image link..." oninput="handleImageUrlInput(event)" style="width:100%; padding:10px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink); font-size:0.82rem;" />
+            </div>
           </div>
 
           <div id="image-preview-box" style="display:none; flex-direction:column; align-items:center; gap:6px;">
             <img id="image-preview-img" style="max-width:100%; max-height:160px; border-radius:10px; border:1px solid var(--border);" alt="Screenshot preview" />
-            <span style="font-size:0.7rem; color:var(--muted);">Screenshot attached</span>
+            <span style="font-size:0.7rem; color:var(--emerald); font-weight:700;">✓ Screenshot Ready for Instant Sync</span>
           </div>
 
           <button class="btn-primary-lg full-width" type="submit" style="justify-content:center;">Submit Signed Proof &rarr;</button>
