@@ -267,7 +267,7 @@ textarea {
    HERO SECTION (VERBATIM MAIN PROJECT)
 ───────────────────────────────────────── */
 .hero-section {
-  padding: 70px 20px 50px;
+  padding: 44px 20px 32px;
   text-align: center;
   background: radial-gradient(circle at 50% 20%, var(--gold-tint) 0%, var(--bg) 80%);
 }
@@ -293,7 +293,7 @@ textarea {
   border: 1px solid var(--gold-border);
   padding: 6px 16px;
   border-radius: var(--r-btn);
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
 .tag-pulse-dot {
@@ -340,7 +340,7 @@ textarea {
   max-width: 640px;
   font-weight: 400;
   line-height: 1.6;
-  margin-bottom: 32px;
+  margin-bottom: 20px;
 }
 
 /* Process Flow Pills */
@@ -348,7 +348,7 @@ textarea {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 36px;
+  margin-bottom: 24px;
   flex-wrap: wrap;
   justify-content: center;
 }
@@ -390,7 +390,7 @@ textarea {
 .hero-ctas {
   display: flex;
   gap: 12px;
-  margin-bottom: 48px;
+  margin-bottom: 28px;
   flex-wrap: wrap;
   justify-content: center;
   width: 100%;
@@ -497,7 +497,7 @@ textarea {
    SECTIONS & HOW IT WORKS (Step Cards)
 ───────────────────────────────────────── */
 .section-padded {
-  padding: 70px 20px;
+  padding: 44px 20px;
   max-width: 1240px;
   margin: 0 auto;
 }
@@ -511,7 +511,7 @@ textarea {
 
 .section-header {
   text-align: center;
-  margin-bottom: 48px;
+  margin-bottom: 28px;
 }
 
 .section-title {
@@ -710,7 +710,7 @@ textarea {
   background: var(--card-subtle);
   border-top: 1px solid var(--border);
   color: var(--ink);
-  padding: 70px 20px;
+  padding: 44px 20px;
   text-align: center;
 }
 
@@ -734,7 +734,7 @@ textarea {
 /* Console Main & Filter Controls */
 .console-main {
   max-width: 1100px;
-  margin: 30px auto 60px;
+  margin: 16px auto 40px;
   padding: 0 24px;
 }
 
@@ -1454,9 +1454,9 @@ textarea {
 .landing-footer {
   background: var(--bg-subtle);
   border-top: 1px solid var(--border);
-  padding: 56px 24px 28px;
+  padding: 36px 24px 20px;
   color: var(--ink);
-  margin-top: 40px;
+  margin-top: 20px;
   margin-bottom: 0 !important;
 }
 
