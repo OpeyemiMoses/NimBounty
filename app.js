@@ -5,30 +5,45 @@
 // Production API URL
 const PRODUCTION_URL = 'https://nim-bounty.vercel.app';
 
-// Storage Keys — Version 25 (Total Clean Slate)
-const STORAGE_KEY_USER_ACCT = 'nimbounty_user_wallet_v25';
-const STORAGE_KEY_PROFILE = 'nimbounty_profile_v25';
-const STORAGE_KEY_THEME = 'nimbounty_theme_v25';
-const STORAGE_KEY_LOCAL_BOUNTIES = 'nimbounty_pools_v25';
-const STORAGE_KEY_SUBS = 'nimbounty_subs_v25';
-const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v25';
-const STORAGE_KEY_REPUTATION = 'nimbounty_reputation_v25';
-const STORAGE_KEY_ONBOARDED_GLOBAL = 'nimbounty_onboarded_global_v25';
-
-// Clear all legacy local storage cache (v1–v24)
-try {
-  ['v1','v2','v3','v4','v5','v6','v7','v8','v9','v10','v11','v12','v13','v14','v15','v16','v17','v18','v19','v20','v21','v22','v23','v24'].forEach(v => {
-    localStorage.removeItem(`nimbounty_pools_${v}`);
-    localStorage.removeItem(`nimbounty_subs_${v}`);
-    localStorage.removeItem(`nimbounty_approved_payouts_history_${v}`);
-    localStorage.removeItem(`nimbounty_profile_${v}`);
-    localStorage.removeItem(`nimbounty_reputation_${v}`);
-    localStorage.removeItem(`nimbounty_onboarded_global_${v}`);
-  });
-} catch(e) {}
+// Permanent Wallet Key & Storage Keys — Version 600 (Clean Slate)
+const STORAGE_KEY_USER_ACCT = 'nimbounty_user_wallet_permanent';
+const STORAGE_KEY_PROFILE = 'nimbounty_profile_v600';
+const STORAGE_KEY_THEME = 'nimbounty_theme_v600';
+const STORAGE_KEY_LOCAL_BOUNTIES = 'nimbounty_pools_v600';
+const STORAGE_KEY_SUBS = 'nimbounty_subs_v600';
+const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v600';
+const STORAGE_KEY_REPUTATION = 'nimbounty_reputation_v600';
+const STORAGE_KEY_ONBOARDED_GLOBAL = 'nimbounty_onboarded_global_v600';
 
 // Global Application State
 let userAccount = localStorage.getItem(STORAGE_KEY_USER_ACCT) || null;
+
+// Recover legacy wallet account if present in older keys
+if (!userAccount) {
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.includes('nimbounty_user_wallet')) {
+        const val = localStorage.getItem(k);
+        if (val && val.trim().length > 0) {
+          userAccount = val.trim();
+          localStorage.setItem(STORAGE_KEY_USER_ACCT, userAccount);
+          break;
+        }
+      }
+    }
+  } catch(e) {}
+}
+
+// Clear pool & submission caches across prior versions while strictly preserving wallet & theme
+try {
+  for (let i = localStorage.length - 1; i >= 0; i--) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith('nimbounty_') && !k.endsWith('_v600') && !k.includes('wallet') && !k.includes('theme')) {
+      localStorage.removeItem(k);
+    }
+  }
+} catch(e) {}
 let currentRole = 'worker'; // 'worker' | 'poster'
 let currentView = 'app';
 let workerSubtab = 'active'; // 'active' | 'history'
@@ -370,35 +385,33 @@ async function fetchGlobalPublicBounties() {
     const data = await res.json();
 
     // ── SERVER IS AUTHORITATIVE ──
-    // Replace local arrays with server state, preserving only un-synced local items.
+    // Server state is absolute truth for all wallets globally.
 
-    // 1. BOUNTIES — server is truth, but preserve any local bounties not yet on server
+    // 1. BOUNTIES — server is truth (only keep unsynced local bounties from last 2 minutes)
     if (Array.isArray(data.bounties)) {
       const serverIds = new Set(data.bounties.map(b => String(b.id)));
-      const localOnly = bounties.filter(b => !serverIds.has(String(b.id)));
-      bounties = [...data.bounties, ...localOnly];
+      const recentLocalOnly = bounties.filter(b => !serverIds.has(String(b.id)) && b.createdAt && (Date.now() - b.createdAt < 120000));
+      bounties = [...data.bounties, ...recentLocalOnly];
       localStorage.setItem(STORAGE_KEY_LOCAL_BOUNTIES, JSON.stringify(bounties));
     }
 
-    // 2. APPROVED PAYOUTS HISTORY — server is truth, preserve local-only payouts
+    // 2. APPROVED PAYOUTS HISTORY — server is truth
     if (Array.isArray(data.approvedPayoutsHistory)) {
       const serverPayKeys = new Set(
         data.approvedPayoutsHistory.map(p => p.id || `${p.bountyId}_${(p.workerAddress || '').toUpperCase().replace(/\s+/g,'')}`)
       );
-      const localOnlyPays = approvedPayoutsHistory.filter(p => {
+      const recentLocalOnlyPays = approvedPayoutsHistory.filter(p => {
         const key = p.id || `${p.bountyId}_${(p.workerAddress || '').toUpperCase().replace(/\s+/g,'')}`;
-        return !serverPayKeys.has(key);
+        return !serverPayKeys.has(key) && p.paidAt && (Date.now() - p.paidAt < 120000);
       });
-      approvedPayoutsHistory = [...data.approvedPayoutsHistory, ...localOnlyPays];
+      approvedPayoutsHistory = [...data.approvedPayoutsHistory, ...recentLocalOnlyPays];
       localStorage.setItem(STORAGE_KEY_PAID_HISTORY, JSON.stringify(approvedPayoutsHistory));
     }
 
-    // 3. PENDING SUBMISSIONS — server is truth, preserve local-only subs (e.g. just submitted)
+    // 3. PENDING SUBMISSIONS — server is truth
     if (Array.isArray(data.pendingSubmissions)) {
       const serverSubIds = new Set(data.pendingSubmissions.map(s => s.id));
-      // Keep local subs that haven't reached the server yet (preserving image data)
-      const localOnlySubs = pendingSubmissions.filter(s => !serverSubIds.has(s.id));
-      // For server subs, overlay local image data if we have it
+      const recentLocalOnlySubs = pendingSubmissions.filter(s => !serverSubIds.has(s.id) && s.id && (Date.now() - parseInt(s.id.replace('sub-','')) < 120000));
       const mergedServerSubs = data.pendingSubmissions.map(ss => {
         const localMatch = pendingSubmissions.find(ls => ls.id === ss.id);
         if (localMatch && localMatch.content && localMatch.content.startsWith('data:image') && (!ss.content || ss.content.startsWith('[LOCAL_IMG'))) {
@@ -406,7 +419,7 @@ async function fetchGlobalPublicBounties() {
         }
         return ss;
       });
-      pendingSubmissions = [...mergedServerSubs, ...localOnlySubs];
+      pendingSubmissions = [...mergedServerSubs, ...recentLocalOnlySubs];
     }
 
     // Mark any pending sub as 'approved' if it matches an approved payout

@@ -1,7 +1,7 @@
 // Vercel Serverless API — NimBounty Global Store Sync Engine
 // Manages global real-time synchronization for bounties, worker submissions, and approved payouts.
 
-const ACTIVE_BLOB_ID = '019fb293-6a30-7f0f-b59d-0c56e59af067';
+const ACTIVE_BLOB_ID = '019fb47c-e8e9-7698-9660-2086f93fafef';
 
 async function readStore() {
   try {
