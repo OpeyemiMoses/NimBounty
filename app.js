@@ -5,19 +5,19 @@
 // Production API URL
 const PRODUCTION_URL = 'https://nim-bounty.vercel.app';
 
-// Storage Keys — Version 25 (Total Clean Slate)
-const STORAGE_KEY_USER_ACCT = 'nimbounty_user_wallet_v25';
-const STORAGE_KEY_PROFILE = 'nimbounty_profile_v25';
-const STORAGE_KEY_THEME = 'nimbounty_theme_v25';
-const STORAGE_KEY_LOCAL_BOUNTIES = 'nimbounty_pools_v25';
-const STORAGE_KEY_SUBS = 'nimbounty_subs_v25';
-const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v25';
-const STORAGE_KEY_REPUTATION = 'nimbounty_reputation_v25';
-const STORAGE_KEY_ONBOARDED_GLOBAL = 'nimbounty_onboarded_global_v25';
+// Storage Keys — Version 26 (Total Clean Slate)
+const STORAGE_KEY_USER_ACCT = 'nimbounty_user_wallet_v26';
+const STORAGE_KEY_PROFILE = 'nimbounty_profile_v26';
+const STORAGE_KEY_THEME = 'nimbounty_theme_v26';
+const STORAGE_KEY_LOCAL_BOUNTIES = 'nimbounty_pools_v26';
+const STORAGE_KEY_SUBS = 'nimbounty_subs_v26';
+const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v26';
+const STORAGE_KEY_REPUTATION = 'nimbounty_reputation_v26';
+const STORAGE_KEY_ONBOARDED_GLOBAL = 'nimbounty_onboarded_global_v26';
 
-// Clear all legacy local storage cache (v1–v24)
+// Clear all legacy local storage cache (v1–v25)
 try {
-  ['v1','v2','v3','v4','v5','v6','v7','v8','v9','v10','v11','v12','v13','v14','v15','v16','v17','v18','v19','v20','v21','v22','v23','v24'].forEach(v => {
+  ['v1','v2','v3','v4','v5','v6','v7','v8','v9','v10','v11','v12','v13','v14','v15','v16','v17','v18','v19','v20','v21','v22','v23','v24','v25'].forEach(v => {
     localStorage.removeItem(`nimbounty_pools_${v}`);
     localStorage.removeItem(`nimbounty_subs_${v}`);
     localStorage.removeItem(`nimbounty_approved_payouts_history_${v}`);
@@ -227,38 +227,21 @@ async function fetchGlobalPublicBounties() {
     if (!res.ok) return;
     const data = await res.json();
 
-    const NOW = Date.now();
-    const GRACE_PERIOD_MS = 120000; // 2 minutes grace period for local in-flight items
-
-    // 1. BOUNTIES — server authority + 2-min grace period for newly created local bounties
+    // 1. BOUNTIES — server authority + local unsynced drafts only
     if (Array.isArray(data.bounties)) {
       const serverIds = new Set(data.bounties.map(b => String(b.id)));
-      const recentLocalBounties = bounties.filter(b => {
-        const key = String(b.id);
-        if (serverIds.has(key)) return false;
-        const created = b.createdAt || (key.startsWith('bounty-') ? parseInt(key.replace('bounty-', '')) : 0);
-        return (NOW - created) < GRACE_PERIOD_MS;
-      });
-      bounties = [...data.bounties, ...recentLocalBounties];
+      const unsyncedLocalBounties = bounties.filter(b => b._isUnsynced && !serverIds.has(String(b.id)));
+      bounties = [...data.bounties, ...unsyncedLocalBounties];
       localStorage.setItem(STORAGE_KEY_LOCAL_BOUNTIES, JSON.stringify(bounties));
     }
 
-    // 2. APPROVED PAYOUTS HISTORY — server authority + 2-min grace period
+    // 2. APPROVED PAYOUTS HISTORY — server is total authority
     if (Array.isArray(data.approvedPayoutsHistory)) {
-      const serverPayKeys = new Set(
-        data.approvedPayoutsHistory.map(p => p.id || `${p.bountyId}_${(p.workerAddress || '').toUpperCase().replace(/\s+/g,'')}`)
-      );
-      const recentLocalPays = approvedPayoutsHistory.filter(p => {
-        const key = p.id || `${p.bountyId}_${(p.workerAddress || '').toUpperCase().replace(/\s+/g,'')}`;
-        if (serverPayKeys.has(key)) return false;
-        const paidAt = p.paidAt || (key.startsWith('pay-') ? parseInt(key.split('-')[1]) : 0);
-        return (NOW - paidAt) < GRACE_PERIOD_MS;
-      });
-      approvedPayoutsHistory = [...data.approvedPayoutsHistory, ...recentLocalPays];
+      approvedPayoutsHistory = data.approvedPayoutsHistory;
       localStorage.setItem(STORAGE_KEY_PAID_HISTORY, JSON.stringify(approvedPayoutsHistory));
     }
 
-    // 3. PENDING SUBMISSIONS — server authority + 2-min grace period (preserving local images)
+    // 3. PENDING SUBMISSIONS — server authority + local unsynced drafts
     if (Array.isArray(data.pendingSubmissions)) {
       const serverSubIds = new Set(data.pendingSubmissions.map(s => s.id));
       const mergedServerSubs = data.pendingSubmissions.map(ss => {
@@ -268,12 +251,8 @@ async function fetchGlobalPublicBounties() {
         }
         return ss;
       });
-      const recentLocalSubs = pendingSubmissions.filter(s => {
-        if (serverSubIds.has(s.id)) return false;
-        const subTime = s.id && String(s.id).startsWith('sub-') ? parseInt(String(s.id).replace('sub-', '')) : 0;
-        return (NOW - subTime) < GRACE_PERIOD_MS;
-      });
-      pendingSubmissions = [...mergedServerSubs, ...recentLocalSubs];
+      const unsyncedLocalSubs = pendingSubmissions.filter(s => s._isUnsynced && !serverSubIds.has(s.id));
+      pendingSubmissions = [...mergedServerSubs, ...unsyncedLocalSubs];
     }
 
     // Mark any pending sub as 'approved' if it matches an approved payout
@@ -1844,7 +1823,8 @@ async function handleSubmitProof() {
     publicKey: publicKey,
     submittedAt: new Date().toLocaleTimeString(),
     reward: bounty.reward,
-    status: 'pending'
+    status: 'pending',
+    _isUnsynced: true
   };
 
   pendingSubmissions.unshift(newSub);
@@ -2029,7 +2009,8 @@ async function publishBountyPoolDirectly() {
     expiresAt,
     createdAt,
     publishSignature,
-    publishPublicKey
+    publishPublicKey,
+    _isUnsynced: true
   };
 
   bounties.unshift(newBounty);
