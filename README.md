@@ -69,7 +69,6 @@ While the current MVP utilizes direct non-custodial wallet-to-wallet transfers u
 2. Serverless Escrow Disburser: Upon poster proof approval, a Vercel backend disburser function verifies the poster approval signature and triggers an automatic release of NIM from the escrow vault to the worker.
 3. 24-Hour Auto-Release Protection: If a poster does not review or reject a pending submission within 24 hours, the escrow contract auto-releases the reserved NIM reward to the worker to protect worker labor.
 4. Vault Reclaim on Expiration: Unclaimed task pool rewards automatically revert back to the poster's wallet once the campaign duration elapses.
-5. Multi-Chain EVM Escrow: Expansion of escrow vaults to support USDT on Polygon, Arbitrum, Base, and Ethereum Mainnet.
 
 ---
 
