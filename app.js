@@ -673,11 +673,13 @@ function checkWalletConnectionGate() {
   const mobileNav = document.getElementById('mobile-bottom-nav');
 
   if (!isRealWalletConnected()) {
-    if (appView) appView.classList.add('app-blur-locked');
-    if (mobileNav) mobileNav.classList.add('nav-blur-locked');
-    if (currentView === 'app' || currentView === 'orders') {
+    if (currentView !== 'landing') {
+      if (appView) appView.classList.add('app-blur-locked');
+      if (mobileNav) mobileNav.classList.add('nav-blur-locked');
       if (gateModal) gateModal.style.display = 'flex';
     } else {
+      if (appView) appView.classList.remove('app-blur-locked');
+      if (mobileNav) mobileNav.classList.remove('nav-blur-locked');
       if (gateModal) gateModal.style.display = 'none';
     }
   } else {
@@ -3672,6 +3674,13 @@ function openLeaderboardModal() {
   if (modal) modal.style.display = 'flex';
 }
 
+let registrySubtab = 'active';
+
+function switchRegistrySubtab(tab) {
+  registrySubtab = tab;
+  renderGlobalRegistry();
+}
+
 function renderGlobalRegistry() {
   const container = document.getElementById('global-registry-list');
   const countBadge = document.getElementById('registry-count-badge');
@@ -3706,16 +3715,34 @@ function renderGlobalRegistry() {
     `;
   }
 
-  if (bounties.length === 0) {
-    container.innerHTML = createEmptyStateHTML(
-      'No Bounties Created Yet',
-      'No bounty pools have been published to the global ledger yet. Be the first to publish a task!',
+  const activeBounties = bounties.filter(b => getEffectiveSlotsRemaining(b) > 0 && (!b.expiresAt || b.expiresAt > Date.now()));
+  const closedBounties = bounties.filter(b => getEffectiveSlotsRemaining(b) <= 0 || (b.expiresAt && b.expiresAt <= Date.now()));
+
+  const currentList = registrySubtab === 'closed' ? closedBounties : activeBounties;
+
+  const subtabsHTML = `
+    <div style="display:flex; gap:10px; margin-bottom:16px; width:100%;">
+      <button onclick="switchRegistrySubtab('active')" style="flex:1; padding:10px 14px; border-radius:12px; font-size:0.82rem; font-weight:800; border:1px solid ${registrySubtab === 'active' ? 'var(--gold-border)' : 'var(--border)'}; background:${registrySubtab === 'active' ? 'var(--gold-tint)' : 'var(--bg-subtle)'}; color:${registrySubtab === 'active' ? 'var(--gold-text)' : 'var(--muted)'}; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:6px;">
+        <span>Active Bounties</span>
+        <span style="font-size:0.7rem; font-weight:900; background:${registrySubtab === 'active' ? 'var(--gold)' : 'var(--border)'}; color:${registrySubtab === 'active' ? '#1a1917' : 'var(--ink)'}; padding:2px 7px; border-radius:10px;">${activeBounties.length}</span>
+      </button>
+      <button onclick="switchRegistrySubtab('closed')" style="flex:1; padding:10px 14px; border-radius:12px; font-size:0.82rem; font-weight:800; border:1px solid ${registrySubtab === 'closed' ? 'var(--gold-border)' : 'var(--border)'}; background:${registrySubtab === 'closed' ? 'var(--gold-tint)' : 'var(--bg-subtle)'}; color:${registrySubtab === 'closed' ? 'var(--gold-text)' : 'var(--muted)'}; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:6px;">
+        <span>Closed / Completed</span>
+        <span style="font-size:0.7rem; font-weight:900; background:${registrySubtab === 'closed' ? 'var(--gold)' : 'var(--border)'}; color:${registrySubtab === 'closed' ? '#1a1917' : 'var(--ink)'}; padding:2px 7px; border-radius:10px;">${closedBounties.length}</span>
+      </button>
+    </div>
+  `;
+
+  if (currentList.length === 0) {
+    container.innerHTML = subtabsHTML + createEmptyStateHTML(
+      registrySubtab === 'closed' ? 'No Closed Bounties' : 'No Active Bounties',
+      registrySubtab === 'closed' ? 'No task bounty pools have been completed or closed yet.' : 'No active bounty pools match this view right now.',
       `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`
     );
     return;
   }
 
-  container.innerHTML = bounties.map(b => {
+  const itemsHTML = currentList.map(b => {
     const creatorDisplayName = (b.sponsor && String(b.sponsor).trim() && !String(b.sponsor).startsWith('NQ'))
       ? String(b.sponsor).trim().toUpperCase()
       : getUserDisplayName(b.posterAddress);
@@ -3752,6 +3779,8 @@ function renderGlobalRegistry() {
       </div>
     `;
   }).join('');
+
+  container.innerHTML = subtabsHTML + itemsHTML;
 }
 
 function triggerConfetti() {
