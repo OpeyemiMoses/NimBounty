@@ -58,18 +58,11 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // ── Serve static frontend files ────────────────────────────────
-// Frontend files live one level up from backend/ in the repo root
-const FRONTEND_DIR = path.join(__dirname, '..'); 
-app.use(express.static(FRONTEND_DIR, {
-  index: 'index.html',
-  // Don't serve node_modules or backend source
-  ignore: ['backend/**', 'api/**', '.git/**']
-}));
+// When run as "node backend/server.js" from repo root, process.cwd() = repo root
+const FRONTEND_DIR = process.cwd();
+app.use(express.static(FRONTEND_DIR));
 
-// ── Health check ───────────────────────────────────────────────
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', service: 'NimBounty Backend', version: '2.0.0' });
-});
+// ── Health / API routes ─────────────────────────────────────────
 
 // ── GET /api/bounties — Return full store ──────────────────────
 app.get('/api/bounties', (req, res) => {
