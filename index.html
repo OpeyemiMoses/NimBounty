@@ -652,8 +652,8 @@
                     <select id="task-proof-type" onchange="togglePosterProofInfoBox()" style="width:100%; padding:12px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink);">
                       <option value="text">Text Review / Feedback</option>
                       <option value="url">Web Link / URL Proof</option>
-                      <option value="image">Screenshot Link (Google Docs/Drive/Imgur)</option>
-                      <option value="image_text">Screenshot Link + Written Feedback</option>
+                      <option value="image">Screenshot Image</option>
+                      <option value="image_text">Screenshot Image + Written Feedback</option>
                     </select>
                   </div>
                 </div>
@@ -663,7 +663,7 @@
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
                     <span>How Screenshot Proofs are Delivered to You:</span>
                   </div>
-                  Workers upload their screenshot to a public URL (such as <strong>Google Drive / Docs</strong> set to <em>"Anyone with the link can view"</em>, <strong>Imgur</strong>, etc.) and submit the link. When reviewing submissions on your Poster Dashboard, you will see a prominent <strong>"Open Public Proof Link"</strong> button to view their proof in 1-click before approving NIM payout.
+                  Workers will select and upload their high-definition screenshot image directly from their device. You will receive the full visual screenshot on your Poster Dashboard for 1-click review and payout confirmation.
                 </div>
 
                 <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px;">
@@ -870,14 +870,10 @@
 
             <input type="file" id="proof-file-input" accept="image/*" onchange="previewScreenshot(event)" style="display:none;" />
 
-            <!-- Alternative URL Link Field -->
-            <div style="display:flex; align-items:center; gap:8px; margin:2px 0;">
-              <div style="flex:1; height:1px; background:var(--border);"></div>
-              <span style="font-size:0.66rem; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:0.04em;">OR PASTE PUBLIC IMAGE URL</span>
-              <div style="flex:1; height:1px; background:var(--border);"></div>
+            <div style="font-size:0.75rem; color:var(--muted); background:var(--gold-tint); border:1px solid var(--gold-border); padding:10px 12px; border-radius:10px; line-height:1.45;">
+              💡 <strong>How screenshot proof is delivered:</strong><br/>
+              Select your screenshot image file directly from your device gallery. Your high-definition screenshot will be delivered directly to the poster's dashboard for 1-click verification.
             </div>
-
-            <input type="url" id="proof-image-url-input" placeholder="https://i.imgur.com/... or https://drive.google.com/..." oninput="handleImageUrlInput(event)" style="width:100%; padding:10px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink); font-size:0.82rem;" />
           </div>
 
           <div id="image-preview-box" style="display:none; flex-direction:column; align-items:center; gap:6px;">
