@@ -3006,10 +3006,16 @@ async function submitReportPoster() {
   if (document.getElementById('report-poster-reason')) document.getElementById('report-poster-reason').value = '';
   showToastNotification('Report Submitted', 'Your report has been logged successfully.', false);
 
-  // Update local reputation state immediately so profile updates instantly
+  // Update local reputation state immediately
   pushNewReport(cleanPoster, reason);
 
-  // Send POST to server
+  // INSTANT UI SYNCHRONOUS RE-RENDER (0ms delay — button transforms immediately on single click)
+  renderBounties();
+  renderPosterDashboard();
+  renderDedicatedOrders();
+  renderProfile();
+
+  // Send POST to server in background
   try {
     const apiEndpoint = `${PRODUCTION_URL}/api/bounties`;
     await fetch(apiEndpoint, {
