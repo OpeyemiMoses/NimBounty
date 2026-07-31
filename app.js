@@ -2669,7 +2669,7 @@ function renderPosterDashboard() {
           <div style="margin-bottom:12px;">
             <div style="font-size:0.75rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:6px;">Screenshot Proof</div>
             <div style="position:relative; display:inline-block; cursor:pointer; border-radius:12px; overflow:hidden; border:2px solid var(--border); max-width:100%;"
-                 data-sub-id="${s.id}" onclick="handleScreenshotThumbnailClick(this)" title="Click to view full screenshot">
+                 data-sub-id="${s.id}" onclick="handleScreenshotThumbnailClick(event, this)" title="Click to view full screenshot">
               <img src="${imageUrl}" alt="Proof screenshot" style="display:block; max-width:100%; max-height:180px; width:100%; object-fit:cover; border-radius:10px;" />
               <div style="position:absolute; inset:0; background:rgba(0,0,0,0.28); display:flex; align-items:center; justify-content:center; border-radius:10px; opacity:0; transition:opacity 0.18s;"
                    onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0">
@@ -3785,15 +3785,30 @@ function triggerConfetti() {
   }
 }
 
-function handleScreenshotThumbnailClick(event, el) {
-  if (event) {
-    if (typeof event.stopPropagation === 'function') event.stopPropagation();
-    if (typeof event.preventDefault === 'function') event.preventDefault();
+function handleScreenshotThumbnailClick(arg1, arg2) {
+  let evt = null;
+  let targetEl = null;
+
+  if (arg1 && typeof arg1.stopPropagation === 'function') {
+    evt = arg1;
+    targetEl = arg2;
+  } else if (arg1 && arg1.nodeType) {
+    targetEl = arg1;
+    evt = arg2;
   }
-  if (!el) return;
-  const subId = el.getAttribute('data-sub-id');
-  const imgInside = el.querySelector('img');
+
+  if (evt) {
+    if (typeof evt.stopPropagation === 'function') evt.stopPropagation();
+    if (typeof evt.preventDefault === 'function') evt.preventDefault();
+  }
+
+  if (!targetEl && arg1 && arg1.nodeType) targetEl = arg1;
+  if (!targetEl) return;
+
+  const subId = targetEl.getAttribute('data-sub-id');
+  const imgInside = targetEl.querySelector('img');
   const srcFromImg = imgInside ? imgInside.src : null;
+
   openScreenshotLightbox(subId, srcFromImg);
 }
 
