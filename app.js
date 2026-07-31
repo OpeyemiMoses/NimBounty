@@ -2097,25 +2097,26 @@ async function uploadScreenshotToCloud(file) {
 async function previewScreenshot(event) {
   const file = event.target.files[0];
   if (file) {
-    showToastNotification('Processing Screenshot', 'Preparing screenshot proof...', false);
+    // 1. INSTANT LOCAL PREVIEW (<10ms) — sender sees image preview immediately
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const localDataUrl = e.target.result;
+      uploadedImageDataUrl = localDataUrl;
 
-    // 1. Try cloud upload first (returns instant ~35 byte HTTPS URL)
-    const cloudUrl = await uploadScreenshotToCloud(file);
-    if (cloudUrl) {
-      uploadedImageDataUrl = cloudUrl;
-      const urlInput = document.getElementById('proof-image-url-input');
-      if (urlInput) urlInput.value = cloudUrl;
-      showToastNotification('Uploaded', 'Screenshot ready for instant sync!', false);
-    } else {
-      // 2. Fallback to micro canvas compressed JPEG
-      uploadedImageDataUrl = await processImageFileToDataUrl(file);
-      showToastNotification('Screenshot Ready', 'Compressed screenshot ready.', false);
-    }
+      const previewImg = document.getElementById('image-preview-img');
+      const previewBox = document.getElementById('image-preview-box');
+      if (previewImg) previewImg.src = localDataUrl;
+      if (previewBox) previewBox.style.display = 'flex';
 
-    const previewImg = document.getElementById('image-preview-img');
-    const previewBox = document.getElementById('image-preview-box');
-    if (previewImg && uploadedImageDataUrl) previewImg.src = uploadedImageDataUrl;
-    if (previewBox) previewBox.style.display = 'flex';
+      showToastNotification('Screenshot Ready', 'Screenshot proof loaded for instant sync.', false);
+    };
+    reader.readAsDataURL(file);
+
+    // 2. Process high quality HD 1200px image in background
+    try {
+      const hdUrl = await processImageFileToDataUrl(file);
+      if (hdUrl) uploadedImageDataUrl = hdUrl;
+    } catch(e) {}
   }
 }
 
@@ -2550,7 +2551,9 @@ function renderPosterDashboard() {
       let xHandleContent = '';
 
       if (content.startsWith('data:image') || content.startsWith('http://') || content.startsWith('https://')) {
-        if (content.match(/\.(jpeg|jpg|gif|png|webp)($|\?)/i) || content.includes('catbox.moe') || content.includes('postimg') || content.includes('ibb.co') || content.startsWith('data:image')) {
+        const b = bounties.find(item => String(item.id) === String(s.bountyId));
+        const pType = (s.proofType || b?.proofType || '').toLowerCase();
+        if (pType.includes('image') || content.startsWith('data:image') || content.match(/\.(jpeg|jpg|png|webp|gif)/i)) {
           imageUrl = content;
         } else {
           linkContent = content;
@@ -2560,14 +2563,7 @@ function renderPosterDashboard() {
           const parsed = JSON.parse(content);
           if (parsed.url) linkContent = parsed.url;
           if (parsed.xHandle) xHandleContent = parsed.xHandle;
-          const parsedImg = parsed.image || null;
-          if (parsedImg) {
-            if (parsedImg.match(/\.(jpeg|jpg|gif|png|webp)($|\?)/i) || parsedImg.includes('catbox.moe') || parsedImg.includes('postimg') || parsedImg.includes('ibb.co') || parsedImg.startsWith('data:image')) {
-              imageUrl = parsedImg;
-            } else {
-              linkContent = parsedImg;
-            }
-          }
+          if (parsed.image) imageUrl = parsed.image;
           if (parsed.text) textContent = parsed.text;
         } catch (e) {
           textContent = content;
