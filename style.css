@@ -1757,9 +1757,8 @@ textarea {
    SMALL VIEWPORT & MOBILE RESPONSIVENESS (<380px & <480px)
    ========================================== */
 html, body {
-  width: 100% !important;
-  max-width: 100vw !important;
-  overflow-x: hidden !important;
+  width: 100%;
+  max-width: 100vw;
 }
 
 @media (max-width: 480px) {
@@ -1864,8 +1863,8 @@ html, body {
     box-shadow: 0 -4px 20px rgba(0,0,0,0.08) !important;
   }
 
-  .console-main, main, #view-app, #view-orders, #view-registry, #view-faq, #view-protections, #view-how-it-works {
-    padding-bottom: 96px !important;
+  .console-main {
+    padding-bottom: 72px !important;
   }
 
   .modal-paper {
