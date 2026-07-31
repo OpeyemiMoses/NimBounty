@@ -758,7 +758,11 @@ async function connectNimiqPayWallet() {
         renderPosterDashboard();
         renderSessionBar();
         renderMobileBottomNav();
-        checkWalletConnectionGate();
+
+        // Restore exact view they were on before disconnect (e.g. Profile or Registry) without jumping
+        const targetView = lastActiveViewBeforeDisconnect || currentView || 'app';
+        showView(targetView);
+
         showToastNotification('Wallet Connected', `Wallet connected: ${getUserDisplayName(userAccount)}`, false);
         checkAndLaunchOnboarding();
         return;
@@ -788,22 +792,21 @@ function handleWalletButtonClick() {
 function confirmDisconnectWalletFromModal() {
   closeModal('modal-wallet');
   
+  // Store exact active view BEFORE disconnect so reconnection restores exact page!
+  lastActiveViewBeforeDisconnect = currentView;
+
   // Total Disconnect
   userAccount = null;
   localStorage.removeItem(STORAGE_KEY_USER_ACCT);
-
-  const profilePanel = document.getElementById('panel-profile');
-  if (profilePanel) profilePanel.style.display = 'none';
-
-  workerSubtab = 'active';
-  posterSubtab = 'create';
 
   updateWalletUI();
   renderMobileBottomNav();
   renderSessionBar();
   renderBounties();
   renderPosterDashboard();
-  checkWalletConnectionGate();
+
+  // Stay cleanly on current view (e.g. Profile or Registry) showing clean disconnected state!
+  showView(lastActiveViewBeforeDisconnect || currentView || 'app');
 
   showToastNotification('Wallet Disconnected', 'Your wallet session has been disconnected.', false);
 }
@@ -837,6 +840,24 @@ function updateWalletUI() {
 
   renderWorkerStats();
   renderProfile();
+}
+
+function checkWalletConnectionGate() {
+  const gateModal = document.getElementById('modal-wallet-connect-gate');
+  if (!gateModal) return;
+
+  const isNimiqApp = typeof window !== 'undefined' && (!!window.nimiq || !!window.NimiqProvider || !!window.nimiqPay || !!window.NimiqPay || !!window.miniApp);
+
+  const walletRequiredPages = ['profile', 'orders'];
+  if (!isRealWalletConnected() && walletRequiredPages.includes(currentView)) {
+    if (isNimiqApp) {
+      gateModal.style.display = 'flex';
+    } else {
+      openDesktopConnectModal();
+    }
+  } else {
+    gateModal.style.display = 'none';
+  }
 }
 
 function handleLaunchApp() {
@@ -3419,23 +3440,26 @@ function renderGlobalRegistry() {
   if (countBadge) countBadge.textContent = `${bounties.length} Bounties Created`;
 
   if (statsCard) {
-    const totalPaidOut = approvedPayoutsHistory.reduce((acc, p) => acc + (parseFloat(p.reward) || 0), 0).toFixed(1);
+    const rawPaidOut = approvedPayoutsHistory.reduce((acc, p) => acc + (parseFloat(p.reward) || 0), 0);
+    const formattedPaidOut = rawPaidOut.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    const formattedTaskCount = bounties.length.toLocaleString('en-US');
+
     statsCard.innerHTML = `
-      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
-        <div style="display:flex; align-items:center; gap:6px;">
-          <div style="width:7px; height:7px; border-radius:50%; background:var(--emerald); box-shadow:0 0 6px var(--emerald);"></div>
-          <span style="font-size:0.7rem; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em;">GLOBAL STATS</span>
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; width:100%;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <div style="width:9px; height:9px; border-radius:50%; background:var(--emerald); box-shadow:0 0 10px var(--emerald);"></div>
+          <span style="font-size:0.78rem; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em;">GLOBAL PROTOCOL STATS</span>
         </div>
-        <span style="font-size:0.65rem; background:var(--gold); color:#1a1917; font-weight:800; padding:2px 8px; border-radius:6px; text-transform:uppercase;">LIVE ENGINE</span>
+        <span style="font-size:0.7rem; background:var(--gold); color:#1a1917; font-weight:800; padding:3px 10px; border-radius:6px; text-transform:uppercase; letter-spacing:0.04em;">LIVE ENGINE</span>
       </div>
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-        <div style="background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; padding:10px; text-align:center;">
-          <div style="font-size:1.2rem; font-weight:900; color:var(--ink);">${bounties.length}</div>
-          <div style="font-size:0.62rem; font-weight:800; color:var(--muted); text-transform:uppercase; margin-top:2px;">TOTAL TASK CREATED</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; width:100%; box-sizing:border-box;">
+        <div style="background:var(--bg-subtle); border:1px solid var(--border); border-radius:16px; padding:18px 16px; text-align:center; min-width:0; width:100%;">
+          <div style="font-size:clamp(1.2rem, 3.2vw, 1.8rem); font-weight:900; color:var(--ink); word-break:break-word; line-height:1.2;">${formattedTaskCount}</div>
+          <div style="font-size:0.72rem; font-weight:800; color:var(--muted); text-transform:uppercase; margin-top:6px; letter-spacing:0.05em;">TOTAL TASKS CREATED</div>
         </div>
-        <div style="background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; padding:10px; text-align:center;">
-          <div style="font-size:1.2rem; font-weight:900; color:var(--emerald);">${totalPaidOut} NIM</div>
-          <div style="font-size:0.62rem; font-weight:800; color:var(--muted); text-transform:uppercase; margin-top:2px;">TOTAL NIM PAID OUT</div>
+        <div style="background:var(--bg-subtle); border:1px solid var(--border); border-radius:16px; padding:18px 16px; text-align:center; min-width:0; width:100%;">
+          <div style="font-size:clamp(1.2rem, 3.2vw, 1.8rem); font-weight:900; color:var(--emerald); word-break:break-word; line-height:1.2;">${formattedPaidOut} NIM</div>
+          <div style="font-size:0.72rem; font-weight:800; color:var(--muted); text-transform:uppercase; margin-top:6px; letter-spacing:0.05em;">TOTAL NIM PAID OUT</div>
         </div>
       </div>
     `;
