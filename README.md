@@ -66,7 +66,7 @@ NimBounty solves these inefficiencies by combining off-chain cryptographic signa
 While the current MVP utilizes direct non-custodial wallet-to-wallet transfers upon poster approval, the next major architectural iteration introduces Trustless On-Chain Escrow Vaults:
 
 1. Automatic Escrow Vault Deposit: Upon publishing a task pool, the poster deposits the total reward pool (Reward × Slots) into a programmatic smart contract vault.
-2. Serverless Escrow Disburser: Upon poster proof approval, a Vercel backend disburser function verifies the poster approval signature and triggers an automatic release of NIM from the escrow vault to the worker.
+2. Serverless Escrow Disburser: Upon poster proof approval, a backend disburser function verifies the poster approval signature and triggers an automatic release of NIM from the escrow vault to the worker.
 3. 24-Hour Auto-Release Protection: If a poster does not review or reject a pending submission within 24 hours, the escrow contract auto-releases the reserved NIM reward to the worker to protect worker labor.
 4. Vault Reclaim on Expiration: Unclaimed task pool rewards automatically revert back to the poster's wallet once the campaign duration elapses.
 
