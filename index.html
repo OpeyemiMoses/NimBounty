@@ -1111,10 +1111,213 @@
           </button>
         </div>
       </div>
+  <!-- GLOBAL LEADERBOARD MODAL -->
+  <div class="modal-overlay" id="modal-leaderboard" style="display:none;">
+    <div class="modal-paper paper-card rise-in" style="max-width:520px; max-height:85vh; display:flex; flex-direction:column; padding:24px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid var(--border);">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="width:38px; height:38px; background:var(--gold-tint); border:1px solid var(--gold-border); border-radius:50%; display:flex; align-items:center; justify-content:center;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg>
+          </div>
+          <div>
+            <h3 style="font-size:1.2rem; font-weight:900; color:var(--ink); margin:0;">Global Leaderboard</h3>
+            <div style="font-size:0.75rem; color:var(--muted); font-weight:600;">Rankings based on total NIM earned on NimBounty</div>
+          </div>
+        </div>
+        <button class="modal-close" onclick="closeModal('modal-leaderboard')" style="position:static;">&times;</button>
+      </div>
+
+      <div id="leaderboard-list-container" style="flex:1; overflow-y:auto; padding-right:4px;">
+        <!-- Dynamic Leaderboard Items -->
+      </div>
+    </div>
+  </div>
+
+  <!-- REPORT POSTER MODAL -->
+  <div class="modal-overlay" id="modal-report-poster" style="display:none;">
+    <div class="modal-paper paper-card rise-in" style="max-width:440px;">
+      <button class="modal-close" onclick="closeModal('modal-report-poster')">&times;</button>
+      <h3 style="font-size:1.3rem; font-weight:800; margin-bottom:6px;">Report Account</h3>
+      <p style="font-size:0.82rem; color:var(--muted); margin-bottom:16px;">Flag user for unfulfilled payouts, invalid rejections, or shady behavior.</p>
+      <form onsubmit="event.preventDefault(); submitReportPoster();">
+        <div style="display:flex; flex-direction:column; gap:14px;">
+          <div>
+            <label style="font-size:0.82rem; font-weight:700; color:var(--muted); display:block; margin-bottom:4px;">Report Issue Details</label>
+            <textarea id="report-poster-reason" rows="3" placeholder="Describe shady behavior or invalid rejection..." style="width:100%; padding:10px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink); resize:none;" required></textarea>
+          </div>
+          <button class="btn-primary-lg full-width" type="submit" style="justify-content:center; background:var(--danger); color:#fff;">Submit Report &rarr;</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- REJECT SUBMISSION MODAL WITH SPAM FLAGGING -->
+  <div class="modal-overlay" id="modal-reject-reason" style="display:none;">
+    <div class="modal-paper paper-card rise-in" style="max-width:440px;">
+      <button class="modal-close" onclick="closeModal('modal-reject-reason')">&times;</button>
+      <h3 style="font-size:1.3rem; font-weight:800; margin-bottom:6px;">Reject Submission</h3>
+      <p style="font-size:0.82rem; color:var(--muted); margin-bottom:14px;">Explain why this proof submission is rejected. The slot will reopen for other workers.</p>
+      <form onsubmit="event.preventDefault(); submitTaskRejectionWithReason();">
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <div>
+            <label style="font-size:0.82rem; font-weight:700; color:var(--muted); display:block; margin-bottom:4px;">Rejection Reason</label>
+            <textarea id="rejection-reason-input" rows="3" placeholder="e.g. Invalid screenshot link, incorrect proof details..." style="width:100%; padding:10px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink); resize:none;" required></textarea>
+          </div>
+          <label style="display:flex; align-items:center; gap:8px; font-size:0.8rem; color:var(--danger); cursor:pointer; font-weight:700; background:rgba(239,68,68,0.08); padding:8px 12px; border-radius:10px; border:1px solid rgba(239,68,68,0.2);">
+            <input type="checkbox" id="reject-flag-spam-check" style="accent-color:var(--danger);" />
+            <span style="display:inline-flex; align-items:center; gap:4px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+              Flag worker account for fake/spam proof
+            </span>
+          </label>
+          <button class="btn-primary-lg full-width" type="submit" style="justify-content:center; background:var(--danger); color:#fff;">Confirm Rejection &rarr;</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- REPORTS DISPUTE RESOLUTION MODAL -->
+  <div class="modal-overlay" id="modal-reports-list" style="display:none;">
+    <div class="modal-paper paper-card rise-in" style="max-width:520px; max-height:85vh; display:flex; flex-direction:column; padding:24px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; padding-bottom:12px; border-bottom:1px solid var(--border);">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="width:38px; height:38px; background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.3); border-radius:50%; display:flex; align-items:center; justify-content:center; color:var(--danger);">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+          </div>
+          <div>
+            <h3 style="font-size:1.2rem; font-weight:900; color:var(--ink); margin:0;">Dispute &amp; Report Center</h3>
+            <div style="font-size:0.75rem; color:var(--muted); font-weight:600;">Manage reports filed by you or against your wallet</div>
+          </div>
+        </div>
+        <button class="modal-close" onclick="closeModal('modal-reports-list')" style="position:static;">&times;</button>
+      </div>
+
+      <!-- Subtabs -->
+      <div style="display:flex; gap:8px; margin-bottom:16px; border-bottom:1px solid var(--border); padding-bottom:8px;">
+        <button id="reports-tab-btn-outbound" onclick="switchReportsModalTab('outbound')" style="flex:1; padding:8px 12px; border-radius:10px; border:1px solid var(--gold-border); background:var(--gold-tint); color:var(--gold-text); font-weight:800; font-size:0.8rem; cursor:pointer; text-align:center;">Reports Filed by You</button>
+        <button id="reports-tab-btn-inbound" onclick="switchReportsModalTab('inbound')" style="flex:1; padding:8px 12px; border-radius:10px; border:1px solid var(--border); background:var(--bg-subtle); color:var(--muted); font-weight:700; font-size:0.8rem; cursor:pointer; text-align:center;">Reports Against You</button>
+      </div>
+
+      <div id="reports-modal-content" style="flex:1; overflow-y:auto; padding-right:4px;">
+        <!-- Dynamic Reports Items -->
+      </div>
+    </div>
+  </div>
+
+  <!-- SET USERNAME MODAL -->
+  <div class="modal-overlay" id="modal-set-username" style="display:none;">
+    <div class="modal-paper paper-card rise-in" style="max-width:400px; text-align:center;">
+      <button class="modal-close" onclick="closeModal('modal-set-username')">&times;</button>
+      <h3 style="font-size:1.3rem; font-weight:800; margin-bottom:8px;">Set Username</h3>
+      <p style="font-size:0.85rem; color:var(--muted); margin-bottom:16px;">Choose a permanent username linked to your wallet address.</p>
+      <input type="text" id="username-input" placeholder="e.g. YEMIGRAFFIX" style="width:100%; padding:12px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink); font-weight:700; text-align:center; text-transform:uppercase; margin-bottom:16px;" />
+      <button class="btn-primary-lg full-width" onclick="confirmSetUsername()" style="justify-content:center;">Set Username &rarr;</button>
+    </div>
+  </div>
+
+  <!-- CONFIRM USERNAME MODAL -->
+  <div class="modal-overlay" id="modal-confirm-username" style="display:none;">
+    <div class="modal-paper paper-card rise-in" style="max-width:400px; text-align:center;">
+      <button class="modal-close" onclick="closeModal('modal-confirm-username')">&times;</button>
+      <h3 style="font-size:1.2rem; font-weight:800; margin-bottom:8px;">Confirm Permanent Username</h3>
+      <p style="font-size:0.85rem; color:var(--muted); margin-bottom:16px;">Once set, your username cannot be changed.</p>
+      <div style="font-size:1.5rem; font-weight:900; color:var(--gold); font-family:var(--font-mono); padding:14px; background:var(--bg-subtle); border-radius:12px; margin-bottom:20px;" id="username-confirm-display">USERNAME</div>
+      <div style="display:flex; gap:10px;">
+        <button class="btn-ghost-sm" onclick="closeModal('modal-confirm-username')" style="flex:1;">Go Back</button>
+        <button class="btn-primary-sm" onclick="finalizeUsername()" style="flex:1;">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ONBOARDING WALKTHROUGH OVERLAY -->
+  <div class="modal-overlay" id="onboarding-overlay" style="display:none;">
+    <div class="modal-paper paper-card rise-in" style="max-width:440px; text-align:center;">
+      <button class="modal-close" onclick="skipOnboarding()">&times;</button>
+
+      <div id="onboarding-welcome-card" style="display:flex; flex-direction:column; align-items:center;">
+        <div style="width:64px; height:64px; background:var(--gold-tint); border-radius:50%; display:flex; align-items:center; justify-content:center; margin-bottom:16px; color:var(--gold);">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        </div>
+        <h3 style="font-size:1.3rem; font-weight:800; margin-bottom:8px;">Welcome to NimBounty!</h3>
+        <p style="font-size:0.88rem; color:var(--muted); margin-bottom:20px; line-height:1.6;">Outcome-based micro-task bounties powered by Nimiq Pay. Take a 30-second tour to get started.</p>
+        <div style="display:flex; gap:10px; width:100%;">
+          <button class="btn-ghost-sm" onclick="skipOnboarding()" style="flex:1; justify-content:center;">Skip</button>
+          <button class="btn-primary-sm" onclick="onboardingNext()" style="flex:1; justify-content:center;">Start Tour &rarr;</button>
+        </div>
+      </div>
+
+      <div id="onboarding-step-card" style="display:none; flex-direction:column; align-items:center;">
+        <div style="font-size:0.72rem; font-weight:800; color:var(--gold); letter-spacing:0.06em; margin-bottom:12px;" id="ob-step-section">WELCOME</div>
+        <div style="width:54px; height:54px; background:var(--gold-tint); border-radius:50%; display:flex; align-items:center; justify-content:center; margin-bottom:14px; color:var(--gold);" id="ob-step-icon"></div>
+        <h3 style="font-size:1.2rem; font-weight:800; margin-bottom:8px;" id="ob-step-title">Title</h3>
+        <p style="font-size:0.85rem; color:var(--muted); margin-bottom:20px; line-height:1.6;" id="ob-step-desc">Desc</p>
+        
+        <div id="ob-step-dots" style="display:flex; gap:6px; margin-bottom:20px;"></div>
+
+        <div style="display:flex; gap:10px; width:100%;">
+          <button class="btn-ghost-sm" id="ob-back-btn" onclick="onboardingBack()" style="flex:1; justify-content:center;">&larr; Back</button>
+          <button class="btn-primary-sm" id="ob-next-btn" onclick="onboardingNext()" style="flex:1; justify-content:center;">Next &rarr;</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MOBILE BOTTOM NAVIGATION CONTAINER -->
+  <div class="mobile-bottom-nav" id="mobile-bottom-nav"></div>
+
+  <!-- SCREENSHOT LIGHTBOX MODAL -->
+  <div id="modal-screenshot-lightbox" style="display:none; position:fixed; inset:0; z-index:999999; background:rgba(0,0,0,0.92); backdrop-filter:blur(8px); align-items:center; justify-content:center; flex-direction:column; padding:16px;" onclick="closeLightboxOnBackdrop(event)">
+    <div style="position:relative; max-width:min(92vw, 780px); width:100%; display:flex; flex-direction:column; gap:12px;">
+      <!-- Header -->
+      <div style="display:flex; align-items:center; justify-content:space-between;">
+        <div style="display:flex; flex-direction:column; gap:2px;">
+          <span style="font-size:0.68rem; font-weight:800; color:rgba(255,255,255,0.45); text-transform:uppercase; letter-spacing:0.08em;">Proof Screenshot</span>
+          <span id="lightbox-title" style="font-size:0.95rem; font-weight:800; color:#fff; max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></span>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <a id="lightbox-download-btn" href="#" download="proof-screenshot.jpg"
+             style="display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.2); color:#fff; font-size:0.8rem; font-weight:700; padding:8px 14px; border-radius:10px; text-decoration:none; cursor:pointer;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download
+          </a>
+          <button onclick="document.getElementById('modal-screenshot-lightbox').style.display='none';"
+                  style="background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.2); color:#fff; width:36px; height:36px; border-radius:10px; font-size:1.2rem; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+            &times;
+          </button>
+        </div>
+      </div>
       <!-- Image -->
       <div style="border-radius:16px; overflow:hidden; border:1px solid rgba(255,255,255,0.12); background:#111; max-height:78vh; display:flex; align-items:center; justify-content:center;">
         <img id="lightbox-img" src="" alt="Proof screenshot" style="max-width:100%; max-height:78vh; object-fit:contain; display:block;" />
       </div>
+    </div>
+  </div>
+  <!-- UNIVERSAL WALLET CONNECT GATE MODAL -->
+  <div class="modal-overlay" id="modal-wallet-connect-gate" style="display:none; z-index:99999; backdrop-filter:blur(8px); background:rgba(0,0,0,0.75);">
+    <div class="modal-paper paper-card rise-in" style="max-width:440px; text-align:center; padding:32px 24px; border:1px solid var(--gold-border); box-shadow:0 20px 50px rgba(0,0,0,0.5);">
+      <div style="width:68px; height:68px; background:var(--gold-tint); border:2px solid var(--gold-border); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 20px; box-shadow:0 0 24px rgba(229,169,60,0.25);">
+        <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="var(--gold-text)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+          <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+        </svg>
+      </div>
+      
+      <h3 style="font-size:1.4rem; font-weight:900; color:var(--ink); margin-bottom:8px; letter-spacing:-0.02em;">Wallet Connection Required</h3>
+      <p style="font-size:0.88rem; color:var(--muted); margin-bottom:24px; line-height:1.5;">
+        Connect your Nimiq Pay wallet to unlock full access to bounty task pools, protocol statistics, dispute resolution, and trader profiles.
+      </p>
+
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        <button class="btn-primary-lg full-width" onclick="triggerWalletGateConnection()" style="justify-content:center; font-weight:800; font-size:0.95rem; padding:14px; background:linear-gradient(135deg, #e5a93c, #f59e0b); border:none; color:#1a1917; box-shadow:0 6px 20px rgba(229,169,60,0.35);">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="margin-right:6px;"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+          <span>Connect Nimiq Pay Wallet &rarr;</span>
+        </button>
+        <button class="btn-ghost-sm full-width" onclick="showView('landing')" style="justify-content:center; padding:10px; color:var(--muted); border-color:var(--border);">
+          &larr; Return to Public Landing Page
+        </button>
+      </div>
+
+      <div id="wallet-gate-error" style="display:none; margin-top:14px; padding:10px 14px; background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.3); border-radius:10px; color:var(--danger); font-size:0.8rem; font-weight:600; line-height:1.4;"></div>
     </div>
   </div>
 

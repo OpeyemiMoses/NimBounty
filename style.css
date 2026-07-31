@@ -729,6 +729,20 @@ textarea {
   vertical-align: middle;
 }
 
+/* Wallet Gate Universal Blur Utilities */
+.app-blur-locked {
+  filter: blur(12px) opacity(0.25) grayscale(0.6) !important;
+  pointer-events: none !important;
+  user-select: none !important;
+  transition: filter 0.3s ease, opacity 0.3s ease;
+}
+
+.nav-blur-locked {
+  filter: blur(8px) opacity(0.3) !important;
+  pointer-events: none !important;
+  transition: filter 0.3s ease;
+}
+
 .banner-content {
   max-width: 600px;
   margin: 0 auto;

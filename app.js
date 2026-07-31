@@ -848,19 +848,38 @@ function updateWalletUI() {
 
 function checkWalletConnectionGate() {
   const gateModal = document.getElementById('modal-wallet-connect-gate');
+  const mobileNav = document.getElementById('mobile-bottom-nav');
   if (!gateModal) return;
 
-  // Never display wallet connect gate on public landing or info pages
-  const publicPages = ['landing', 'how-it-works', 'protections', 'faq', 'registry'];
-  if (publicPages.includes(currentView)) {
+  const activeViews = ['view-app', 'view-orders', 'view-registry', 'view-faq', 'view-protections', 'view-how-it-works'];
+
+  // Suppress gate modal ONLY on public landing page ('landing')
+  if (currentView === 'landing') {
     gateModal.style.display = 'none';
+    activeViews.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.remove('app-blur-locked');
+    });
+    if (mobileNav) mobileNav.classList.remove('nav-blur-locked');
     return;
   }
 
   if (!isRealWalletConnected()) {
     gateModal.style.display = 'flex';
+    activeViews.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.add('app-blur-locked');
+    });
+    if (mobileNav) mobileNav.classList.add('nav-blur-locked');
   } else {
     gateModal.style.display = 'none';
+    activeViews.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.remove('app-blur-locked');
+    });
+    if (mobileNav) mobileNav.classList.remove('nav-blur-locked');
+    const errEl = document.getElementById('wallet-gate-error');
+    if (errEl) errEl.style.display = 'none';
   }
 }
 
@@ -973,11 +992,7 @@ function showView(viewName) {
   if (infoPages.includes(viewName)) {
     if (mobileNav) mobileNav.style.setProperty('display', 'none', 'important');
     if (views[viewName]) views[viewName].style.display = 'block';
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    return;
-  }
-
-  if (views[viewName]) {
+  } else if (views[viewName]) {
     views[viewName].style.display = 'block';
     if (viewName === 'registry') renderGlobalRegistry();
   } else if (views.app) {
