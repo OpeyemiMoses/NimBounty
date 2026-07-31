@@ -3867,7 +3867,37 @@ function openScreenshotLightbox(subId, directSrc = null) {
     imgEl.style.display = 'block';
   }
 
+  isLightboxZoomed = false;
+  const txtEl = document.getElementById('lightbox-zoom-text');
+  if (txtEl) txtEl.textContent = 'Full Zoom';
+  imgEl.style.maxHeight = '75vh';
+  imgEl.style.width = 'auto';
+  imgEl.style.maxWidth = '100%';
+  imgEl.style.objectFit = 'contain';
+
   modal.style.display = 'flex';
+}
+
+let isLightboxZoomed = false;
+
+function toggleLightboxZoom() {
+  const imgEl = document.getElementById('lightbox-img');
+  const txtEl = document.getElementById('lightbox-zoom-text');
+  if (!imgEl) return;
+
+  isLightboxZoomed = !isLightboxZoomed;
+  if (isLightboxZoomed) {
+    imgEl.style.maxHeight = 'none';
+    imgEl.style.width = '100%';
+    imgEl.style.objectFit = 'initial';
+    if (txtEl) txtEl.textContent = 'Fit Screen';
+  } else {
+    imgEl.style.maxHeight = '75vh';
+    imgEl.style.width = 'auto';
+    imgEl.style.maxWidth = '100%';
+    imgEl.style.objectFit = 'contain';
+    if (txtEl) txtEl.textContent = 'Full Zoom';
+  }
 }
 
 function closeLightboxOnBackdrop(event) {
