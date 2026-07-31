@@ -2638,7 +2638,7 @@ function renderPosterDashboard() {
           </p>
           ${proofHTML}
           <div style="display:flex; gap:10px;">
-            <button class="btn-primary-sm" onclick="approveWorkerPayout('${s.id}')" style="flex:1; justify-content:center;">Approve &amp; Pay ${s.reward} NIM</button>
+            <button class="btn-primary-sm" id="btn-approve-${s.id}" onclick="approveWorkerPayout('${s.id}')" style="flex:1; justify-content:center;">Approve &amp; Pay ${s.reward} NIM</button>
             <button class="btn-ghost-sm" onclick="openRejectionModal('${s.id}')" style="flex:1; justify-content:center; color:var(--danger);">Reject</button>
           </div>
         </div>`;
@@ -2690,6 +2690,15 @@ async function approveWorkerPayout(subId) {
   if (subIndex === -1) return;
   const sub = pendingSubmissions[subIndex];
 
+  const btn = document.getElementById(`btn-approve-${subId}`) || (typeof event !== 'undefined' && event?.target?.closest('button'));
+  const originalBtnHTML = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.style.opacity = '0.85';
+    btn.style.cursor = 'wait';
+    btn.innerHTML = `<svg class="spin-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:6px;"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> Paying ${sub.reward} NIM...`;
+  }
+
   const provider = getNimiqProvider();
   let txHash = `tx_${Date.now()}`;
 
@@ -2702,6 +2711,12 @@ async function approveWorkerPayout(subId) {
         data: `NIMBOUNTY_PAYOUT:${sub.bountyId}`
       });
     } catch (e) {
+      if (btn) {
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
+        btn.innerHTML = originalBtnHTML;
+      }
       showToastNotification('Transaction Cancelled', 'Payout transaction was cancelled.', true);
       return;
     }
@@ -3025,9 +3040,6 @@ async function submitTaskRejectionWithReason() {
     const sub = pendingSubmissions[subIndex];
     sub.status = 'rejected';
     sub.rejectionReason = val;
-    if (data.reports && typeof data.reports === 'object') {
-      globalReports = data.reports;
-    }
 
     localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions));
 
@@ -3570,4 +3582,54 @@ function renderGlobalRegistry() {
       </div>
     `;
   }).join('');
+}
+
+function triggerConfetti() {
+  if (typeof window.confetti === 'function') {
+    window.confetti({
+      particleCount: 80,
+      spread: 70,
+      origin: { y: 0.6 }
+    });
+  } else {
+    const canvas = document.getElementById('confetti-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const particles = [];
+    const colors = ['#e5a93c', '#10b981', '#3b82f6', '#ec4899', '#f59e0b'];
+    for (let i = 0; i < 65; i++) {
+      particles.push({
+        x: canvas.width * 0.5 + (Math.random() - 0.5) * 300,
+        y: canvas.height * 0.4 + (Math.random() - 0.5) * 100,
+        vx: (Math.random() - 0.5) * 14,
+        vy: (Math.random() - 0.8) * 16,
+        size: Math.random() * 8 + 4,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        rotation: Math.random() * 360,
+        vRot: (Math.random() - 0.5) * 12
+      });
+    }
+    let frame = 0;
+    function anim() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particles.forEach(p => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.45;
+        p.rotation += p.vRot;
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate((p.rotation * Math.PI) / 180);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+        ctx.restore();
+      });
+      frame++;
+      if (frame < 60) requestAnimationFrame(anim);
+      else ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+    anim();
+  }
 }

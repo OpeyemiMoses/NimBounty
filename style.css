@@ -718,6 +718,17 @@ textarea {
   text-align: center;
 }
 
+@keyframes spinIcon {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.spin-icon {
+  animation: spinIcon 0.8s linear infinite;
+  display: inline-block;
+  vertical-align: middle;
+}
+
 .banner-content {
   max-width: 600px;
   margin: 0 auto;
