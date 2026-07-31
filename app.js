@@ -3267,7 +3267,7 @@ function renderDedicatedOrders() {
       )
     : (approvedPayoutsHistory.filter(p => isSameNimiqAddress(p.workerAddress, userAccount)).length
         ? approvedPayoutsHistory.filter(p => isSameNimiqAddress(p.workerAddress, userAccount)).map(p => `
-          <div style="background:var(--card); border:1px solid var(--border); border-radius:16px; padding:16px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+          <div class="paper-card" style="background:var(--card); border:1px solid var(--border); border-radius:20px; padding:18px 20px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center;">
             <div>
               <h4 style="font-size:0.95rem; font-weight:800;">${p.bountyTitle}</h4>
               <div style="font-size:0.75rem; color:var(--muted); margin-top:2px;">Paid: ${new Date(p.paidAt).toLocaleDateString()}</div>
@@ -3709,7 +3709,7 @@ function renderGlobalRegistry() {
       : 'Live Campaign';
 
     return `
-      <div style="background:var(--bg-subtle); border:1px solid var(--border); border-radius:16px; padding:18px; margin-bottom:12px;">
+      <div class="paper-card" style="background:var(--card); border:1px solid var(--border); border-radius:20px; padding:20px; margin-bottom:14px;">
         <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; flex-wrap:wrap;">
           <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
             <span class="bounty-category-tag">${b.categoryName || b.category || 'General'}</span>
