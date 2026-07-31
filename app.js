@@ -460,12 +460,7 @@ async function fetchGlobalPublicBounties() {
       return s;
     });
 
-    // Save subs to localStorage (strip base64 images for storage)
-    const safeForStorage = pendingSubmissions.map(s => {
-      if (s.content && s.content.startsWith('data:image')) return { ...s, content: `[LOCAL_IMG:${s.id}]` };
-      return s;
-    });
-    try { localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(safeForStorage)); } catch(e) {}
+    try { localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions)); } catch(e) {}
 
     // 4. Sync Global Reports
     if (data.reports && typeof data.reports === 'object') {
@@ -2417,15 +2412,8 @@ async function handleSubmitProof() {
   if (!bounties.some(b => String(b.id) === String(bounty.id))) bounties.push(bounty);
   const targetBounty = bounties.find(b => String(b.id) === String(bounty.id));
 
-  const safeSubsForStorage = pendingSubmissions.map(s => {
-    if (s.content && s.content.startsWith('data:image')) {
-      return { ...s, content: `[LOCAL_IMG:${s.id}]` };
-    }
-    return s;
-  });
-
   try {
-    localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(safeSubsForStorage));
+    localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions));
   } catch(e) {}
   localStorage.setItem(STORAGE_KEY_LOCAL_BOUNTIES, JSON.stringify(bounties));
 
@@ -2707,6 +2695,8 @@ function renderPosterDashboard() {
         } catch (e) {
           textContent = content;
         }
+      } else if (content.startsWith('[LOCAL_IMG:')) {
+        proofHTML += `<div style="font-size:0.8rem; font-weight:700; color:var(--muted); background:var(--bg-subtle); padding:8px 12px; border-radius:8px; margin-bottom:8px;">📷 Screenshot Proof Attached</div>`;
       } else {
         textContent = content;
       }
@@ -2869,15 +2859,7 @@ async function approveWorkerPayout(subId) {
   // Remove approved submission from pendingSubmissions queue
   pendingSubmissions = pendingSubmissions.filter(s => s.id !== subId);
 
-  // Save to localStorage safely
-  const safeSubsForStorage = pendingSubmissions.map(s => {
-    if (s.content && s.content.startsWith('data:image')) {
-      return { ...s, content: `[LOCAL_IMG:${s.id}]` };
-    }
-    return s;
-  });
-
-  try { localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(safeSubsForStorage)); } catch(e) {}
+  try { localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions)); } catch(e) {}
   localStorage.setItem(STORAGE_KEY_PAID_HISTORY, JSON.stringify(approvedPayoutsHistory));
   localStorage.setItem(STORAGE_KEY_LOCAL_BOUNTIES, JSON.stringify(bounties));
 
