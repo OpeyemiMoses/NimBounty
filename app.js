@@ -2172,33 +2172,25 @@ async function handleSubmitProof() {
       proofContent = rawUrl;
     }
   } else if (pType === 'image') {
-    const imgUrl = document.getElementById('proof-image-url-input')?.value.trim() || '';
-    if (!imgUrl) {
-      showToastNotification('Screenshot Link Required', 'Please paste your public screenshot URL link to submit.', true);
+    const finalImg = uploadedImageDataUrl || document.getElementById('proof-image-url-input')?.value.trim() || '';
+    if (!finalImg) {
+      showToastNotification('Screenshot Required', 'Please select or upload a screenshot image file to submit.', true);
       return;
     }
-    if (!imgUrl.startsWith('http://') && !imgUrl.startsWith('https://')) {
-      showToastNotification('Invalid Link', 'Screenshot URL must start with http:// or https://', true);
-      return;
-    }
-    proofContent = imgUrl;
+    proofContent = finalImg;
   } else if (pType === 'image_text') {
     const txt = document.getElementById('proof-text-input')?.value.trim() || '';
-    const imgUrl = document.getElementById('proof-image-url-input')?.value.trim() || '';
+    const finalImg = uploadedImageDataUrl || document.getElementById('proof-image-url-input')?.value.trim() || '';
 
     if (!txt) {
       showToastNotification('Feedback Required', 'Please enter your written feedback before submitting.', true);
       return;
     }
-    if (!imgUrl) {
-      showToastNotification('Screenshot Link Required', 'Please paste your public screenshot URL link to submit.', true);
+    if (!finalImg) {
+      showToastNotification('Screenshot Required', 'Please select or upload a screenshot image file to submit.', true);
       return;
     }
-    if (!imgUrl.startsWith('http://') && !imgUrl.startsWith('https://')) {
-      showToastNotification('Invalid Link', 'Screenshot URL must start with http:// or https://', true);
-      return;
-    }
-    proofContent = JSON.stringify({ text: txt, image: imgUrl });
+    proofContent = JSON.stringify({ text: txt, image: finalImg });
   }
 
   const workerAddr = userAccount.replace(/\s+/g, '').toUpperCase();

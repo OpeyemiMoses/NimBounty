@@ -856,14 +856,28 @@
             </div>
           </div>
 
-          <div id="group-proof-image" style="display:none; flex-direction:column; gap:8px;">
-            <label style="font-size:0.82rem; font-weight:700; color:var(--ink); display:block;">Public Screenshot Link (Required)</label>
-            <div style="font-size:0.75rem; color:var(--muted); background:var(--gold-tint); border:1px solid var(--gold-border); padding:10px 12px; border-radius:10px; line-height:1.45;">
-              💡 <strong>How to upload your screenshot:</strong><br/>
-              1. Upload your screenshot to <strong>Google Drive / Docs</strong> (set permission to <em>"Anyone with the link can view"</em>), <strong>Imgur</strong>, or any public host.<br/>
-              2. Paste the viewable public URL link below.
+          <div id="group-proof-image" style="display:none; flex-direction:column; gap:10px;">
+            <label style="font-size:0.82rem; font-weight:700; color:var(--ink); display:block;">Screenshot Proof (Required)</label>
+
+            <!-- Direct File Selection Drop/Tap Card -->
+            <div style="border:2px dashed var(--gold-border); background:var(--gold-tint); border-radius:14px; padding:18px 14px; text-align:center; cursor:pointer; transition:all 0.2s ease;" onclick="document.getElementById('proof-file-input').click()">
+              <div style="width:42px; height:42px; border-radius:50%; background:var(--card); border:1px solid var(--gold-border); display:flex; align-items:center; justify-content:center; margin:0 auto 8px; color:var(--gold); box-shadow:0 2px 8px rgba(0,0,0,0.05);">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              </div>
+              <div style="font-size:0.86rem; font-weight:800; color:var(--ink); margin-bottom:2px;">Tap to Upload Screenshot Image</div>
+              <div style="font-size:0.72rem; color:var(--muted);">Select PNG, JPG, WEBP from device photo gallery</div>
             </div>
-            <input type="url" id="proof-image-url-input" placeholder="https://drive.google.com/... or https://i.imgur.com/..." oninput="handleImageUrlInput(event)" style="width:100%; padding:11px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink); font-size:0.84rem;" />
+
+            <input type="file" id="proof-file-input" accept="image/*" onchange="previewScreenshot(event)" style="display:none;" />
+
+            <!-- Alternative URL Link Field -->
+            <div style="display:flex; align-items:center; gap:8px; margin:2px 0;">
+              <div style="flex:1; height:1px; background:var(--border);"></div>
+              <span style="font-size:0.66rem; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:0.04em;">OR PASTE PUBLIC IMAGE URL</span>
+              <div style="flex:1; height:1px; background:var(--border);"></div>
+            </div>
+
+            <input type="url" id="proof-image-url-input" placeholder="https://i.imgur.com/... or https://drive.google.com/..." oninput="handleImageUrlInput(event)" style="width:100%; padding:10px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink); font-size:0.82rem;" />
           </div>
 
           <div id="image-preview-box" style="display:none; flex-direction:column; align-items:center; gap:6px;">
