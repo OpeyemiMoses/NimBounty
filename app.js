@@ -2724,7 +2724,7 @@ function renderPosterDashboard() {
           <div style="margin-bottom:12px;">
             <div style="font-size:0.75rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:6px;">Screenshot Proof</div>
             <div style="position:relative; display:inline-block; cursor:pointer; border-radius:12px; overflow:hidden; border:2px solid var(--border); max-width:100%;"
-                 onclick="openScreenshotLightbox('${s.id}')" title="Click to view full screenshot">
+                 data-sub-id="${s.id}" onclick="handleScreenshotThumbnailClick(this)" title="Click to view full screenshot">
               <img src="${imageUrl}" alt="Proof screenshot" style="display:block; max-width:100%; max-height:180px; width:100%; object-fit:cover; border-radius:10px;" />
               <div style="position:absolute; inset:0; background:rgba(0,0,0,0.28); display:flex; align-items:center; justify-content:center; border-radius:10px; opacity:0; transition:opacity 0.18s;"
                    onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0">
@@ -3845,5 +3845,58 @@ function triggerConfetti() {
       else ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
     anim();
+  }
+}
+
+function handleScreenshotThumbnailClick(el) {
+  if (!el) return;
+  const subId = el.getAttribute('data-sub-id');
+  const imgInside = el.querySelector('img');
+  const srcFromImg = imgInside ? imgInside.src : null;
+  openScreenshotLightbox(subId, srcFromImg);
+}
+
+function openScreenshotLightbox(subId, directSrc = null) {
+  const modal = document.getElementById('modal-screenshot-lightbox');
+  const imgEl = document.getElementById('lightbox-img');
+  const titleEl = document.getElementById('lightbox-title');
+  const downloadBtn = document.getElementById('lightbox-download-btn');
+
+  if (!modal || !imgEl) return;
+
+  let targetSrc = directSrc;
+  let targetTitle = 'Proof Screenshot';
+
+  const sub = pendingSubmissions.find(s => String(s.id) === String(subId));
+  if (sub) {
+    targetTitle = sub.bountyTitle || 'Proof Screenshot';
+    if (!targetSrc || targetSrc === window.location.href) {
+      const content = sub.content || '';
+      if (content.startsWith('data:image') || content.startsWith('http://') || content.startsWith('https://')) {
+        targetSrc = content;
+      } else if (content.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(content);
+          targetSrc = parsed.image || parsed.url || null;
+        } catch (e) {}
+      }
+    }
+  }
+
+  if (!targetSrc || targetSrc.endsWith('#') || targetSrc === window.location.href) {
+    showToastNotification('Image Error', 'Could not load screenshot preview.', true);
+    return;
+  }
+
+  imgEl.src = targetSrc;
+  if (titleEl) titleEl.textContent = targetTitle;
+  if (downloadBtn) downloadBtn.href = targetSrc;
+
+  modal.style.display = 'flex';
+}
+
+function closeLightboxOnBackdrop(event) {
+  if (event.target && event.target.id === 'modal-screenshot-lightbox') {
+    document.getElementById('modal-screenshot-lightbox').style.display = 'none';
   }
 }
