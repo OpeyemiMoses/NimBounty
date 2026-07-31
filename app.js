@@ -2005,7 +2005,7 @@ function renderBounties() {
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
                 <span>Resubmit Proof &rarr;</span>
               </button>
-              ${(userAccount && (JSON.parse(localStorage.getItem('nimbounty_reported_tasks_v1200') || '{}')[`${b.id}_${String(userAccount).replace(/\s+/g,'').toUpperCase()}`] || JSON.parse(localStorage.getItem('nimbounty_reported_posters_v1200') || '{}')[`${String(b.posterAddress).replace(/\s+/g,'').toUpperCase()}_${String(userAccount).replace(/\s+/g,'').toUpperCase()}`])) ? `
+              ${isPosterReported(b.posterAddress, b.id) ? `
                 <button class="btn-ghost-sm" disabled style="opacity:0.65; cursor:not-allowed; border-color:var(--border); color:var(--muted); padding:10px; justify-content:center; display:inline-flex; align-items:center; gap:6px;">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
                   <span>✓ Report Submitted</span>
@@ -2929,7 +2929,36 @@ async function pushNewReport(targetAddress, reason) {
   renderGlobalRegistry();
 }
 
-function openReportPosterModal(posterAddress, bountyTitle, bountyId) {
+function isPosterReported(posterAddress, bountyId = null) {
+  if (!userAccount || !posterAddress) return false;
+  const cleanUser = String(userAccount).replace(/\s+/g, '').toUpperCase();
+  const cleanPoster = String(posterAddress).replace(/\s+/g, '').toUpperCase();
+
+  const reportedTasks = JSON.parse(localStorage.getItem('nimbounty_reported_tasks_v1200') || '{}');
+  const reportedPosters = JSON.parse(localStorage.getItem('nimbounty_reported_posters_v1200') || '{}');
+
+  if (reportedPosters[`${cleanPoster}_${cleanUser}`]) return true;
+  if (bountyId && reportedTasks[`${bountyId}_${cleanUser}`]) return true;
+
+  if (globalReports && typeof globalReports === 'object') {
+    let hasFiled = false;
+    Object.keys(globalReports).forEach(targetKey => {
+      if (isSameNimiqAddress(targetKey, cleanPoster)) {
+        const item = globalReports[targetKey];
+        if (item && Array.isArray(item.list)) {
+          if (item.list.some(r => r.reporterAddress && isSameNimiqAddress(r.reporterAddress, cleanUser))) {
+            hasFiled = true;
+          }
+        }
+      }
+    });
+    if (hasFiled) return true;
+  }
+
+  return false;
+}
+
+function openReportPosterModal(posterAddress, bountyTitle = '', bountyId = null) {
   if (!userAccount) {
     showToastNotification('Wallet Required', 'Connect your wallet to file a report.', true);
     return;
@@ -2941,10 +2970,7 @@ function openReportPosterModal(posterAddress, bountyTitle, bountyId) {
     return;
   }
 
-  const reportedTasks = JSON.parse(localStorage.getItem('nimbounty_reported_tasks_v1200') || '{}');
-  const reportedPosters = JSON.parse(localStorage.getItem('nimbounty_reported_posters_v1200') || '{}');
-
-  if (reportedTasks[`${bountyId}_${cleanUser}`] || reportedPosters[`${cleanPoster}_${cleanUser}`]) {
+  if (isPosterReported(posterAddress, bountyId)) {
     showToastNotification('Report Submitted', 'You have already submitted a report for this user.', false);
     return;
   }
