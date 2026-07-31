@@ -848,6 +848,13 @@ function checkWalletConnectionGate() {
   const gateModal = document.getElementById('modal-wallet-connect-gate');
   if (!gateModal) return;
 
+  // Never display wallet connect gate on public landing or info pages
+  const publicPages = ['landing', 'how-it-works', 'protections', 'faq', 'registry'];
+  if (publicPages.includes(currentView)) {
+    gateModal.style.display = 'none';
+    return;
+  }
+
   if (!isRealWalletConnected()) {
     gateModal.style.display = 'flex';
   } else {
