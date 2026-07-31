@@ -2032,14 +2032,14 @@ async function processImageFileToDataUrl(file) {
         try {
           const canvas = document.createElement('canvas');
           let width = img.width, height = img.height;
-          const maxDim = 360; // Optimized micro dimension (~12KB-18KB payload max)
+          const maxDim = 1200; // Full HD crisp resolution for Railway backend
           if (width > maxDim || height > maxDim) {
             if (width > height) { height = Math.round((height * maxDim) / width); width = maxDim; }
             else { width = Math.round((width * maxDim) / height); height = maxDim; }
           }
           canvas.width = width; canvas.height = height;
           canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', 0.45));
+          resolve(canvas.toDataURL('image/jpeg', 0.85));
         } catch (err) { resolve(rawDataUrl); }
       };
       img.onerror = () => { clearTimeout(timer); resolve(rawDataUrl); };
