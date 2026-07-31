@@ -673,7 +673,7 @@
 
                   <div>
                     <label style="font-size:0.85rem; font-weight:700; color:var(--muted); display:block; margin-bottom:6px;">Number of Worker Slots</label>
-                    <input type="number" id="task-slots" min="1" max="100" value="10" oninput="calculateTotalEscrow()" style="width:100%; padding:12px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink);" required />
+                    <input type="number" id="task-slots" min="1" value="10" oninput="calculateTotalEscrow()" style="width:100%; padding:12px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink);" required />
                   </div>
 
                   <div>
@@ -844,9 +844,15 @@
             <textarea id="proof-text-input" rows="3" placeholder="Describe completed work or feedback..." style="width:100%; padding:10px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink); resize:none;"></textarea>
           </div>
 
-          <div id="group-proof-url" style="display:none; flex-direction:column;">
-            <label style="font-size:0.82rem; font-weight:700; color:var(--muted); display:block; margin-bottom:4px;">Proof Web Link / URL</label>
-            <input type="url" id="proof-url-input" placeholder="https://x.com/yourpost or link to proof..." style="width:100%; padding:10px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink);" />
+          <div id="group-proof-url" style="display:none; flex-direction:column; gap:10px;">
+            <div>
+              <label style="font-size:0.82rem; font-weight:700; color:var(--muted); display:block; margin-bottom:4px;">Proof Web Link / URL</label>
+              <input type="url" id="proof-url-input" placeholder="https://x.com/yourpost or link to proof..." style="width:100%; padding:10px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink);" />
+            </div>
+            <div>
+              <label style="font-size:0.82rem; font-weight:700; color:var(--muted); display:block; margin-bottom:4px;">X (Twitter) Handle / Username <span style="font-weight:400; font-style:italic; color:var(--muted);">(Optional)</span></label>
+              <input type="text" id="proof-x-handle-input" placeholder="@username (optional)" style="width:100%; padding:10px 14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink);" />
+            </div>
           </div>
 
           <div id="group-proof-image" style="display:none; flex-direction:column; gap:8px;">

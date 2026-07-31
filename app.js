@@ -1890,6 +1890,7 @@ function openSubmitProofModal(bountyId) {
   // Clear previous values
   if (document.getElementById('proof-text-input')) document.getElementById('proof-text-input').value = '';
   if (document.getElementById('proof-url-input')) document.getElementById('proof-url-input').value = '';
+  if (document.getElementById('proof-x-handle-input')) document.getElementById('proof-x-handle-input').value = '';
   if (document.getElementById('proof-image-file')) document.getElementById('proof-image-file').value = '';
   if (document.getElementById('proof-image-url-input')) document.getElementById('proof-image-url-input').value = '';
   uploadedImageDataUrl = null;
@@ -2056,14 +2057,23 @@ async function handleSubmitProof() {
       return;
     }
   } else if (pType === 'url') {
-    proofContent = document.getElementById('proof-url-input')?.value.trim() || '';
-    if (!proofContent) {
+    const rawUrl = document.getElementById('proof-url-input')?.value.trim() || '';
+    const xHandle = document.getElementById('proof-x-handle-input')?.value.trim() || '';
+
+    if (!rawUrl) {
       showToastNotification('Proof Required', 'Please paste your proof URL link.', true);
       return;
     }
-    if (!proofContent.startsWith('http://') && !proofContent.startsWith('https://')) {
+    if (!rawUrl.startsWith('http://') && !rawUrl.startsWith('https://')) {
       showToastNotification('Invalid Link', 'Proof URL must start with http:// or https://', true);
       return;
+    }
+
+    if (xHandle) {
+      const cleanHandle = xHandle.startsWith('@') ? xHandle : `@${xHandle}`;
+      proofContent = JSON.stringify({ url: rawUrl, xHandle: cleanHandle });
+    } else {
+      proofContent = rawUrl;
     }
   } else if (pType === 'image') {
     const imgUrl = document.getElementById('proof-image-url-input')?.value.trim() || '';
@@ -2331,7 +2341,7 @@ async function publishBounty() {
 
   bounties.unshift(newBounty);
   localStorage.setItem(STORAGE_KEY_LOCAL_BOUNTIES, JSON.stringify(bounties));
-  syncGlobalPublicBounties(newBounty);
+  await syncGlobalPublicBounties(newBounty);
 
   renderBounties();
   renderSessionBar();
@@ -2426,12 +2436,12 @@ function renderPosterDashboard() {
     );
     subsList.innerHTML = mySubs.length ? mySubs.map(s => {
 
-      // Detect proof type and content
       let proofHTML = '';
       const content = s.content || '';
       let imageUrl = null;
       let textContent = '';
       let linkContent = '';
+      let xHandleContent = '';
 
       if (content.startsWith('data:image') || content.startsWith('http://') || content.startsWith('https://')) {
         if (content.match(/\.(jpeg|jpg|gif|png|webp)($|\?)/i) || content.includes('catbox.moe') || content.includes('postimg') || content.includes('ibb.co') || content.startsWith('data:image')) {
@@ -2440,9 +2450,10 @@ function renderPosterDashboard() {
           linkContent = content;
         }
       } else if (content.startsWith('{')) {
-        // Combined text + image (feedback type)
         try {
           const parsed = JSON.parse(content);
+          if (parsed.url) linkContent = parsed.url;
+          if (parsed.xHandle) xHandleContent = parsed.xHandle;
           const parsedImg = parsed.image || null;
           if (parsedImg) {
             if (parsedImg.match(/\.(jpeg|jpg|gif|png|webp)($|\?)/i) || parsedImg.includes('catbox.moe') || parsedImg.includes('postimg') || parsedImg.includes('ibb.co') || parsedImg.startsWith('data:image')) {
@@ -2451,12 +2462,20 @@ function renderPosterDashboard() {
               linkContent = parsedImg;
             }
           }
-          textContent = parsed.text || '';
+          if (parsed.text) textContent = parsed.text;
         } catch (e) {
           textContent = content;
         }
       } else {
         textContent = content;
+      }
+
+      if (xHandleContent) {
+        proofHTML += `
+          <div style="margin-bottom:10px;">
+            <span style="font-size:0.72rem; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; display:inline-block; margin-right:6px;">X (Twitter) Handle:</span>
+            <span style="font-size:0.85rem; font-weight:800; font-family:var(--font-mono); color:var(--gold-text); background:var(--gold-tint); border:1px solid var(--gold-border); padding:3px 10px; border-radius:6px;">${xHandleContent}</span>
+          </div>`;
       }
 
       if (imageUrl) {

@@ -195,10 +195,6 @@ export default async function handler(req, res) {
         b.slotsRemaining = Math.max(0, total - (pendingCount + approvedCount));
       });
 
-      if (bounties.length > 200) bounties = bounties.slice(0, 200);
-      if (pendingSubmissions.length > 500) pendingSubmissions = pendingSubmissions.slice(0, 500);
-      if (approvedPayoutsHistory.length > 1000) approvedPayoutsHistory = approvedPayoutsHistory.slice(0, 1000);
-
       const newStore = { bounties, pendingSubmissions, approvedPayoutsHistory, profiles, reports, updatedAt: Date.now() };
       await writeStore(newStore);
 
