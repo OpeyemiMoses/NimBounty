@@ -5,15 +5,15 @@
 // Production API URL
 const PRODUCTION_URL = 'https://nim-bounty.vercel.app';
 
-// Permanent Wallet Key & Storage Keys — Version 600 (Clean Slate)
+// Permanent Wallet Key & Storage Keys — Version 1200 (Clean Slate)
 const STORAGE_KEY_USER_ACCT = 'nimbounty_user_wallet_permanent';
-const STORAGE_KEY_PROFILE = 'nimbounty_profile_v600';
-const STORAGE_KEY_THEME = 'nimbounty_theme_v600';
-const STORAGE_KEY_LOCAL_BOUNTIES = 'nimbounty_pools_v600';
-const STORAGE_KEY_SUBS = 'nimbounty_subs_v600';
-const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v600';
-const STORAGE_KEY_REPUTATION = 'nimbounty_reputation_v600';
-const STORAGE_KEY_ONBOARDED_GLOBAL = 'nimbounty_onboarded_global_v600';
+const STORAGE_KEY_PROFILE = 'nimbounty_profile_v1200';
+const STORAGE_KEY_THEME = 'nimbounty_theme_v1200';
+const STORAGE_KEY_LOCAL_BOUNTIES = 'nimbounty_pools_v1200';
+const STORAGE_KEY_SUBS = 'nimbounty_subs_v1200';
+const STORAGE_KEY_PAID_HISTORY = 'nimbounty_approved_payouts_history_v1200';
+const STORAGE_KEY_REPUTATION = 'nimbounty_reputation_v1200';
+const STORAGE_KEY_ONBOARDED_GLOBAL = 'nimbounty_onboarded_global_v1200';
 
 // Global Application State
 let userAccount = localStorage.getItem(STORAGE_KEY_USER_ACCT) || null;
@@ -39,15 +39,20 @@ if (!userAccount) {
 try {
   for (let i = localStorage.length - 1; i >= 0; i--) {
     const k = localStorage.key(i);
-    if (k && k.startsWith('nimbounty_') && !k.endsWith('_v600') && !k.includes('wallet') && !k.includes('theme')) {
+    if (k && k.startsWith('nimbounty_') && !k.endsWith('_v1200') && !k.includes('wallet') && !k.includes('theme')) {
       localStorage.removeItem(k);
     }
   }
 } catch(e) {}
+
 let currentRole = 'worker'; // 'worker' | 'poster'
 let currentView = 'app';
+let lastActiveViewBeforeDisconnect = null;
 let workerSubtab = 'active'; // 'active' | 'history'
 let posterSubtab = 'create'; // 'create' | 'pools' | 'subs'
+let globalReports = {};
+let currentReportTarget = null;
+let currentReportsModalTab = 'outbound';
 let bounties = JSON.parse(localStorage.getItem(STORAGE_KEY_LOCAL_BOUNTIES)) || [];
 let pendingSubmissions = JSON.parse(localStorage.getItem(STORAGE_KEY_SUBS)) || [];
 let approvedPayoutsHistory = JSON.parse(localStorage.getItem(STORAGE_KEY_PAID_HISTORY)) || [];
@@ -136,6 +141,24 @@ function getDefaulterStatus(walletAddress) {
   return { isDefaulter: false, isWarning: false };
 }
 
+// Helper: Get Reputation & Unique Reporter Wallet Count
+function getReputation(posterAddress) {
+  if (!posterAddress) return { reports: 0, uniqueReporters: 0, isFlagged: false, list: [] };
+  const clean = String(posterAddress).replace(/\s+/g, '').toUpperCase();
+  const repData = globalReports[clean] || { count: 0, list: [] };
+  const list = Array.isArray(repData.list) ? repData.list : [];
+
+  // Single effective report rule: count distinct reporter wallets ONLY
+  const uniqueReporters = new Set(list.map(r => String(r.reporterAddress || '').replace(/\s+/g, '').toUpperCase())).size;
+
+  return {
+    reports: list.length,
+    uniqueReporters: uniqueReporters,
+    isFlagged: uniqueReporters >= 3,
+    list: list
+  };
+}
+
 // Helper: Calculate Poster Rating & Reputation Stars
 function getPosterRating(posterAddress) {
   const starIcon = `<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" style="margin-right:2px; vertical-align:-1px;"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>`;
@@ -144,20 +167,15 @@ function getPosterRating(posterAddress) {
   const paidCount = approvedPayoutsHistory.filter(p => p.posterAddress && isSameNimiqAddress(p.posterAddress, posterAddress)).length;
   const rejectedCount = pendingSubmissions.filter(s => s.posterAddress && isSameNimiqAddress(s.posterAddress, posterAddress) && s.status === 'rejected').length;
   const rep = getReputation(posterAddress);
-  const reportsCount = rep.reports || 0;
+  const uniqueReporters = rep.uniqueReporters || 0;
 
   const def = getDefaulterStatus(posterAddress);
   if (def.isDefaulter) {
     const defaultTag = `<span style="background:rgba(239,68,68,0.15); color:var(--danger); border:1px solid rgba(239,68,68,0.3); font-size:0.68rem; font-weight:800; padding:2px 6px; border-radius:4px; text-transform:uppercase; display:inline-flex; align-items:center; gap:4px;" title="Account locked: Unpaid workers >24h past expiration"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> DEFAULTER (UNPAID WORKERS)</span>`;
-    return {
-      score: '1.0',
-      label: 'DEFAULTER',
-      count: paidCount,
-      HTML: defaultTag
-    };
+    return { score: '1.0', label: 'DEFAULTER', count: paidCount, HTML: defaultTag };
   }
 
-  if (paidCount === 0 && rejectedCount === 0 && reportsCount === 0) {
+  if (paidCount === 0 && rejectedCount === 0 && uniqueReporters === 0) {
     return {
       score: '5.0',
       label: 'New Poster',
@@ -166,7 +184,8 @@ function getPosterRating(posterAddress) {
     };
   }
 
-  let numeric = 5.0 - (rejectedCount * 0.25) - (reportsCount * 0.5);
+  // Score formula: ONLY 1 report per unique reporter wallet degrades rating!
+  let numeric = 5.0 - (rejectedCount * 0.25) - (uniqueReporters * 0.5);
   if (paidCount > 0) numeric += Math.min(0.5, paidCount * 0.1);
   numeric = Math.max(1.0, Math.min(5.0, numeric));
   const scoreStr = numeric.toFixed(1);
@@ -179,7 +198,7 @@ function getPosterRating(posterAddress) {
     score: scoreStr,
     label: `${paidCount} Paid`,
     count: paidCount,
-    HTML: `<span style="font-size:0.7rem; font-weight:800; color:${badgeColor}; background:${badgeBg}; border:1px solid ${badgeBorder}; padding:2px 7px; border-radius:6px; display:inline-flex; align-items:center;" title="${paidCount} paid payouts, ${rejectedCount} rejections, ${reportsCount} reports">${starIcon} ${scoreStr} (${paidCount} Paid)</span>`
+    HTML: `<span style="font-size:0.7rem; font-weight:800; color:${badgeColor}; background:${badgeBg}; border:1px solid ${badgeBorder}; padding:2px 7px; border-radius:6px; display:inline-flex; align-items:center;" title="${paidCount} paid payouts, ${rejectedCount} rejections, ${uniqueReporters} unique reports">${starIcon} ${scoreStr} (${paidCount} Paid)</span>`
   };
 }
 
@@ -441,7 +460,12 @@ async function fetchGlobalPublicBounties() {
     });
     try { localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(safeForStorage)); } catch(e) {}
 
-    // 4. Merge global user profiles (PRESERVE custom local avatars)
+    // 4. Sync Global Reports
+    if (data.reports && typeof data.reports === 'object') {
+      globalReports = data.reports;
+    }
+
+    // 5. Merge global user profiles (PRESERVE custom local avatars)
     if (data.profiles && typeof data.profiles === 'object') {
       const allProfiles = JSON.parse(localStorage.getItem(STORAGE_KEY_PROFILE) || '{}');
       Object.keys(data.profiles).forEach(cleanAddr => {
@@ -1160,10 +1184,18 @@ function renderDedicatedOrders() {
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
               <span>Resubmit Proof &rarr;</span>
             </button>
-            <button onclick="openReportPosterModal('${s.posterAddress}', '${s.bountyTitle}')" class="btn-ghost-sm" style="color:var(--danger); border-color:rgba(239,68,68,0.3); font-size:0.8rem; padding:8px 14px; display:inline-flex; align-items:center; gap:6px;">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
-              <span>Report Poster</span>
-            </button>
+            ${(() => {
+              const reportedTasks = JSON.parse(localStorage.getItem('nimbounty_reported_tasks_v1200') || '{}');
+              const cleanUser = userAccount ? String(userAccount).replace(/\s+/g,'').toUpperCase() : '';
+              const isReported = reportedTasks[`${s.bountyId}_${cleanUser}`];
+              if (isReported) {
+                return `<span style="font-size:0.78rem; color:var(--muted); font-weight:700; padding:8px 12px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:10px; display:inline-flex; align-items:center; gap:4px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Reported</span>`;
+              }
+              return `<button onclick="openReportPosterModal('${s.posterAddress}', '${s.bountyTitle}', '${s.bountyId}')" class="btn-ghost-sm" style="color:var(--danger); border-color:rgba(239,68,68,0.3); font-size:0.8rem; padding:8px 14px; display:inline-flex; align-items:center; gap:6px;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+                <span>Report Poster</span>
+              </button>`;
+            })()}
           </div>
         </div>
       `;
@@ -2692,91 +2724,202 @@ async function pushNewReport(targetAddress, reason) {
   renderGlobalRegistry();
 }
 
-async function settleReport(targetAddress, reporterAddress = null, reportId = null) {
-  if (!targetAddress) return;
-  const cleanTarget = String(targetAddress).replace(/\s+/g, '').toUpperCase();
-  const cleanReporter = reporterAddress ? String(reporterAddress).replace(/\s+/g, '').toUpperCase() : null;
-
-  // 1. Update local storage
-  const allRep = JSON.parse(localStorage.getItem(STORAGE_KEY_REPUTATION) || '{}');
-  if (allRep[cleanTarget] && Array.isArray(allRep[cleanTarget].list)) {
-    if (cleanReporter) {
-      allRep[cleanTarget].list = allRep[cleanTarget].list.filter(r => String(r.reporterAddress || '').replace(/\s+/g, '').toUpperCase() !== cleanReporter);
-    } else if (reportId) {
-      allRep[cleanTarget].list = allRep[cleanTarget].list.filter(r => r.id !== reportId);
-    }
-    allRep[cleanTarget].count = allRep[cleanTarget].list.length;
-    localStorage.setItem(STORAGE_KEY_REPUTATION, JSON.stringify(allRep));
+function openReportPosterModal(posterAddress, bountyTitle, bountyId) {
+  if (!userAccount) {
+    showToastNotification('Wallet Required', 'Connect your wallet to file a report.', true);
+    return;
+  }
+  const cleanPoster = String(posterAddress).replace(/\s+/g, '').toUpperCase();
+  const cleanUser = String(userAccount).replace(/\s+/g, '').toUpperCase();
+  if (cleanPoster === cleanUser) {
+    showToastNotification('Action Invalid', 'You cannot report your own account.', true);
+    return;
   }
 
-  // 2. Push settlement to server
-  try {
-    const apiEndpoint = window.location.origin.includes('localhost')
-      ? `${PRODUCTION_URL}/api/bounties`
-      : `/api/bounties`;
+  const reportedTasks = JSON.parse(localStorage.getItem('nimbounty_reported_tasks_v1200') || '{}');
+  if (reportedTasks[`${bountyId}_${cleanUser}`]) {
+    showToastNotification('Already Reported', 'You have already submitted a report for this task.', true);
+    return;
+  }
 
+  currentReportTarget = { posterAddress, bountyTitle, bountyId };
+  if (document.getElementById('report-poster-reason')) document.getElementById('report-poster-reason').value = '';
+  document.getElementById('modal-report-poster').style.display = 'flex';
+}
+
+async function submitReportPoster() {
+  if (!currentReportTarget || !userAccount) return;
+  const reason = document.getElementById('report-poster-reason')?.value.trim();
+  if (!reason) {
+    showToastNotification('Reason Required', 'Please describe the issue details.', true);
+    return;
+  }
+
+  const cleanUser = String(userAccount).replace(/\s+/g, '').toUpperCase();
+  const cleanPoster = String(currentReportTarget.posterAddress).replace(/\s+/g, '').toUpperCase();
+  const taskKey = `${currentReportTarget.bountyId}_${cleanUser}`;
+
+  // Record reported task locally to prevent double reporting
+  const reportedTasks = JSON.parse(localStorage.getItem('nimbounty_reported_tasks_v1200') || '{}');
+  reportedTasks[taskKey] = true;
+  localStorage.setItem('nimbounty_reported_tasks_v1200', JSON.stringify(reportedTasks));
+
+  // CLOSE MODAL IMMEDIATELY
+  closeModal('modal-report-poster');
+  document.getElementById('report-poster-reason').value = '';
+  showToastNotification('Report Submitted', 'Your report has been logged successfully.', false);
+
+  // Send POST to server
+  try {
+    const apiEndpoint = window.location.origin.includes('localhost') ? `${PRODUCTION_URL}/api/bounties` : `/api/bounties`;
+    await fetch(apiEndpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        newReport: {
+          targetAddress: cleanPoster,
+          reporterAddress: cleanUser,
+          reason: reason,
+          bountyId: currentReportTarget.bountyId,
+          bountyTitle: currentReportTarget.bountyTitle,
+          timestamp: Date.now()
+        }
+      })
+    });
+    await fetchGlobalPublicBounties();
+    renderBounties();
+    renderPosterDashboard();
+    renderDedicatedOrders();
+  } catch(e) {}
+}
+
+function openReportsModal() {
+  if (!userAccount) {
+    showToastNotification('Wallet Required', 'Connect wallet to view dispute center.', true);
+    return;
+  }
+  switchReportsModalTab('outbound');
+  document.getElementById('modal-reports-list').style.display = 'flex';
+}
+
+function switchReportsModalTab(tab) {
+  currentReportsModalTab = tab;
+  const btnOut = document.getElementById('reports-tab-btn-outbound');
+  const btnIn = document.getElementById('reports-tab-btn-inbound');
+
+  if (btnOut && btnIn) {
+    if (tab === 'outbound') {
+      btnOut.style.border = '1px solid var(--gold-border)';
+      btnOut.style.background = 'var(--gold-tint)';
+      btnOut.style.color = 'var(--gold-text)';
+      btnOut.style.fontWeight = '800';
+
+      btnIn.style.border = '1px solid var(--border)';
+      btnIn.style.background = 'var(--bg-subtle)';
+      btnIn.style.color = 'var(--muted)';
+      btnIn.style.fontWeight = '700';
+    } else {
+      btnIn.style.border = '1px solid var(--gold-border)';
+      btnIn.style.background = 'var(--gold-tint)';
+      btnIn.style.color = 'var(--gold-text)';
+      btnIn.style.fontWeight = '800';
+
+      btnOut.style.border = '1px solid var(--border)';
+      btnOut.style.background = 'var(--bg-subtle)';
+      btnOut.style.color = 'var(--muted)';
+      btnOut.style.fontWeight = '700';
+    }
+  }
+  renderReportsModalContent();
+}
+
+function renderReportsModalContent() {
+  const container = document.getElementById('reports-modal-content');
+  if (!container || !userAccount) return;
+  const cleanUser = String(userAccount).replace(/\s+/g, '').toUpperCase();
+
+  if (currentReportsModalTab === 'outbound') {
+    // Reports filed BY userAccount (Workers can resolve disputes from here)
+    let outboundList = [];
+    Object.keys(globalReports).forEach(targetAddr => {
+      const item = globalReports[targetAddr];
+      if (item && Array.isArray(item.list)) {
+        item.list.forEach(r => {
+          if (r.reporterAddress && isSameNimiqAddress(r.reporterAddress, cleanUser)) {
+            outboundList.push({ ...r, targetAddress: targetAddr });
+          }
+        });
+      }
+    });
+
+    if (outboundList.length === 0) {
+      container.innerHTML = createEmptyStateHTML('No Filed Reports', 'You have not filed any dispute reports against posters.');
+      return;
+    }
+
+    container.innerHTML = outboundList.map(r => `
+      <div style="background:var(--bg-subtle); border:1px solid var(--border); border-radius:14px; padding:14px; margin-bottom:10px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <strong style="font-size:0.85rem; color:var(--ink);">Target: ${getUserDisplayName(r.targetAddress)}</strong>
+          <span style="font-size:0.7rem; color:var(--muted);">${new Date(r.timestamp).toLocaleDateString()}</span>
+        </div>
+        <p style="font-size:0.8rem; color:var(--muted); margin-bottom:10px; line-height:1.4;">${r.reason}</p>
+        <button class="btn-primary-sm" onclick="resolveDispute('${r.id}', '${r.targetAddress}')" style="background:#10b981; color:#fff; padding:6px 12px; font-size:0.78rem;">✓ Mark Dispute Resolved</button>
+      </div>
+    `).join('');
+  } else {
+    // Reports filed AGAINST userAccount (Posters cannot self-settle; resolves via payouts)
+    const repData = globalReports[cleanUser] || { count: 0, list: [] };
+    const inboundList = repData.list || [];
+
+    if (inboundList.length === 0) {
+      container.innerHTML = createEmptyStateHTML('Clean Record', 'No workers have filed any reports against your wallet.');
+      return;
+    }
+
+    container.innerHTML = `
+      <div style="background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.25); padding:10px 14px; border-radius:12px; margin-bottom:12px; font-size:0.78rem; color:var(--muted); line-height:1.4;">
+        <strong style="color:var(--gold-text); display:block; margin-bottom:2px;">Automated Rating Recovery:</strong>
+        Reports automatically resolve as you approve worker payouts. Workers can also mark disputes resolved from their end.
+      </div>
+    ` + inboundList.map(r => `
+      <div style="background:rgba(239,68,68,0.05); border:1px solid rgba(239,68,68,0.25); border-radius:14px; padding:14px; margin-bottom:10px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <strong style="font-size:0.85rem; color:var(--danger);">Filed by Worker: ${getUserDisplayName(r.reporterAddress)}</strong>
+          <span style="font-size:0.7rem; color:var(--muted);">${new Date(r.timestamp).toLocaleDateString()}</span>
+        </div>
+        <p style="font-size:0.8rem; color:var(--muted); margin:0; line-height:1.4;">${r.reason}</p>
+      </div>
+    `).join('');
+  }
+}
+
+async function resolveDispute(reportId, targetAddress) {
+  if (!userAccount) return;
+  const cleanUser = String(userAccount).replace(/\s+/g, '').toUpperCase();
+  const cleanTarget = String(targetAddress).replace(/\s+/g, '').toUpperCase();
+
+  try {
+    showToastNotification('Resolving Dispute', 'Updating dispute status...', false);
+    const apiEndpoint = window.location.origin.includes('localhost') ? `${PRODUCTION_URL}/api/bounties` : `/api/bounties`;
     await fetch(apiEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         settleReport: {
           targetAddress: cleanTarget,
-          reporterAddress: cleanReporter,
+          reporterAddress: cleanUser,
           reportId: reportId
         }
       })
     });
-  } catch (e) {}
-
-  // 3. Re-render UI
-  renderProfile();
-  renderBounties();
-  renderPosterDashboard();
-  renderDedicatedOrders();
-  renderLeaderboard();
-  renderGlobalRegistry();
-  showToastNotification('Report Settled', 'Report dismissed and rating updated.', false);
-}
-
-function openReportsModal() {
-  renderReportsList();
-  const modal = document.getElementById('modal-reports-list');
-  if (modal) modal.style.display = 'flex';
-}
-
-function renderReportsList() {
-  const container = document.getElementById('reports-modal-content');
-  if (!container || !userAccount) return;
-
-  const rep = getReputation(userAccount);
-  const myReports = rep.list || [];
-
-  if (myReports.length === 0) {
-    container.innerHTML = createEmptyStateHTML(
-      'No Active Reports',
-      'Your account has 0 active reports. Keep maintaining clean transactions to keep a 5.0 rating!',
-      `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--emerald)" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`
-    );
-    return;
-  }
-
-  container.innerHTML = myReports.map(r => `
-    <div style="background:var(--bg-subtle); border:1px solid var(--border); border-radius:14px; padding:14px; margin-bottom:10px;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-        <span style="font-size:0.75rem; font-weight:800; color:var(--danger); text-transform:uppercase; display:inline-flex; align-items:center; gap:4px;">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
-          Reported by ${getUserDisplayName(r.reporterAddress)}
-        </span>
-        <span style="font-size:0.72rem; color:var(--muted);">${r.timestamp ? new Date(r.timestamp).toLocaleDateString() : 'Recently'}</span>
-      </div>
-      <div style="font-size:0.83rem; color:var(--ink); background:var(--card); border:1px solid var(--border); padding:10px; border-radius:10px; margin-bottom:10px;">
-        ${r.reason || 'No reason provided.'}
-      </div>
-      <button onclick="settleReport('${userAccount}', '${r.reporterAddress}', '${r.id}')" class="btn-ghost-sm full-width" style="font-size:0.75rem; color:var(--emerald); border-color:rgba(16,185,129,0.3); justify-content:center;">
-        ✓ Mark Resolved &amp; Withdraw Report
-      </button>
-    </div>
-  `).join('');
+    await fetchGlobalPublicBounties();
+    renderReportsModalContent();
+    renderBounties();
+    renderPosterDashboard();
+    renderProfile();
+    showToastNotification('Dispute Resolved', 'Report removed and poster rating restored.', false);
+  } catch(e) {}
 }
 
 let _pendingRejectSubId = null;
@@ -2802,6 +2945,10 @@ async function submitTaskRejectionWithReason() {
     const sub = pendingSubmissions[subIndex];
     sub.status = 'rejected';
     sub.rejectionReason = val;
+    if (data.reports && typeof data.reports === 'object') {
+      globalReports = data.reports;
+    }
+
     localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions));
 
     // Push updated rejection status & reason to global server so worker receives rejection instantly

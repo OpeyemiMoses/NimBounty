@@ -1,7 +1,7 @@
 // Vercel Serverless API — NimBounty Global Store Sync Engine
 // Manages global real-time synchronization for bounties, worker submissions, and approved payouts.
 
-const ACTIVE_BLOB_ID = '019fb47c-e8e9-7698-9660-2086f93fafef';
+const ACTIVE_BLOB_ID = '019fb5b4-e564-7c50-b54d-7783ef931586';
 
 async function readStore() {
   try {
@@ -77,17 +77,15 @@ export default async function handler(req, res) {
         });
       }
 
-      // 0.1 Handle Settle / Dismiss Report
-      if (body.settleReport && body.settleReport.targetAddress) {
+      // 0.1 Handle Settle / Dismiss Report (STRICTLY REQUIRED REPORTER ADDRESS — POSTER CANNOT SELF-SETTLE)
+      if (body.settleReport && body.settleReport.targetAddress && body.settleReport.reporterAddress) {
         const cleanTarget = String(body.settleReport.targetAddress).replace(/\s+/g, '').toUpperCase();
-        const cleanReporter = body.settleReport.reporterAddress ? String(body.settleReport.reporterAddress).replace(/\s+/g, '').toUpperCase() : null;
+        const cleanReporter = String(body.settleReport.reporterAddress).replace(/\s+/g, '').toUpperCase();
 
         if (reports[cleanTarget] && Array.isArray(reports[cleanTarget].list)) {
-          if (cleanReporter) {
-            reports[cleanTarget].list = reports[cleanTarget].list.filter(r => String(r.reporterAddress || '').replace(/\s+/g, '').toUpperCase() !== cleanReporter);
-          } else if (body.settleReport.reportId) {
-            reports[cleanTarget].list = reports[cleanTarget].list.filter(r => r.id !== body.settleReport.reportId);
-          }
+          reports[cleanTarget].list = reports[cleanTarget].list.filter(r =>
+            String(r.reporterAddress || '').replace(/\s+/g, '').toUpperCase() !== cleanReporter && r.id !== body.settleReport.reportId
+          );
           reports[cleanTarget].count = reports[cleanTarget].list.length;
         }
       }
@@ -132,7 +130,7 @@ export default async function handler(req, res) {
         });
       }
 
-      // 2. Sync Approved Payouts History (PERMANENTLY KEEP ALL APPROVED PAYOUTS)
+      // 2. Sync Approved Payouts History & Automated Rating Recovery
       if (Array.isArray(body.approvedPayoutsHistory) && body.approvedPayoutsHistory.length > 0) {
         const existingPayKeys = new Set(
           approvedPayoutsHistory.map(p => p.id || `${p.bountyId}_${p.paidAt}_${(p.workerAddress || '').toUpperCase().replace(/\s+/g,'')}`)
@@ -142,6 +140,15 @@ export default async function handler(req, res) {
           if (!existingPayKeys.has(key)) {
             approvedPayoutsHistory.unshift(incoming);
             existingPayKeys.add(key);
+
+            // Automated Rating Recovery: Poster paying workers gradually resolves active reports against them
+            if (incoming.posterAddress) {
+              const cleanPoster = String(incoming.posterAddress).replace(/\s+/g, '').toUpperCase();
+              if (reports[cleanPoster] && Array.isArray(reports[cleanPoster].list) && reports[cleanPoster].list.length > 0) {
+                reports[cleanPoster].list.pop(); // Resolve 1 active report per approved payout
+                reports[cleanPoster].count = reports[cleanPoster].list.length;
+              }
+            }
           }
         });
       }
