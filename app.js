@@ -805,8 +805,9 @@ function confirmDisconnectWalletFromModal() {
   renderBounties();
   renderPosterDashboard();
 
-  // Stay cleanly on current view (e.g. Profile or Registry) showing clean disconnected state!
+  // Stay cleanly on current view and display blurred wallet connection gate modal!
   showView(lastActiveViewBeforeDisconnect || currentView || 'app');
+  checkWalletConnectionGate();
 
   showToastNotification('Wallet Disconnected', 'Your wallet session has been disconnected.', false);
 }
@@ -846,15 +847,8 @@ function checkWalletConnectionGate() {
   const gateModal = document.getElementById('modal-wallet-connect-gate');
   if (!gateModal) return;
 
-  const isNimiqApp = typeof window !== 'undefined' && (!!window.nimiq || !!window.NimiqProvider || !!window.nimiqPay || !!window.NimiqPay || !!window.miniApp);
-
-  const walletRequiredPages = ['profile', 'orders'];
-  if (!isRealWalletConnected() && walletRequiredPages.includes(currentView)) {
-    if (isNimiqApp) {
-      gateModal.style.display = 'flex';
-    } else {
-      openDesktopConnectModal();
-    }
+  if (!isRealWalletConnected()) {
+    gateModal.style.display = 'flex';
   } else {
     gateModal.style.display = 'none';
   }
