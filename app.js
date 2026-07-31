@@ -2669,14 +2669,15 @@ function renderPosterDashboard() {
           <div style="margin-bottom:12px;">
             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
               <div style="font-size:0.75rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em;">Screenshot Proof</div>
-              <button type="button" onclick="event.stopPropagation(); toggleCardImageExpand('card-img-${s.id}')" style="background:var(--gold-tint); border:1px solid var(--gold-border); color:var(--gold-text); font-size:0.72rem; font-weight:800; padding:3px 10px; border-radius:6px; cursor:pointer;">
-                ↔ Expand Card Image
+              <button type="button" onclick="event.stopPropagation(); toggleCardImageExpand('card-img-${s.id}', 'btn-expand-${s.id}')"
+                      id="btn-expand-${s.id}"
+                      style="background:var(--gold-tint); border:1px solid var(--gold-border); color:var(--gold-text); font-size:0.75rem; font-weight:800; padding:4px 12px; border-radius:8px; cursor:pointer;">
+                ↔ Expand Full Size
               </button>
             </div>
             <div style="position:relative; display:block; cursor:pointer; border-radius:12px; overflow:hidden; border:2px solid var(--border); width:100%;"
-                 data-sub-id="${s.id}" onclick="handleScreenshotThumbnailClick(event, this)" title="Click to view full screenshot">
+                 onclick="toggleCardImageExpand('card-img-${s.id}', 'btn-expand-${s.id}')" title="Tap to toggle full size">
               <img id="card-img-${s.id}" src="${imageUrl}" alt="Proof screenshot" style="display:block; width:100%; max-height:180px; object-fit:cover; border-radius:10px; transition:max-height 0.25s ease;" />
-              <div style="position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.65); color:#fff; font-size:0.68rem; font-weight:800; padding:4px 8px; border-radius:6px; letter-spacing:0.04em; backdrop-filter:blur(4px);">🔍 TAP TO POPUP</div>
             </div>
           </div>`;
       }
@@ -3916,15 +3917,19 @@ function toggleLightboxZoom() {
   }
 }
 
-function toggleCardImageExpand(imgId) {
+function toggleCardImageExpand(imgId, btnId) {
   const img = document.getElementById(imgId);
+  const btn = document.getElementById(btnId);
   if (!img) return;
+
   if (img.style.maxHeight === 'none') {
     img.style.maxHeight = '180px';
     img.style.objectFit = 'cover';
+    if (btn) btn.innerHTML = '↔ Expand Full Size';
   } else {
     img.style.maxHeight = 'none';
     img.style.objectFit = 'contain';
+    if (btn) btn.innerHTML = '↕ Collapse Preview';
   }
 }
 
