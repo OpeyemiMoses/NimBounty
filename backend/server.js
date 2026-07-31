@@ -57,6 +57,14 @@ app.use(cors({ origin: '*' }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
+// Force no-cache for Nimiq Pay Mini App WebView
+app.use((req, res, next) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  next();
+});
+
 // ── Serve static frontend files ────────────────────────────────
 // When run as "node backend/server.js" from repo root, process.cwd() = repo root
 const FRONTEND_DIR = process.cwd();

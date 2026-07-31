@@ -2667,15 +2667,16 @@ function renderPosterDashboard() {
       if (imageUrl) {
         proofHTML += `
           <div style="margin-bottom:12px;">
-            <div style="font-size:0.75rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:6px;">Screenshot Proof</div>
-            <div style="position:relative; display:inline-block; cursor:pointer; border-radius:12px; overflow:hidden; border:2px solid var(--border); max-width:100%;"
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+              <div style="font-size:0.75rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em;">Screenshot Proof</div>
+              <button type="button" onclick="event.stopPropagation(); toggleCardImageExpand('card-img-${s.id}')" style="background:var(--gold-tint); border:1px solid var(--gold-border); color:var(--gold-text); font-size:0.72rem; font-weight:800; padding:3px 10px; border-radius:6px; cursor:pointer;">
+                ↔ Expand Card Image
+              </button>
+            </div>
+            <div style="position:relative; display:block; cursor:pointer; border-radius:12px; overflow:hidden; border:2px solid var(--border); width:100%;"
                  data-sub-id="${s.id}" onclick="handleScreenshotThumbnailClick(event, this)" title="Click to view full screenshot">
-              <img src="${imageUrl}" alt="Proof screenshot" style="display:block; max-width:100%; max-height:180px; width:100%; object-fit:cover; border-radius:10px;" />
-              <div style="position:absolute; inset:0; background:rgba(0,0,0,0.28); display:flex; align-items:center; justify-content:center; border-radius:10px; opacity:0; transition:opacity 0.18s;"
-                   onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
-              </div>
-              <div style="position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.55); color:#fff; font-size:0.68rem; font-weight:700; padding:3px 8px; border-radius:6px; letter-spacing:0.04em;">TAP TO VIEW</div>
+              <img id="card-img-${s.id}" src="${imageUrl}" alt="Proof screenshot" style="display:block; width:100%; max-height:180px; object-fit:cover; border-radius:10px; transition:max-height 0.25s ease;" />
+              <div style="position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.65); color:#fff; font-size:0.68rem; font-weight:800; padding:4px 8px; border-radius:6px; letter-spacing:0.04em; backdrop-filter:blur(4px);">🔍 TAP TO POPUP</div>
             </div>
           </div>`;
       }
@@ -3912,6 +3913,18 @@ function toggleLightboxZoom() {
     imgEl.style.maxWidth = '100%';
     imgEl.style.objectFit = 'contain';
     if (txtEl) txtEl.textContent = 'Full Zoom';
+  }
+}
+
+function toggleCardImageExpand(imgId) {
+  const img = document.getElementById(imgId);
+  if (!img) return;
+  if (img.style.maxHeight === 'none') {
+    img.style.maxHeight = '180px';
+    img.style.objectFit = 'cover';
+  } else {
+    img.style.maxHeight = 'none';
+    img.style.objectFit = 'contain';
   }
 }
 
