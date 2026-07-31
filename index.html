@@ -1274,11 +1274,16 @@
           <span style="font-size:0.68rem; font-weight:800; color:rgba(255,255,255,0.45); text-transform:uppercase; letter-spacing:0.08em;">Proof Screenshot</span>
           <span id="lightbox-title" style="font-size:0.95rem; font-weight:800; color:#fff; max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></span>
         </div>
-        <div style="display:flex; align-items:center; gap:10px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <a id="lightbox-open-direct-btn" href="#" target="_blank" rel="noopener noreferrer"
+             style="display:inline-flex; align-items:center; gap:5px; background:var(--gold-tint); border:1px solid var(--gold-border); color:var(--gold-text); font-size:0.78rem; font-weight:800; padding:8px 12px; border-radius:10px; text-decoration:none; cursor:pointer;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            <span>Open Image</span>
+          </a>
           <a id="lightbox-download-btn" href="#" download="proof-screenshot.jpg"
-             style="display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.2); color:#fff; font-size:0.8rem; font-weight:700; padding:8px 14px; border-radius:10px; text-decoration:none; cursor:pointer;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            Download
+             style="display:inline-flex; align-items:center; gap:5px; background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.2); color:#fff; font-size:0.78rem; font-weight:700; padding:8px 12px; border-radius:10px; text-decoration:none; cursor:pointer;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>Download</span>
           </a>
           <button onclick="document.getElementById('modal-screenshot-lightbox').style.display='none';"
                   style="background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.25); color:#fff; width:36px; height:36px; border-radius:10px; font-size:1.2rem; cursor:pointer; display:flex; align-items:center; justify-content:center;">

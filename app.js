@@ -2153,107 +2153,59 @@ function startClaimTimer(durationSeconds) {
 
 async function processImageFileToDataUrl(file) {
   return new Promise((resolve) => {
-    const timer = setTimeout(() => {
-      const reader = new FileReader();
-      reader.onload = (e) => resolve(e.target.result);
-      reader.onerror = () => resolve(null);
-      reader.readAsDataURL(file);
-    }, 2000);
-
+    if (!file) return resolve(null);
     const reader = new FileReader();
     reader.onload = function(e) {
       const rawDataUrl = e.target.result;
       const img = new Image();
       img.onload = function() {
-        clearTimeout(timer);
         try {
           const canvas = document.createElement('canvas');
-          let width = img.width, height = img.height;
-          const maxDim = 1200; // Full HD crisp resolution for Railway backend
+          let width = img.width;
+          let height = img.height;
+          const maxDim = 1000; // Optimized HD for Nimiq Pay Mini App WebView (<100KB)
           if (width > maxDim || height > maxDim) {
             if (width > height) { height = Math.round((height * maxDim) / width); width = maxDim; }
             else { width = Math.round((width * maxDim) / height); height = maxDim; }
           }
-          canvas.width = width; canvas.height = height;
-          canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', 0.85));
-        } catch (err) { resolve(rawDataUrl); }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.70));
+        } catch (err) {
+          resolve(rawDataUrl);
+        }
       };
-      img.onerror = () => { clearTimeout(timer); resolve(rawDataUrl); };
+      img.onerror = () => resolve(rawDataUrl);
       img.src = rawDataUrl;
     };
-    reader.onerror = () => { clearTimeout(timer); resolve(null); };
+    reader.onerror = () => resolve(null);
     reader.readAsDataURL(file);
   });
 }
 
 async function uploadScreenshotToCloud(file) {
-  // 1. Try tmpfiles.org cloud host
-  try {
-    const formData = new FormData();
-    formData.append('file', file);
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 3500);
-    const res = await fetch('https://tmpfiles.org/api/v1/upload', {
-      method: 'POST',
-      body: formData,
-      signal: controller.signal
-    });
-    clearTimeout(timer);
-    if (res.ok) {
-      const json = await res.json();
-      if (json && json.data && json.data.url) {
-        const directUrl = json.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
-        return directUrl;
-      }
-    }
-  } catch(e) {}
-
-  // 2. Fallback to catbox.moe
-  try {
-    const formData = new FormData();
-    formData.append('reqtype', 'fileupload');
-    formData.append('fileToUpload', file);
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 3500);
-    const res = await fetch('https://catbox.moe/user/api.php', {
-      method: 'POST',
-      body: formData,
-      signal: controller.signal
-    });
-    clearTimeout(timer);
-    if (res.ok) {
-      const url = (await res.text()).trim();
-      if (url.startsWith('http')) return url;
-    }
-  } catch (e) {}
-
   return null;
 }
 
 async function previewScreenshot(event) {
   const file = event.target.files[0];
   if (file) {
-    // 1. INSTANT LOCAL PREVIEW (<10ms) — sender sees image preview immediately
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      const localDataUrl = e.target.result;
-      uploadedImageDataUrl = localDataUrl;
-
-      const previewImg = document.getElementById('image-preview-img');
-      const previewBox = document.getElementById('image-preview-box');
-      if (previewImg) previewImg.src = localDataUrl;
-      if (previewBox) previewBox.style.display = 'flex';
-
-      showToastNotification('Screenshot Ready', 'Screenshot proof loaded for instant sync.', false);
-    };
-    reader.readAsDataURL(file);
-
-    // 2. Process high quality HD 1200px image in background
+    showToastNotification('Optimizing Image', 'Processing screenshot for Nimiq Pay Mini App...', false);
     try {
-      const hdUrl = await processImageFileToDataUrl(file);
-      if (hdUrl) uploadedImageDataUrl = hdUrl;
-    } catch(e) {}
+      const compressedUrl = await processImageFileToDataUrl(file);
+      if (compressedUrl) {
+        uploadedImageDataUrl = compressedUrl;
+        const previewImg = document.getElementById('image-preview-img');
+        const previewBox = document.getElementById('image-preview-box');
+        if (previewImg) previewImg.src = compressedUrl;
+        if (previewBox) previewBox.style.display = 'flex';
+        showToastNotification('Screenshot Ready', 'Screenshot optimized & ready for instant submission.', false);
+      }
+    } catch(e) {
+      showToastNotification('Image Error', 'Failed to process screenshot.', true);
+    }
   }
 }
 
@@ -3884,6 +3836,8 @@ function openScreenshotLightbox(subId, directSrc = null) {
 
   if (titleEl) titleEl.textContent = targetTitle;
   if (downloadBtn) downloadBtn.href = targetSrc;
+  const openDirectBtn = document.getElementById('lightbox-open-direct-btn');
+  if (openDirectBtn) openDirectBtn.href = targetSrc;
 
   if (spinnerEl) {
     spinnerEl.style.display = 'flex';
