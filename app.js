@@ -460,6 +460,9 @@ async function fetchGlobalPublicBounties() {
       return s;
     });
 
+    // Purge legacy corrupted [LOCAL_IMG:...] entries from pendingSubmissions
+    pendingSubmissions = pendingSubmissions.filter(s => s && s.content && !s.content.startsWith('[LOCAL_IMG:'));
+
     try { localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(pendingSubmissions)); } catch(e) {}
 
     // 4. Sync Global Reports
@@ -3830,7 +3833,11 @@ function triggerConfetti() {
   }
 }
 
-function handleScreenshotThumbnailClick(el) {
+function handleScreenshotThumbnailClick(event, el) {
+  if (event) {
+    if (typeof event.stopPropagation === 'function') event.stopPropagation();
+    if (typeof event.preventDefault === 'function') event.preventDefault();
+  }
   if (!el) return;
   const subId = el.getAttribute('data-sub-id');
   const imgInside = el.querySelector('img');
@@ -3846,24 +3853,28 @@ function openScreenshotLightbox(subId, directSrc = null) {
 
   if (!modal || !imgEl) return;
 
-  let targetSrc = directSrc;
+  let targetSrc = null;
   let targetTitle = 'Proof Screenshot';
 
-  const sub = pendingSubmissions.find(s => String(s.id) === String(subId));
-  if (sub) {
-    targetTitle = sub.bountyTitle || 'Proof Screenshot';
-    if (!targetSrc || targetSrc === window.location.href) {
+  if (subId) {
+    const sub = pendingSubmissions.find(s => String(s.id) === String(subId)) ||
+                approvedPayoutsHistory.find(s => String(s.id) === String(subId));
+    if (sub) {
+      targetTitle = sub.bountyTitle || 'Proof Screenshot';
       const content = sub.content || '';
       if (content.startsWith('data:image') || content.startsWith('http://') || content.startsWith('https://')) {
         targetSrc = content;
       } else if (content.startsWith('{')) {
         try {
           const parsed = JSON.parse(content);
-          targetSrc = parsed.image || parsed.url || null;
+          if (parsed.image) targetSrc = parsed.image;
+          else if (parsed.url) targetSrc = parsed.url;
         } catch (e) {}
       }
     }
   }
+
+  if (!targetSrc) targetSrc = directSrc;
 
   if (!targetSrc || targetSrc.endsWith('#') || targetSrc === window.location.href) {
     showToastNotification('Image Error', 'Could not load screenshot preview.', true);
