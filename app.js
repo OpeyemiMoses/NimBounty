@@ -1439,16 +1439,57 @@ function uploadProfileAvatar(event) {
   });
 }
 
-function removeProfileAvatar() {
-  if (!userAccount) return;
-  const clean = userAccount.replace(/\s+/g, '').toUpperCase();
-  localStorage.removeItem(`nimbounty_avatar_${clean}`);
+let pendingUsernameToSet = null;
+
+function openSetUsernameModal() {
+  if (!userAccount) {
+    showToastNotification('Wallet Required', 'Connect your wallet to set a username.', true);
+    return;
+  }
   const profile = getProfile(userAccount);
-  delete profile.avatarUrl;
+  const input = document.getElementById('username-input');
+  if (input) input.value = profile.username ? profile.username : '';
+  const modal = document.getElementById('modal-set-username');
+  if (modal) modal.style.display = 'flex';
+}
+
+function confirmSetUsername() {
+  const input = document.getElementById('username-input');
+  const val = input ? input.value.trim().toUpperCase() : '';
+  if (!val || val.length < 3) {
+    showToastNotification('Username Required', 'Username must be at least 3 characters.', true);
+    return;
+  }
+  if (!/^[A-Z0-9_]+$/.test(val)) {
+    showToastNotification('Invalid Format', 'Username can only contain letters, numbers, and underscores.', true);
+    return;
+  }
+  pendingUsernameToSet = val;
+  closeModal('modal-set-username');
+
+  const displayEl = document.getElementById('username-confirm-display');
+  if (displayEl) displayEl.textContent = val;
+  const modal = document.getElementById('modal-confirm-username');
+  if (modal) modal.style.display = 'flex';
+}
+
+async function finalizeUsername() {
+  if (!pendingUsernameToSet || !userAccount) return;
+  closeModal('modal-confirm-username');
+
+  const profile = getProfile(userAccount);
+  profile.username = pendingUsernameToSet;
   saveProfile(userAccount, profile);
-  showToastNotification('Photo Removed', 'Profile photo reset to default avatar.', false);
+
+  showToastNotification('Username Synced', `Permanent username set to: ${pendingUsernameToSet}`, false);
+  pendingUsernameToSet = null;
+
   renderProfile();
-  updateWalletUI();
+  renderSessionBar();
+  renderBounties();
+  renderPosterDashboard();
+  renderLeaderboard();
+  renderGlobalRegistry();
 }
 
 function renderProfile() {
