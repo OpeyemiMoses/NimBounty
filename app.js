@@ -3850,6 +3850,7 @@ function openScreenshotLightbox(subId, directSrc = null) {
   const imgEl = document.getElementById('lightbox-img');
   const titleEl = document.getElementById('lightbox-title');
   const downloadBtn = document.getElementById('lightbox-download-btn');
+  const spinnerEl = document.getElementById('lightbox-spinner');
 
   if (!modal || !imgEl) return;
 
@@ -3881,9 +3882,36 @@ function openScreenshotLightbox(subId, directSrc = null) {
     return;
   }
 
-  imgEl.src = targetSrc;
   if (titleEl) titleEl.textContent = targetTitle;
   if (downloadBtn) downloadBtn.href = targetSrc;
+
+  if (spinnerEl) {
+    spinnerEl.style.display = 'flex';
+    spinnerEl.innerHTML = `
+      <div style="width:32px; height:32px; border:3px solid rgba(255,255,255,0.2); border-top-color:var(--gold); border-radius:50%; animation:spin 0.8s linear infinite;"></div>
+      <span style="font-size:0.8rem; font-weight:600;">Loading HD Screenshot...</span>
+    `;
+  }
+  imgEl.style.display = 'none';
+
+  imgEl.onload = () => {
+    if (spinnerEl) spinnerEl.style.display = 'none';
+    imgEl.style.display = 'block';
+  };
+
+  imgEl.onerror = () => {
+    if (spinnerEl) {
+      spinnerEl.style.display = 'flex';
+      spinnerEl.innerHTML = '<span style="color:#ef4444; font-weight:700; font-size:0.88rem;">⚠️ Image preview failed to render</span>';
+    }
+  };
+
+  imgEl.src = targetSrc;
+
+  if (imgEl.complete && imgEl.naturalWidth !== 0) {
+    if (spinnerEl) spinnerEl.style.display = 'none';
+    imgEl.style.display = 'block';
+  }
 
   modal.style.display = 'flex';
 }

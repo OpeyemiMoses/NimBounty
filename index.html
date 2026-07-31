@@ -1266,8 +1266,8 @@
   <div class="mobile-bottom-nav" id="mobile-bottom-nav"></div>
 
   <!-- SCREENSHOT LIGHTBOX MODAL -->
-  <div id="modal-screenshot-lightbox" style="display:none; position:fixed; inset:0; z-index:999999; background:rgba(0,0,0,0.92); backdrop-filter:blur(8px); align-items:center; justify-content:center; flex-direction:column; padding:16px;" onclick="closeLightboxOnBackdrop(event)">
-    <div style="position:relative; max-width:min(92vw, 780px); width:100%; display:flex; flex-direction:column; gap:12px;">
+  <div id="modal-screenshot-lightbox" style="display:none; position:fixed; inset:0; z-index:999999; background:rgba(0,0,0,0.94); backdrop-filter:blur(10px); align-items:center; justify-content:center; flex-direction:column; padding:16px;" onclick="closeLightboxOnBackdrop(event)">
+    <div style="position:relative; max-width:min(94vw, 820px); width:100%; display:flex; flex-direction:column; gap:12px;" onclick="event.stopPropagation()">
       <!-- Header -->
       <div style="display:flex; align-items:center; justify-content:space-between;">
         <div style="display:flex; flex-direction:column; gap:2px;">
@@ -1281,14 +1281,18 @@
             Download
           </a>
           <button onclick="document.getElementById('modal-screenshot-lightbox').style.display='none';"
-                  style="background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.2); color:#fff; width:36px; height:36px; border-radius:10px; font-size:1.2rem; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+                  style="background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.25); color:#fff; width:36px; height:36px; border-radius:10px; font-size:1.2rem; cursor:pointer; display:flex; align-items:center; justify-content:center;">
             &times;
           </button>
         </div>
       </div>
-      <!-- Image -->
-      <div style="border-radius:16px; overflow:hidden; border:1px solid rgba(255,255,255,0.18); background:#0a0a0a; min-height:300px; max-height:75vh; width:100%; display:flex; align-items:center; justify-content:center; padding:8px; box-sizing:border-box;">
-        <img id="lightbox-img" src="" alt="Proof screenshot" style="width:100%; height:auto; max-height:70vh; object-fit:contain; display:block; border-radius:10px;" />
+      <!-- Image Container with Loader -->
+      <div id="lightbox-img-box" style="border-radius:16px; overflow:hidden; border:1px solid rgba(255,255,255,0.18); background:#0c0c0e; min-height:280px; max-height:75vh; width:100%; display:flex; align-items:center; justify-content:center; padding:10px; box-sizing:border-box; position:relative;">
+        <div id="lightbox-spinner" style="display:flex; flex-direction:column; align-items:center; gap:10px; color:rgba(255,255,255,0.65);">
+          <div style="width:32px; height:32px; border:3px solid rgba(255,255,255,0.2); border-top-color:var(--gold); border-radius:50%; animation:spin 0.8s linear infinite;"></div>
+          <span style="font-size:0.8rem; font-weight:600;">Loading HD Screenshot...</span>
+        </div>
+        <img id="lightbox-img" src="" alt="Proof screenshot" style="display:none; width:100%; height:auto; max-height:70vh; object-fit:contain; border-radius:10px;" />
       </div>
     </div>
   </div>
