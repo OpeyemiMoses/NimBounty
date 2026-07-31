@@ -406,12 +406,16 @@ async function fetchGlobalPublicBounties() {
     // ── SERVER IS AUTHORITATIVE ──
     // Server state is absolute truth for all wallets globally.
 
-    // 1. BOUNTIES — server is truth (only keep unsynced local bounties from last 2 minutes)
+    // 1. BOUNTIES — server is truth (preserve local unsynced bounties + auto-heal)
     if (Array.isArray(data.bounties)) {
       const serverIds = new Set(data.bounties.map(b => String(b.id)));
-      const recentLocalOnly = bounties.filter(b => !serverIds.has(String(b.id)) && b.createdAt && (Date.now() - b.createdAt < 120000));
-      bounties = [...data.bounties, ...recentLocalOnly];
+      const unsyncedLocalBounties = bounties.filter(b => b && b.id && !serverIds.has(String(b.id)));
+      bounties = [...data.bounties, ...unsyncedLocalBounties];
       localStorage.setItem(STORAGE_KEY_LOCAL_BOUNTIES, JSON.stringify(bounties));
+
+      if (unsyncedLocalBounties.length > 0) {
+        unsyncedLocalBounties.forEach(lb => syncGlobalPublicBounties(lb));
+      }
     }
 
     // 2. APPROVED PAYOUTS HISTORY — server is truth
@@ -419,26 +423,33 @@ async function fetchGlobalPublicBounties() {
       const serverPayKeys = new Set(
         data.approvedPayoutsHistory.map(p => p.id || `${p.bountyId}_${(p.workerAddress || '').toUpperCase().replace(/\s+/g,'')}`)
       );
-      const recentLocalOnlyPays = approvedPayoutsHistory.filter(p => {
+      const unsyncedLocalPays = approvedPayoutsHistory.filter(p => {
         const key = p.id || `${p.bountyId}_${(p.workerAddress || '').toUpperCase().replace(/\s+/g,'')}`;
-        return !serverPayKeys.has(key) && p.paidAt && (Date.now() - p.paidAt < 120000);
+        return !serverPayKeys.has(key);
       });
-      approvedPayoutsHistory = [...data.approvedPayoutsHistory, ...recentLocalOnlyPays];
+      approvedPayoutsHistory = [...data.approvedPayoutsHistory, ...unsyncedLocalPays];
       localStorage.setItem(STORAGE_KEY_PAID_HISTORY, JSON.stringify(approvedPayoutsHistory));
     }
 
-    // 3. PENDING SUBMISSIONS — server is truth
+    // 3. PENDING SUBMISSIONS — server is truth (preserve local unsynced subs + auto-heal)
+    // Server only stores truncated content (max 800 chars). Always restore full content from local memory.
     if (Array.isArray(data.pendingSubmissions)) {
       const serverSubIds = new Set(data.pendingSubmissions.map(s => s.id));
-      const recentLocalOnlySubs = pendingSubmissions.filter(s => !serverSubIds.has(s.id) && s.id && (Date.now() - parseInt(s.id.replace('sub-','')) < 120000));
+      const unsyncedLocalSubs = pendingSubmissions.filter(s => s && s.id && !serverSubIds.has(s.id));
       const mergedServerSubs = data.pendingSubmissions.map(ss => {
         const localMatch = pendingSubmissions.find(ls => ls.id === ss.id);
-        if (localMatch && localMatch.content && localMatch.content.startsWith('data:image') && (!ss.content || ss.content.startsWith('[LOCAL_IMG'))) {
+        if (localMatch && localMatch.content) {
+          // Always prefer full local content over truncated server content
           return { ...ss, content: localMatch.content };
         }
         return ss;
       });
-      pendingSubmissions = [...mergedServerSubs, ...recentLocalOnlySubs];
+      pendingSubmissions = [...mergedServerSubs, ...unsyncedLocalSubs];
+
+      // Auto-heal: re-push unsynced local submissions to guarantee poster receives every proof
+      if (unsyncedLocalSubs.length > 0) {
+        unsyncedLocalSubs.forEach(ls => pushNewSubmission(ls, bounties.find(b => String(b.id) === String(ls.bountyId))));
+      }
     }
 
     // Mark any pending sub as 'approved' if it matches an approved payout
@@ -2289,7 +2300,7 @@ async function handleSubmitProof() {
   } catch(e) {}
   localStorage.setItem(STORAGE_KEY_LOCAL_BOUNTIES, JSON.stringify(bounties));
 
-  pushNewSubmission(newSub, targetBounty || bounty);
+  await pushNewSubmission(newSub, targetBounty || bounty);
 
   closeModal('modal-submit-proof');
   renderPosterDashboard();
@@ -2300,6 +2311,26 @@ async function handleSubmitProof() {
   playAudioFx('submit');
   showToastNotification('Proof Submitted!', 'Proof signed off-chain with 0 gas. Waiting for poster review.', false);
   uploadedImageDataUrl = null;
+}
+
+async function pushNewSubmission(newSub, targetBounty) {
+  if (!newSub) return;
+  try {
+    const apiEndpoint = window.location.origin.includes('localhost')
+      ? `${PRODUCTION_URL}/api/bounties`
+      : `/api/bounties`;
+
+    await fetch(apiEndpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        newSubmission: newSub,
+        bounties: targetBounty ? [targetBounty] : []
+      })
+    });
+  } catch (e) {
+    console.error("pushNewSubmission error:", e);
+  }
 }
 
 function openQrModal(bountyId) {

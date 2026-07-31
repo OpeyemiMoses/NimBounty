@@ -4,21 +4,17 @@
 const ACTIVE_BLOB_ID = '019fb5b4-e564-7c50-b54d-7783ef931586';
 
 async function readStore() {
-  try {
-    const res = await fetch(`https://jsonblob.com/api/jsonBlob/${ACTIVE_BLOB_ID}`, {
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }
-    });
-    if (!res.ok) throw new Error(`JSONBlob read status: ${res.status}`);
-    const data = await res.json();
-    if (!Array.isArray(data.bounties)) data.bounties = [];
-    if (!Array.isArray(data.pendingSubmissions)) data.pendingSubmissions = [];
-    if (!Array.isArray(data.approvedPayoutsHistory)) data.approvedPayoutsHistory = [];
-    if (!data.profiles || typeof data.profiles !== 'object') data.profiles = {};
-    if (!data.reports || typeof data.reports !== 'object') data.reports = {};
-    return data;
-  } catch(e) {
-    return { bounties: [], pendingSubmissions: [], approvedPayoutsHistory: [], profiles: {}, reports: {} };
-  }
+  const res = await fetch(`https://jsonblob.com/api/jsonBlob/${ACTIVE_BLOB_ID}`, {
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }
+  });
+  if (!res.ok) throw new Error(`JSONBlob read status: ${res.status}`);
+  const data = await res.json();
+  if (!Array.isArray(data.bounties)) data.bounties = [];
+  if (!Array.isArray(data.pendingSubmissions)) data.pendingSubmissions = [];
+  if (!Array.isArray(data.approvedPayoutsHistory)) data.approvedPayoutsHistory = [];
+  if (!data.profiles || typeof data.profiles !== 'object') data.profiles = {};
+  if (!data.reports || typeof data.reports !== 'object') data.reports = {};
+  return data;
 }
 
 async function writeStore(data) {
@@ -45,8 +41,12 @@ export default async function handler(req, res) {
 
   // ── GET: Return the full global store ──
   if (req.method === 'GET') {
-    const store = await readStore();
-    return res.status(200).json(store);
+    try {
+      const store = await readStore();
+      return res.status(200).json(store);
+    } catch(e) {
+      return res.status(500).json({ error: 'Store read error', message: e.message });
+    }
   }
 
   // ── POST: Handle global store sync ──
@@ -158,19 +158,32 @@ export default async function handler(req, res) {
       }
 
       // 3. Sync Pending Submissions (Deduplicate strictly by submission ID)
+      // IMPORTANT: Strip large content (base64 images / long text) from server store to prevent size overflow.
+      // Only submission metadata is stored server-side. Full proof content stays in local memory.
+      function trimSub(s) {
+        if (!s) return s;
+        let content = s.content || '';
+        if (content.startsWith('data:image') || content.length > 800) {
+          content = content.substring(0, 800);
+        }
+        return { ...s, content };
+      }
+
       if (body.newSubmission && body.newSubmission.id) {
-        const existingIdx = pendingSubmissions.findIndex(s => s.id === body.newSubmission.id);
+        const incoming = trimSub(body.newSubmission);
+        const existingIdx = pendingSubmissions.findIndex(s => s.id === incoming.id);
         if (existingIdx === -1) {
-          pendingSubmissions.unshift(body.newSubmission);
+          pendingSubmissions.unshift(incoming);
         } else {
-          pendingSubmissions[existingIdx] = { ...pendingSubmissions[existingIdx], ...body.newSubmission };
+          pendingSubmissions[existingIdx] = { ...pendingSubmissions[existingIdx], ...incoming };
         }
       } else if (Array.isArray(body.pendingSubmissions)) {
         if (body.replacePendingSubmissions) {
-          pendingSubmissions = body.pendingSubmissions;
+          pendingSubmissions = body.pendingSubmissions.map(trimSub);
         } else {
           const existingSubIds = new Set(pendingSubmissions.map(s => s.id));
-          body.pendingSubmissions.forEach(incoming => {
+          body.pendingSubmissions.forEach(raw => {
+            const incoming = trimSub(raw);
             if (!existingSubIds.has(incoming.id)) {
               pendingSubmissions.unshift(incoming);
               existingSubIds.add(incoming.id);
@@ -202,7 +215,18 @@ export default async function handler(req, res) {
         b.slotsRemaining = Math.max(0, total - (pendingCount + approvedCount));
       });
 
-      const newStore = { bounties, pendingSubmissions, approvedPayoutsHistory, profiles, reports, updatedAt: Date.now() };
+      // Trim all stored subs one final time before writing to stay well under 100KB
+      const trimmedSubs = pendingSubmissions.map(s => {
+        if (!s) return s;
+        let content = s.content || '';
+        if (content.startsWith('data:image') || content.length > 800) content = content.substring(0, 800);
+        return { ...s, content };
+      });
+
+      // Also trim approved payouts history — only keep last 200 to prevent runaway growth
+      const trimmedPayouts = approvedPayoutsHistory.slice(0, 200);
+
+      const newStore = { bounties, pendingSubmissions: trimmedSubs, approvedPayoutsHistory: trimmedPayouts, profiles, reports, updatedAt: Date.now() };
       await writeStore(newStore);
 
       return res.status(200).json({ success: true, ...newStore });
