@@ -3,7 +3,7 @@
    ========================================== */
 
 // Production API URL
-const PRODUCTION_URL = 'https://nim-bounty.vercel.app';
+const PRODUCTION_URL = 'https://nimbounty-production.up.railway.app';
 
 // Permanent Wallet Key & Storage Keys — Version 1200 (Clean Slate)
 const STORAGE_KEY_USER_ACCT = 'nimbounty_user_wallet_permanent';
@@ -246,9 +246,7 @@ function saveProfile(walletAddress, profileData) {
 async function pushUserProfile(walletAddress, profileData) {
   if (!walletAddress) return;
   try {
-    const apiEndpoint = window.location.origin.includes('localhost')
-      ? `${PRODUCTION_URL}/api/bounties`
-      : `/api/bounties`;
+    const apiEndpoint = `${PRODUCTION_URL}/api/bounties`;
 
     await fetch(apiEndpoint, {
       method: 'POST',
@@ -395,9 +393,7 @@ function toggleTheme() {
 // ==========================================
 async function fetchGlobalPublicBounties() {
   try {
-    const apiEndpoint = window.location.origin.includes('localhost')
-      ? `${PRODUCTION_URL}/api/bounties`
-      : `/api/bounties`;
+    const apiEndpoint = `${PRODUCTION_URL}/api/bounties`;
 
     const res = await fetch(apiEndpoint, { cache: 'no-cache' });
     if (!res.ok) return;
@@ -539,9 +535,7 @@ async function fetchGlobalPublicBounties() {
 // Includes the compressed image data URL so the poster receives the image on their device.
 async function pushNewSubmission(newSub, updatedBounty = null) {
   try {
-    const apiEndpoint = window.location.origin.includes('localhost')
-      ? `${PRODUCTION_URL}/api/bounties`
-      : `/api/bounties`;
+    const apiEndpoint = `${PRODUCTION_URL}/api/bounties`;
 
     const payload = {
       newSubmission: newSub,
@@ -570,9 +564,7 @@ async function pushNewSubmission(newSub, updatedBounty = null) {
 
 async function pushApprovedPayout(approvedItem, removedSubId, updatedBounty) {
   try {
-    const apiEndpoint = window.location.origin.includes('localhost')
-      ? `${PRODUCTION_URL}/api/bounties`
-      : `/api/bounties`;
+    const apiEndpoint = `${PRODUCTION_URL}/api/bounties`;
 
     const payload = {
       approvedPayoutsHistory: [approvedItem],
@@ -596,9 +588,7 @@ async function pushApprovedPayout(approvedItem, removedSubId, updatedBounty) {
 
 async function syncGlobalPublicBounties(updatedBountyObj = null) {
   try {
-    const apiEndpoint = window.location.origin.includes('localhost')
-      ? `${PRODUCTION_URL}/api/bounties`
-      : `/api/bounties`;
+    const apiEndpoint = `${PRODUCTION_URL}/api/bounties`;
     await fetch(apiEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -2316,9 +2306,7 @@ async function handleSubmitProof() {
 async function pushNewSubmission(newSub, targetBounty) {
   if (!newSub) return;
   try {
-    const apiEndpoint = window.location.origin.includes('localhost')
-      ? `${PRODUCTION_URL}/api/bounties`
-      : `/api/bounties`;
+    const apiEndpoint = `${PRODUCTION_URL}/api/bounties`;
 
     await fetch(apiEndpoint, {
       method: 'POST',
@@ -2785,9 +2773,7 @@ async function pushNewReport(targetAddress, reason) {
 
   // 2. Push to global server store
   try {
-    const apiEndpoint = window.location.origin.includes('localhost')
-      ? `${PRODUCTION_URL}/api/bounties`
-      : `/api/bounties`;
+    const apiEndpoint = `${PRODUCTION_URL}/api/bounties`;
 
     await fetch(apiEndpoint, {
       method: 'POST',
@@ -2858,7 +2844,7 @@ async function submitReportPoster() {
 
   // Send POST to server
   try {
-    const apiEndpoint = window.location.origin.includes('localhost') ? `${PRODUCTION_URL}/api/bounties` : `/api/bounties`;
+    const apiEndpoint = `${PRODUCTION_URL}/api/bounties`;
     await fetch(apiEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -2988,7 +2974,7 @@ async function resolveDispute(reportId, targetAddress) {
 
   try {
     showToastNotification('Resolving Dispute', 'Updating dispute status...', false);
-    const apiEndpoint = window.location.origin.includes('localhost') ? `${PRODUCTION_URL}/api/bounties` : `/api/bounties`;
+    const apiEndpoint = `${PRODUCTION_URL}/api/bounties`;
     await fetch(apiEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
