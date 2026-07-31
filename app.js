@@ -1494,6 +1494,112 @@ async function finalizeUsername() {
   renderGlobalRegistry();
 }
 
+function getAccountReports(walletAddr) {
+  if (!walletAddr) return { count: 0, reports: 0, list: [], isFlagged: false };
+  const cleanTarget = String(walletAddr).replace(/\s+/g, '').toUpperCase();
+  const localRep = JSON.parse(localStorage.getItem(STORAGE_KEY_REPUTATION) || '{}');
+
+  let combinedList = [];
+  const seenIds = new Set();
+
+  if (globalReports && typeof globalReports === 'object') {
+    Object.keys(globalReports).forEach(targetKey => {
+      if (isSameNimiqAddress(targetKey, cleanTarget)) {
+        const item = globalReports[targetKey];
+        if (item && Array.isArray(item.list)) {
+          item.list.forEach(r => {
+            if (r.id && !seenIds.has(r.id)) {
+              combinedList.push(r);
+              seenIds.add(r.id);
+            }
+          });
+        }
+      }
+    });
+  }
+
+  Object.keys(localRep).forEach(targetKey => {
+    if (isSameNimiqAddress(targetKey, cleanTarget)) {
+      const item = localRep[targetKey];
+      if (item && Array.isArray(item.list)) {
+        item.list.forEach(r => {
+          if (r.id && !seenIds.has(r.id)) {
+            combinedList.push(r);
+            seenIds.add(r.id);
+          }
+        });
+      }
+    }
+  });
+
+  const uniqueReporters = new Set(combinedList.map(r => String(r.reporterAddress || '').replace(/\s+/g, '').toUpperCase()));
+  const effectiveCount = uniqueReporters.size;
+
+  return {
+    count: effectiveCount,
+    reports: effectiveCount,
+    list: combinedList,
+    isFlagged: effectiveCount >= 3
+  };
+}
+
+function getReputation(walletAddr) {
+  return getAccountReports(walletAddr);
+}
+
+function getPosterRating(posterAddress) {
+  if (!posterAddress) return { rating: '5.0', HTML: '<span class="star-rating" style="font-size:0.75rem; font-weight:800; color:var(--gold-text); background:var(--gold-tint); border:1px solid var(--gold-border); padding:2px 8px; border-radius:6px; font-family:var(--font-mono);">★ 5.0</span>' };
+  const cleanPoster = String(posterAddress).replace(/\s+/g, '').toUpperCase();
+
+  const paidCount = approvedPayoutsHistory.filter(p => isSameNimiqAddress(p.posterAddress, cleanPoster)).length;
+  const repData = getReputation(cleanPoster);
+  const reportCount = repData.reports;
+
+  let ratingVal = 5.0 - (reportCount * 0.5) + (paidCount * 0.1);
+  ratingVal = Math.max(1.0, Math.min(5.0, ratingVal));
+  const ratingStr = ratingVal.toFixed(1);
+
+  const starHTML = `<span class="star-rating" style="font-size:0.75rem; font-weight:800; color:var(--gold-text); background:var(--gold-tint); border:1px solid var(--gold-border); padding:2px 8px; border-radius:6px; font-family:var(--font-mono);">★ ${ratingStr}</span>`;
+
+  return { rating: ratingStr, HTML: starHTML };
+}
+
+async function settleReport(posterAddress, workerAddress) {
+  if (!posterAddress) return;
+  const cleanPoster = String(posterAddress).replace(/\s+/g, '').toUpperCase();
+  const cleanWorker = workerAddress ? String(workerAddress).replace(/\s+/g, '').toUpperCase() : null;
+
+  if (globalReports && typeof globalReports === 'object') {
+    Object.keys(globalReports).forEach(targetKey => {
+      if (isSameNimiqAddress(targetKey, cleanPoster)) {
+        if (globalReports[targetKey] && Array.isArray(globalReports[targetKey].list)) {
+          if (cleanWorker) {
+            globalReports[targetKey].list = globalReports[targetKey].list.filter(r => !isSameNimiqAddress(r.reporterAddress, cleanWorker));
+          } else {
+            globalReports[targetKey].list.pop();
+          }
+          globalReports[targetKey].count = globalReports[targetKey].list.length;
+        }
+      }
+    });
+  }
+
+  const localRep = JSON.parse(localStorage.getItem(STORAGE_KEY_REPUTATION) || '{}');
+  Object.keys(localRep).forEach(targetKey => {
+    if (isSameNimiqAddress(targetKey, cleanPoster)) {
+      if (localRep[targetKey] && Array.isArray(localRep[targetKey].list)) {
+        if (cleanWorker) {
+          localRep[targetKey].list = localRep[targetKey].list.filter(r => !isSameNimiqAddress(r.reporterAddress, cleanWorker));
+        } else {
+          localRep[targetKey].list.pop();
+        }
+        localRep[targetKey].count = localRep[targetKey].list.length;
+      }
+    }
+  });
+  localStorage.setItem(STORAGE_KEY_REPUTATION, JSON.stringify(localRep));
+}
+
 function renderProfile() {
   const el = document.getElementById('profile-content');
   if (!el) return;
@@ -1899,10 +2005,17 @@ function renderBounties() {
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
                 <span>Resubmit Proof &rarr;</span>
               </button>
-              <button class="btn-ghost-sm" onclick="openReportPosterModal('${b.posterAddress}', '${b.title}')" style="color:var(--danger); border-color:rgba(239,68,68,0.3); padding:10px; justify-content:center; display:inline-flex; align-items:center; gap:6px;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
-                <span>Report Poster</span>
-              </button>
+              ${(userAccount && (JSON.parse(localStorage.getItem('nimbounty_reported_tasks_v1200') || '{}')[`${b.id}_${String(userAccount).replace(/\s+/g,'').toUpperCase()}`] || JSON.parse(localStorage.getItem('nimbounty_reported_posters_v1200') || '{}')[`${String(b.posterAddress).replace(/\s+/g,'').toUpperCase()}_${String(userAccount).replace(/\s+/g,'').toUpperCase()}`])) ? `
+                <button class="btn-ghost-sm" disabled style="opacity:0.65; cursor:not-allowed; border-color:var(--border); color:var(--muted); padding:10px; justify-content:center; display:inline-flex; align-items:center; gap:6px;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                  <span>✓ Report Submitted</span>
+                </button>
+              ` : `
+                <button class="btn-ghost-sm" onclick="openReportPosterModal('${b.posterAddress}', '${b.title}', '${b.id}')" style="color:var(--danger); border-color:rgba(239,68,68,0.3); padding:10px; justify-content:center; display:inline-flex; align-items:center; gap:6px;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+                  <span>Report Poster</span>
+                </button>
+              `}
             </div>
           </div>
         </div>
@@ -2829,8 +2942,10 @@ function openReportPosterModal(posterAddress, bountyTitle, bountyId) {
   }
 
   const reportedTasks = JSON.parse(localStorage.getItem('nimbounty_reported_tasks_v1200') || '{}');
-  if (reportedTasks[`${bountyId}_${cleanUser}`]) {
-    showToastNotification('Already Reported', 'You have already submitted a report for this task.', true);
+  const reportedPosters = JSON.parse(localStorage.getItem('nimbounty_reported_posters_v1200') || '{}');
+
+  if (reportedTasks[`${bountyId}_${cleanUser}`] || reportedPosters[`${cleanPoster}_${cleanUser}`]) {
+    showToastNotification('Report Submitted', 'You have already submitted a report for this user.', false);
     return;
   }
 
@@ -2850,16 +2965,23 @@ async function submitReportPoster() {
   const cleanUser = String(userAccount).replace(/\s+/g, '').toUpperCase();
   const cleanPoster = String(currentReportTarget.posterAddress).replace(/\s+/g, '').toUpperCase();
   const taskKey = `${currentReportTarget.bountyId}_${cleanUser}`;
+  const posterKey = `${cleanPoster}_${cleanUser}`;
 
-  // Record reported task locally to prevent double reporting
+  // Record reported task and poster locally to disable button
   const reportedTasks = JSON.parse(localStorage.getItem('nimbounty_reported_tasks_v1200') || '{}');
+  const reportedPosters = JSON.parse(localStorage.getItem('nimbounty_reported_posters_v1200') || '{}');
   reportedTasks[taskKey] = true;
+  reportedPosters[posterKey] = true;
   localStorage.setItem('nimbounty_reported_tasks_v1200', JSON.stringify(reportedTasks));
+  localStorage.setItem('nimbounty_reported_posters_v1200', JSON.stringify(reportedPosters));
 
   // CLOSE MODAL IMMEDIATELY
   closeModal('modal-report-poster');
-  document.getElementById('report-poster-reason').value = '';
+  if (document.getElementById('report-poster-reason')) document.getElementById('report-poster-reason').value = '';
   showToastNotification('Report Submitted', 'Your report has been logged successfully.', false);
+
+  // Update local reputation state immediately so profile updates instantly
+  pushNewReport(cleanPoster, reason);
 
   // Send POST to server
   try {
@@ -2882,6 +3004,7 @@ async function submitReportPoster() {
     renderBounties();
     renderPosterDashboard();
     renderDedicatedOrders();
+    renderProfile();
   } catch(e) {}
 }
 
@@ -2933,12 +3056,30 @@ function renderReportsModalContent() {
   if (currentReportsModalTab === 'outbound') {
     // Reports filed BY userAccount (Workers can resolve disputes from here)
     let outboundList = [];
-    Object.keys(globalReports).forEach(targetAddr => {
-      const item = globalReports[targetAddr];
+    const seenIds = new Set();
+
+    if (globalReports && typeof globalReports === 'object') {
+      Object.keys(globalReports).forEach(targetAddr => {
+        const item = globalReports[targetAddr];
+        if (item && Array.isArray(item.list)) {
+          item.list.forEach(r => {
+            if (r.reporterAddress && isSameNimiqAddress(r.reporterAddress, cleanUser) && !seenIds.has(r.id)) {
+              outboundList.push({ ...r, targetAddress: targetAddr });
+              seenIds.add(r.id);
+            }
+          });
+        }
+      });
+    }
+
+    const localRep = JSON.parse(localStorage.getItem(STORAGE_KEY_REPUTATION) || '{}');
+    Object.keys(localRep).forEach(targetAddr => {
+      const item = localRep[targetAddr];
       if (item && Array.isArray(item.list)) {
         item.list.forEach(r => {
-          if (r.reporterAddress && isSameNimiqAddress(r.reporterAddress, cleanUser)) {
+          if (r.reporterAddress && isSameNimiqAddress(r.reporterAddress, cleanUser) && !seenIds.has(r.id)) {
             outboundList.push({ ...r, targetAddress: targetAddr });
+            seenIds.add(r.id);
           }
         });
       }
@@ -2961,7 +3102,7 @@ function renderReportsModalContent() {
     `).join('');
   } else {
     // Reports filed AGAINST userAccount (Posters cannot self-settle; resolves via payouts)
-    const repData = globalReports[cleanUser] || { count: 0, list: [] };
+    const repData = getAccountReports(cleanUser);
     const inboundList = repData.list || [];
 
     if (inboundList.length === 0) {
