@@ -1980,6 +1980,15 @@ function openSubmitProofModal(bountyId) {
   if (groupUrl) groupUrl.style.display = (pType === 'url') ? 'flex' : 'none';
   if (groupImage) groupImage.style.display = (pType === 'image' || pType === 'image_text') ? 'flex' : 'none';
 
+  const typeLabel = document.getElementById('proof-modal-type-label');
+  if (typeLabel) {
+    if (pType === 'image_text') {
+      typeLabel.textContent = 'Screenshot Image + Feedback (Required)';
+    } else {
+      typeLabel.textContent = 'Screenshot Image (Required)';
+    }
+  }
+
   const previewBox = document.getElementById('image-preview-box');
   if (previewBox) previewBox.style.display = 'none';
 
