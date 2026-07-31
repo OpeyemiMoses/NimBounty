@@ -1,6 +1,7 @@
 # NimBounty — Instant Micro-Task & Crowd-Testing Protocol on Nimiq Pay
 
-Live Application: [https://nim-bounty.vercel.app](https://nim-bounty.vercel.app)
+- **Frontend Application (Vercel):** [https://nim-bounty.vercel.app](https://nim-bounty.vercel.app)
+- **Backend API & Real-Time Sync (Railway):** [https://nimbounty-production.up.railway.app](https://nimbounty-production.up.railway.app)
 
 ---
 
@@ -54,7 +55,7 @@ NimBounty solves these inefficiencies by combining off-chain cryptographic signa
 - Re-Submission Flow: If a submission is rejected with feedback, workers can update and re-submit proof back into the pending review queue.
 
 ### Platform Infrastructure
-- Global Server-Authoritative Sync: Real-time synchronization across all connected clients via Vercel serverless backend and JSONBlob persistence store.
+- Global Server-Authoritative Sync: Real-time synchronization across all connected mobile & web clients via Railway Node.js server engine (`backend/server.js`) with persistent store and server-side HTTP `Cache-Control` control.
 - Global Bounty Registry: Public live ledger detailing all published task pools, creator addresses, rewards, and active slot statuses.
 - Global Leaderboard: Live rankings tracking top earning worker addresses, completed task volumes, and protocol payout volume.
 - User Reputation & Dispute System: Account report tracking, 30-day report decay engine, and worker rating badges (1.0 to 5.0 scale).
@@ -104,9 +105,9 @@ NimBounty leverages Nimiq Pay's SDK for both off-chain cryptographic proof verif
 - Typography: Work Sans, Instrument Serif, Geist Mono (Google Fonts).
 - Web3 SDK Integration: `@nimiq/mini-app-sdk` (`init()`, `listAccounts()`, `requestDeviceIdentifier()`, `sendBasicTransaction()`, `sign()`).
 - EVM Provider: `window.ethereum` (EVM multi-chain compatibility layer).
-- Serverless Backend: Vercel Serverless Functions (Node.js 18+ runtime).
-- Persistent Data Store: JSONBlob REST API Engine with strict server-authoritative merging.
-- Hosting & CDN: Vercel Production Infrastructure with automated HTTP cache control headers (`vercel.json`).
+- Full-Stack Backend: Railway Node.js & Express server engine (`backend/server.js`).
+- Persistent Data Store: Server-authoritative JSON persistence store with real-time atomic state merging.
+- Hosting & CDN: Vercel Frontend & Railway Production Infrastructure with automated HTTP `Cache-Control: no-cache` middleware.
 
 ---
 
@@ -186,8 +187,8 @@ NimBounty/
 ├── index.html          # Single Page Application HTML (Landing + Console Views)
 ├── app.js              # Core Application Logic, UI Renderer, & State Engine
 ├── style.css           # Custom Design System, Color Tokens, & Responsive Layouts
-├── api/
-│   └── bounties.js     # Vercel Serverless Sync API & JSONBlob Store Handler
+├── backend/
+│   └── server.js       # Railway Node.js Express Backend & Real-Time State Server
 ├── vercel.json         # Vercel CDN Cache-Control & Deployment Headers
 ├── favicon.png         # NimBounty App Icon
 ├── favicon.svg         # SVG Vector Icon
