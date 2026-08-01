@@ -2032,9 +2032,13 @@ function renderBounties() {
 
           <div>
             <div class="bounty-meta-row" style="margin-bottom:12px;">
-              <span>Poster: <strong><span class="poster-link" onclick="openUserProfileModal('${b.posterAddress}')" title="View ${posterDisplayName}'s profile">${posterDisplayName}</span></strong></span>
+              <span>Poster: <strong>${posterDisplayName}</strong></span>
               <span>Slots: <strong>Reserved for You</strong></span>
             </div>
+            <button class="btn-ghost-sm" onclick="openUserProfileModal('${b.posterAddress}')" style="width:100%; justify-content:center; margin-bottom:10px; padding:8px; font-size:0.78rem; color:var(--muted); border-color:var(--border); display:inline-flex; align-items:center; gap:6px;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+              View Poster Profile
+            </button>
 
             <div style="display:flex; gap:10px; flex-wrap:wrap;">
               <button class="btn-primary-sm" onclick="openSubmitProofModal('${b.id}')" style="flex:1; justify-content:center; padding:10px; display:inline-flex; align-items:center; gap:6px;">
@@ -2077,9 +2081,13 @@ function renderBounties() {
         </div>
         <div>
           <div class="bounty-meta-row">
-            <span>Poster: <strong><span class="poster-link" onclick="openUserProfileModal('${b.posterAddress}')" title="View ${posterDisplayName}'s profile">${posterDisplayName}</span></strong></span>
+            <span>Poster: <strong>${posterDisplayName}</strong></span>
             <span>Slots: <strong>${getEffectiveSlotsRemaining(b)} / ${b.slotsTotal || 5}</strong></span>
           </div>
+          <button class="btn-ghost-sm" onclick="openUserProfileModal('${b.posterAddress}')" style="width:100%; justify-content:center; margin-bottom:8px; padding:8px; font-size:0.78rem; color:var(--muted); border-color:var(--border); display:inline-flex; align-items:center; gap:6px;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+            View Poster Profile
+          </button>
           <button class="btn-primary-sm full-width" onclick="openSubmitProofModal('${b.id}')" ${btnDisabled ? 'disabled' : ''} style="justify-content:center;">
             ${btnLabel}
           </button>
@@ -3744,11 +3752,13 @@ function renderGlobalRegistry() {
         <p style="font-size:0.83rem; color:var(--muted); margin-bottom:12px; line-height:1.5;">${b.instructions || b.description || 'Task campaign'}</p>
 
         <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding-top:10px; border-top:1px dashed var(--border); font-size:0.78rem; flex-wrap:wrap;">
-          <div style="color:var(--muted);">
-            Created by: <strong><span class="poster-link" onclick="openUserProfileModal('${b.posterAddress}')" title="View ${creatorDisplayName}'s profile" style="color:var(--ink);">${creatorDisplayName}</span></strong> &bull; ${createdDate}
-          </div>
-          <div style="font-weight:700; color:${isSlotsZero ? 'var(--danger)' : 'var(--emerald)'};">
-            Slots Remaining: ${getEffectiveSlotsRemaining(b)} / ${b.slotsTotal || 5}
+          <div style="color:var(--muted);">Created by: <strong style="color:var(--ink);">${creatorDisplayName}</strong> &bull; ${createdDate}</div>
+          <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <button onclick="openUserProfileModal('${b.posterAddress}')" style="background:none; border:1px solid var(--border); color:var(--muted); font-size:0.72rem; font-weight:700; padding:4px 10px; border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; gap:5px; white-space:nowrap;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+              View Profile
+            </button>
+            <div style="font-weight:700; color:${isSlotsZero ? 'var(--danger)' : 'var(--emerald)'};">Slots: ${getEffectiveSlotsRemaining(b)} / ${b.slotsTotal || 5}</div>
           </div>
         </div>
       </div>

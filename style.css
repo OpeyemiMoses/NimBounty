@@ -1873,17 +1873,3 @@ html, body {
     border-radius: 16px !important;
   }
 }
-/* Clickable Poster Names */
-.poster-link {
-  cursor: pointer;
-  color: var(--gold-text);
-  font-weight: inherit;
-  transition: opacity 0.15s ease, text-decoration 0.15s ease;
-  text-decoration: underline;
-  text-decoration-color: transparent;
-  text-underline-offset: 2px;
-}
-.poster-link:hover {
-  opacity: 0.78;
-  text-decoration-color: var(--gold-text);
-}
