@@ -1927,13 +1927,25 @@ function renderBounties() {
   const grid = document.getElementById('bounties-grid');
   if (!grid) return;
 
-  const searchQuery = document.getElementById('search-input')?.value.toLowerCase() || '';
+  const searchQuery = document.getElementById('search-input')?.value.trim().toLowerCase() || '';
   const categoryFilter = document.getElementById('category-select')?.value || 'all';
+  const sortFilter = document.getElementById('sort-select')?.value || 'newest';
 
   const activeBounties = bounties;
 
   let filtered = activeBounties.filter(b => {
-    const matchesSearch = b.title.toLowerCase().includes(searchQuery) || (b.instructions || b.description || '').toLowerCase().includes(searchQuery);
+    const posterProf = getProfile(b.posterAddress);
+    const posterUsername = (posterProf && posterProf.username) ? posterProf.username.toLowerCase() : '';
+    const sponsorName = (b.sponsor || '').toLowerCase();
+    const posterAddr = (b.posterAddress || '').toLowerCase();
+
+    const matchesSearch = !searchQuery ||
+      b.title.toLowerCase().includes(searchQuery) ||
+      (b.instructions || b.description || '').toLowerCase().includes(searchQuery) ||
+      posterUsername.includes(searchQuery) ||
+      sponsorName.includes(searchQuery) ||
+      posterAddr.includes(searchQuery);
+
     const matchesCat = categoryFilter === 'all' || b.category === categoryFilter;
 
     if (!userAccount) {
@@ -1955,6 +1967,16 @@ function renderBounties() {
       return matchesSearch && matchesCat && (myApprovedPayout || hasPendingSub || hasRejectedSub);
     }
   });
+
+  // Apply Sorting Engine
+  if (sortFilter === 'highest') {
+    filtered.sort((a, b) => (parseFloat(b.reward) || 0) - (parseFloat(a.reward) || 0));
+  } else if (sortFilter === 'slots') {
+    filtered.sort((a, b) => getEffectiveSlotsRemaining(b) - getEffectiveSlotsRemaining(a));
+  } else {
+    // 'newest'
+    filtered.sort((a, b) => (parseFloat(b.createdAt || b.id || 0)) - (parseFloat(a.createdAt || a.id || 0)));
+  }
 
   if (filtered.length === 0) {
     if (workerSubtab === 'active') {
