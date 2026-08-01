@@ -128,6 +128,7 @@ app.post('/api/bounties', (req, res) => {
       const clean = String(body.walletAddress).replace(/\s+/g, '').toUpperCase();
       const avatarVal = body.profile.avatarUrl || body.profile.avatar || profiles[clean]?.avatarUrl || profiles[clean]?.avatar || '';
       profiles[clean] = {
+        joinedAt: Date.now(),
         ...profiles[clean],
         ...body.profile,
         avatarUrl: avatarVal,

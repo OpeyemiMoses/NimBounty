@@ -223,6 +223,7 @@ function getProfile(walletAddress) {
     if (sProf.avatarUrl || sProf.avatar) {
       allProfiles[clean].avatarUrl = sProf.avatarUrl || sProf.avatar;
     }
+    if (sProf.joinedAt) allProfiles[clean].joinedAt = sProf.joinedAt;
   }
 
   // Persistent avatar fallback check
@@ -1725,6 +1726,10 @@ function renderProfile() {
               ` : `
                 <button class="btn-ghost-sm" onclick="openSetUsernameModal()" style="font-size:0.75rem; padding:4px 10px; border-color:var(--gold); color:var(--gold);">+ Set Username</button>
               `}
+            </div>
+            <div style="font-size:0.72rem; color:var(--muted); font-weight:600; margin-top:4px; display:flex; align-items:center; gap:4px;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              <span>Joined ${joinedDateStr}</span>
             </div>
             ${hasCustomAvatar ? `
               <button onclick="removeProfileAvatar()" style="background:none; border:none; color:var(--muted); font-size:0.82rem; cursor:pointer; padding:0; margin-top:4px; display:block; font-weight:500;">Remove photo</button>
@@ -3802,6 +3807,15 @@ function openUserProfileModal(posterAddress) {
   // Address
   const addrEl = document.getElementById('pub-profile-address');
   if (addrEl) addrEl.textContent = clean;
+
+  // Joined Date
+  const joinedEl = document.getElementById('pub-profile-joined');
+  if (joinedEl) {
+    const joinedStr = profile.joinedAt
+      ? new Date(profile.joinedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      : new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    joinedEl.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span>Joined ${joinedStr}</span>`;
+  }
 
   // Rating badge
   const ratingEl = document.getElementById('pub-profile-rating-badge');
