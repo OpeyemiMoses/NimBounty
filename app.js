@@ -3791,7 +3791,7 @@ function openUserProfileModal(posterAddress) {
     if (profile.avatarUrl) {
       avatarEl.innerHTML = `<img src="${profile.avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />`;
     } else {
-      avatarEl.innerHTML = `<span style="font-size:1.6rem;">👤</span>`;
+      avatarEl.innerHTML = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>`;
     }
   }
 
@@ -3840,7 +3840,7 @@ function openUserProfileModal(posterAddress) {
             <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;flex-wrap:wrap;">
               <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                 <span class="bounty-category-tag" style="font-size:0.68rem;padding:2px 8px;">${b.categoryName || b.category || 'General'}</span>
-                <span style="font-size:0.72rem;font-weight:800;color:${isActive ? 'var(--emerald)' : 'var(--muted)'};background:${isActive ? 'rgba(16,185,129,0.12)' : 'var(--bg-subtle)'};border:1px solid ${isActive ? 'rgba(16,185,129,0.3)' : 'var(--border)'};padding:2px 8px;border-radius:6px;text-transform:uppercase;">${isActive ? '● ACTIVE' : '✓ CLOSED'}</span>
+                <span style="font-size:0.72rem;font-weight:800;color:${isActive ? 'var(--emerald)' : 'var(--muted)'};background:${isActive ? 'rgba(16,185,129,0.12)' : 'var(--bg-subtle)'};border:1px solid ${isActive ? 'rgba(16,185,129,0.3)' : 'var(--border)'};padding:2px 8px;border-radius:6px;text-transform:uppercase;">${isActive ? 'ACTIVE' : 'CLOSED'}</span>
               </div>
               <span style="font-size:0.95rem;font-weight:900;color:var(--gold-text);">${b.reward} NIM</span>
             </div>

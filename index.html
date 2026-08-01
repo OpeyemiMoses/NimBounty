@@ -777,8 +777,8 @@
 
       <!-- User Profile Header -->
       <div style="display:flex; align-items:center; gap:16px; margin-bottom:18px; padding-bottom:16px; border-bottom:1px solid var(--border);">
-        <div id="pub-profile-avatar" style="width:60px; height:60px; border-radius:50%; background:var(--gold-tint); border:2px solid var(--gold-border); display:flex; align-items:center; justify-content:center; font-size:1.8rem; overflow:hidden; flex-shrink:0;">
-          👤
+        <div id="pub-profile-avatar" style="width:60px; height:60px; border-radius:50%; background:var(--gold-tint); border:2px solid var(--gold-border); display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0;">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
         </div>
         <div style="flex:1; min-width:0;">
           <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
@@ -787,8 +787,9 @@
           </div>
           <div style="display:flex; align-items:center; gap:8px; margin-top:6px; flex-wrap:wrap;">
             <span id="pub-profile-address" style="font-size:0.75rem; font-family:var(--font-mono); color:var(--muted); word-break:break-all;">NQ...</span>
-            <button type="button" onclick="copyPosterAddressFromModal()" style="background:var(--gold-tint); border:1px solid var(--gold-border); color:var(--gold-text); font-size:0.7rem; font-weight:800; padding:3px 10px; border-radius:6px; cursor:pointer; flex-shrink:0;">
-              📋 Copy Address
+            <button type="button" onclick="copyPosterAddressFromModal()" style="background:var(--gold-tint); border:1px solid var(--gold-border); color:var(--gold-text); font-size:0.7rem; font-weight:800; padding:4px 10px; border-radius:6px; cursor:pointer; flex-shrink:0; display:inline-flex; align-items:center; gap:5px;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              <span>Copy Address</span>
             </button>
           </div>
         </div>
