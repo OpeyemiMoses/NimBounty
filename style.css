@@ -532,61 +532,75 @@ textarea {
   margin-top: 6px;
 }
 
-/* Steps Grid */
+/* Steps List (One Card Per Line, Full Screen Width) */
 .steps-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 16px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .step-card {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 20px;
+  border-radius: 18px;
+  padding: 20px 24px;
   position: relative;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
   transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
 .step-card:hover {
-  transform: translateY(-4px);
+  transform: translateY(-2px);
   border-color: var(--gold);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
 }
 
 .step-badge {
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
   background: var(--gold-tint);
-  color: var(--gold);
+  color: var(--gold-text);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: 'Geist Mono', monospace;
-  font-weight: 600;
-  font-size: 0.85rem;
-  margin-bottom: 14px;
+  font-weight: 800;
+  font-size: 1.15rem;
+  margin-bottom: 0;
+  border: 1.5px solid var(--gold-border);
+  flex-shrink: 0;
 }
 
 .step-tag {
   font-family: 'Geist Mono', monospace;
-  font-size: 0.6rem;
+  font-size: 0.65rem;
   letter-spacing: 0.15em;
-  color: var(--gold);
+  color: var(--gold-text);
+  font-weight: 800;
   margin-bottom: 4px;
 }
 
 .step-title {
-  font-size: 1.05rem;
-  font-weight: 700;
+  font-size: 1.1rem;
+  font-weight: 800;
   color: var(--ink);
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .step-desc {
-  font-size: 0.82rem;
+  font-size: 0.85rem;
   color: var(--muted);
   line-height: 1.5;
+  margin: 0;
 }
 
 /* ─────────────────────────────────────────
