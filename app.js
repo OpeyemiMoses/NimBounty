@@ -3668,10 +3668,49 @@ window.addEventListener('DOMContentLoaded', async () => {
 // ==========================================
 // GLOBAL LEADERBOARD ENGINE
 // ==========================================
+let leaderboardTab = 'workers';
+
+function switchLeaderboardTab(tab) {
+  leaderboardTab = tab;
+
+  const workerBtn = document.getElementById('lb-tab-btn-workers');
+  const posterBtn = document.getElementById('lb-tab-btn-posters');
+
+  const activeStyle = 'border:1px solid var(--gold-border); background:var(--gold-tint); color:var(--gold-text); font-weight:800;';
+  const inactiveStyle = 'border:1px solid var(--border); background:var(--bg-subtle); color:var(--muted); font-weight:700;';
+
+  if (workerBtn) workerBtn.style.cssText = workerBtn.style.cssText.replace(/border:[^;]+;|background:[^;]+;|color:[^;]+;|font-weight:[^;]+;/g, '') + (tab === 'workers' ? activeStyle : inactiveStyle);
+  if (posterBtn) posterBtn.style.cssText = posterBtn.style.cssText.replace(/border:[^;]+;|background:[^;]+;|color:[^;]+;|font-weight:[^;]+;/g, '') + (tab === 'posters' ? activeStyle : inactiveStyle);
+
+  // Simpler approach — just toggle attr directly
+  if (workerBtn) {
+    workerBtn.style.background = tab === 'workers' ? 'var(--gold-tint)' : 'var(--bg-subtle)';
+    workerBtn.style.borderColor = tab === 'workers' ? 'var(--gold-border)' : 'var(--border)';
+    workerBtn.style.color = tab === 'workers' ? 'var(--gold-text)' : 'var(--muted)';
+    workerBtn.style.fontWeight = tab === 'workers' ? '800' : '700';
+  }
+  if (posterBtn) {
+    posterBtn.style.background = tab === 'posters' ? 'var(--gold-tint)' : 'var(--bg-subtle)';
+    posterBtn.style.borderColor = tab === 'posters' ? 'var(--gold-border)' : 'var(--border)';
+    posterBtn.style.color = tab === 'posters' ? 'var(--gold-text)' : 'var(--muted)';
+    posterBtn.style.fontWeight = tab === 'posters' ? '800' : '700';
+  }
+
+  renderLeaderboard();
+}
+
 function renderLeaderboard() {
   const container = document.getElementById('leaderboard-list-container');
   if (!container) return;
 
+  if (leaderboardTab === 'posters') {
+    renderPostersLeaderboard(container);
+  } else {
+    renderWorkersLeaderboard(container);
+  }
+}
+
+function renderWorkersLeaderboard(container) {
   const workerStats = {};
 
   approvedPayoutsHistory.forEach(p => {
@@ -3749,8 +3788,111 @@ function renderLeaderboard() {
   }).join('');
 }
 
+function renderPostersLeaderboard(container) {
+  // Build poster stats from all bounties
+  const posterStats = {};
+
+  bounties.forEach(b => {
+    if (!b.posterAddress) return;
+    const cleanAddr = String(b.posterAddress).replace(/\s+/g, '').toUpperCase();
+    if (!posterStats[cleanAddr]) {
+      const prof = getProfile(cleanAddr);
+      posterStats[cleanAddr] = {
+        cleanAddress: cleanAddr,
+        rawAddress: b.posterAddress,
+        username: prof.username || b.sponsor || null,
+        tasksCreated: 0,
+        totalPaidOut: 0,
+        payoutsCount: 0
+      };
+    }
+    posterStats[cleanAddr].tasksCreated += 1;
+
+    // Count payouts made from this poster
+    approvedPayoutsHistory.forEach(p => {
+      if (isSameNimiqAddress(p.posterAddress || b.posterAddress, cleanAddr) &&
+          String(p.bountyId) === String(b.id)) {
+        posterStats[cleanAddr].payoutsCount += 1;
+        posterStats[cleanAddr].totalPaidOut += (parseFloat(p.reward) || 0);
+      }
+    });
+  });
+
+  // Also enrich usernames from global profiles
+  Object.keys(posterStats).forEach(addr => {
+    if (!posterStats[addr].username) {
+      const prof = getProfile(addr);
+      if (prof.username) posterStats[addr].username = prof.username;
+    }
+  });
+
+  const ranked = Object.values(posterStats).sort((a, b) => {
+    if (b.tasksCreated !== a.tasksCreated) return b.tasksCreated - a.tasksCreated;
+    return b.totalPaidOut - a.totalPaidOut;
+  });
+
+  if (ranked.length === 0) {
+    container.innerHTML = `
+      <div style="text-align:center; padding:40px 20px;">
+        <div style="width:56px; height:56px; background:var(--gold-tint); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 14px;">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+        </div>
+        <h4 style="font-size:1.1rem; font-weight:800; color:var(--ink); margin-bottom:6px;">No Posters Yet</h4>
+        <p style="font-size:0.82rem; color:var(--muted);">Be the first to publish a bounty pool and appear here!</p>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = ranked.map((p, index) => {
+    const rank = index + 1;
+    let rankBadge = `<span style="font-weight:900; color:var(--muted); width:28px; text-align:center; font-size:0.9rem; flex-shrink:0;">#${rank}</span>`;
+    if (rank === 1) rankBadge = `<span style="width:28px; height:28px; min-width:28px; background:linear-gradient(135deg, #ffc72c 0%, #e6a800 100%); border-radius:50%; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 2px 6px rgba(255,199,44,0.4); flex-shrink:0;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1a1917" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg></span>`;
+    else if (rank === 2) rankBadge = `<span style="width:28px; height:28px; min-width:28px; background:linear-gradient(135deg, #94a3b8 0%, #64748b 100%); border-radius:50%; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg></span>`;
+    else if (rank === 3) rankBadge = `<span style="width:28px; height:28px; min-width:28px; background:linear-gradient(135deg, #d97706 0%, #b45309 100%); border-radius:50%; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg></span>`;
+
+    const isMe = userAccount && isSameNimiqAddress(p.cleanAddress, userAccount);
+    const displayAddr = `${p.cleanAddress.substring(0, 6)}...${p.cleanAddress.substring(p.cleanAddress.length - 4)}`;
+    const displayName = p.username
+      ? `<span style="font-weight:800; color:var(--ink); font-size:0.88rem;">@${p.username.toUpperCase()}</span>`
+      : `<span style="color:var(--muted); font-size:0.8rem; font-family:var(--font-mono);">${displayAddr}</span>`;
+    const posterAddrEscaped = p.cleanAddress.replace(/'/g, "\\'");
+
+    return `
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:13px 16px; background:${isMe ? 'var(--gold-tint)' : 'var(--card)'}; border:1px solid ${isMe ? 'var(--gold-border)' : 'var(--border)'}; border-radius:14px; margin-bottom:8px;">
+        <div style="display:flex; align-items:center; gap:10px; min-width:0; flex:1;">
+          ${rankBadge}
+          <div style="min-width:0; flex:1;">
+            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:3px;">
+              ${displayName}
+              ${isMe ? `<span style="background:var(--gold); color:#1a1917; font-size:0.65rem; font-weight:800; padding:1px 5px; border-radius:4px;">YOU</span>` : ''}
+            </div>
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+              <span style="font-size:0.72rem; color:var(--muted); font-weight:600;">${p.tasksCreated} task${p.tasksCreated === 1 ? '' : 's'} posted</span>
+              <span style="font-size:0.72rem; color:var(--emerald); font-weight:700;">${p.payoutsCount} payout${p.payoutsCount === 1 ? '' : 's'}</span>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0;">
+          <div style="font-size:0.88rem; font-weight:900; color:var(--gold-text);">${p.totalPaidOut.toFixed(1)} NIM</div>
+          <button onclick="closeModal('modal-leaderboard'); setTimeout(() => openUserProfileModal('${posterAddrEscaped}'), 200);" style="background:none; border:1px solid var(--border); color:var(--muted); font-size:0.7rem; font-weight:700; padding:3px 8px; border-radius:7px; cursor:pointer; display:inline-flex; align-items:center; gap:4px; white-space:nowrap;">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+            Profile
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
 function openLeaderboardModal() {
+  leaderboardTab = 'workers';
   renderLeaderboard();
+  // Reset tab visuals
+  const workerBtn = document.getElementById('lb-tab-btn-workers');
+  const posterBtn = document.getElementById('lb-tab-btn-posters');
+  if (workerBtn) { workerBtn.style.background = 'var(--gold-tint)'; workerBtn.style.borderColor = 'var(--gold-border)'; workerBtn.style.color = 'var(--gold-text)'; workerBtn.style.fontWeight = '800'; }
+  if (posterBtn) { posterBtn.style.background = 'var(--bg-subtle)'; posterBtn.style.borderColor = 'var(--border)'; posterBtn.style.color = 'var(--muted)'; posterBtn.style.fontWeight = '700'; }
   const modal = document.getElementById('modal-leaderboard');
   if (modal) modal.style.display = 'flex';
 }
