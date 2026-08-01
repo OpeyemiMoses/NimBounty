@@ -123,23 +123,38 @@ app.post('/api/bounties', (req, res) => {
       }
     }
 
-    // ── 0.2 Sync Profile Data (Persists avatar & username on server) ──
+    // ── 0.2 Sync Profile Data (Persists avatar & username on server with uniqueness check) ──
     if (body.profile && body.walletAddress) {
       const clean = String(body.walletAddress).replace(/\s+/g, '').toUpperCase();
+      let requestedUname = body.profile.username ? String(body.profile.username).trim().toUpperCase() : null;
+
+      if (requestedUname) {
+        const isTakenByOther = Object.keys(profiles).some(addr => {
+          if (addr === clean) return false;
+          const p = profiles[addr];
+          return p && p.username && String(p.username).trim().toUpperCase() === requestedUname;
+        });
+
+        if (isTakenByOther) {
+          // If username is taken by another address, reject changing username to taken name
+          requestedUname = profiles[clean]?.username || null;
+        }
+      }
+
       const avatarVal = body.profile.avatarUrl || body.profile.avatar || profiles[clean]?.avatarUrl || profiles[clean]?.avatar || '';
       profiles[clean] = {
         joinedAt: Date.now(),
         ...profiles[clean],
         ...body.profile,
+        username: requestedUname || profiles[clean]?.username || null,
         avatarUrl: avatarVal,
         avatar: avatarVal,
         updatedAt: Date.now()
       };
-      if (body.profile.username) {
-        const uname = String(body.profile.username).trim().toUpperCase();
+      if (requestedUname) {
         bounties.forEach(b => {
           if (b.posterAddress && String(b.posterAddress).replace(/\s+/g, '').toUpperCase() === clean) {
-            b.sponsor = uname;
+            b.sponsor = requestedUname;
           }
         });
       }

@@ -1845,6 +1845,69 @@ function renderProfile() {
 // Username Confirm & Finalize
 let _pendingUsernameChoice = null;
 
+// Helper: Check if Username is Already Claimed by Another Wallet
+function isUsernameTaken(desiredUsername, myWalletAddress) {
+  if (!desiredUsername) return false;
+  const cleanDesired = String(desiredUsername).trim().toUpperCase();
+  const myClean = myWalletAddress ? String(myWalletAddress).replace(/\s+/g, '').toUpperCase() : '';
+
+  // 1. Check globalProfiles in memory (from Railway server state)
+  if (globalProfiles && typeof globalProfiles === 'object') {
+    const isTakenInGlobal = Object.keys(globalProfiles).some(addr => {
+      if (myClean && isSameNimiqAddress(addr, myClean)) return false;
+      const p = globalProfiles[addr];
+      return p && p.username && String(p.username).trim().toUpperCase() === cleanDesired;
+    });
+    if (isTakenInGlobal) return true;
+  }
+
+  // 2. Check local profiles cache
+  const allProfiles = JSON.parse(localStorage.getItem(STORAGE_KEY_PROFILE) || '{}');
+  const isTakenInLocal = Object.keys(allProfiles).some(addr => {
+    if (myClean && isSameNimiqAddress(addr, myClean)) return false;
+    const p = allProfiles[addr];
+    return p && p.username && String(p.username).trim().toUpperCase() === cleanDesired;
+  });
+  if (isTakenInLocal) return true;
+
+  // 3. Check bounties sponsor names from other posters
+  const isTakenInBounties = bounties.some(b => {
+    if (myClean && isSameNimiqAddress(b.posterAddress, myClean)) return false;
+    return b.sponsor && String(b.sponsor).trim().toUpperCase() === cleanDesired;
+  });
+
+  return isTakenInBounties;
+}
+
+function checkUsernameAvailabilityInput() {
+  const input = document.getElementById('username-input');
+  const feedback = document.getElementById('username-availability-feedback');
+  if (!input || !feedback) return;
+
+  const val = input.value.trim().toUpperCase();
+  if (!val || val.length < 3) {
+    feedback.innerHTML = '';
+    input.style.borderColor = 'var(--border)';
+    return;
+  }
+
+  const profile = userAccount ? getProfile(userAccount) : null;
+  // If user already owns this username, it's valid for them
+  if (profile && profile.username && profile.username.toUpperCase() === val) {
+    feedback.innerHTML = `<span style="color:var(--gold-text);">Your Current Username</span>`;
+    input.style.borderColor = 'var(--gold-border)';
+    return;
+  }
+
+  if (isUsernameTaken(val, userAccount)) {
+    feedback.innerHTML = `<span style="color:var(--danger);">Unavailable — @${val} is already claimed by another user</span>`;
+    input.style.borderColor = 'var(--danger)';
+  } else {
+    feedback.innerHTML = `<span style="color:var(--emerald);">Available — @${val} is free to claim!</span>`;
+    input.style.borderColor = 'var(--emerald)';
+  }
+}
+
 function openSetUsernameModal() {
   if (!userAccount) return;
   const profile = getProfile(userAccount);
@@ -1853,15 +1916,17 @@ function openSetUsernameModal() {
   const titleEl = document.querySelector('#modal-set-username h3');
   const descEl = document.querySelector('#modal-set-username p');
   const btnEl = document.querySelector('#modal-set-username .btn-primary-lg');
+  const feedback = document.getElementById('username-availability-feedback');
+  if (feedback) feedback.innerHTML = '';
 
   if (profile.username) {
     // Already set — allow re-sync to global server
-    if (input) { input.value = profile.username; input.disabled = true; input.style.opacity = '0.5'; input.style.cursor = 'not-allowed'; }
+    if (input) { input.value = profile.username; input.disabled = true; input.style.opacity = '0.5'; input.style.cursor = 'not-allowed'; input.style.borderColor = 'var(--border)'; }
     if (titleEl) titleEl.textContent = 'Sync Username Globally';
     if (descEl) descEl.textContent = 'Re-sync your username to the global server so it appears on the leaderboard and registry for all users.';
     if (btnEl) btnEl.textContent = 'Sync \u2192';
   } else {
-    if (input) { input.value = ''; input.disabled = false; input.style.opacity = '1'; input.style.cursor = ''; }
+    if (input) { input.value = ''; input.disabled = false; input.style.opacity = '1'; input.style.cursor = ''; input.style.borderColor = 'var(--border)'; }
     if (titleEl) titleEl.textContent = 'Set Username';
     if (descEl) descEl.textContent = 'Choose a permanent username linked to your wallet address.';
     if (btnEl) btnEl.textContent = 'Set Username \u2192';
@@ -1883,6 +1948,12 @@ function confirmSetUsername() {
     showToastNotification('Username Locked', `Your permanent username @${profile.username} cannot be changed. Syncing it globally instead.`, true);
     _pendingUsernameChoice = profile.username.toUpperCase();
   } else {
+    // Check if taken by another user
+    if (isUsernameTaken(val, userAccount)) {
+      showToastNotification('Username Unavailable', `The handle @${val} is already claimed by another user. Please choose a different handle.`, true);
+      checkUsernameAvailabilityInput();
+      return;
+    }
     _pendingUsernameChoice = val;
   }
   document.getElementById('username-confirm-display').textContent = _pendingUsernameChoice;

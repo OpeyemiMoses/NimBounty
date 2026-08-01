@@ -1091,7 +1091,8 @@
       <button class="modal-close" onclick="closeModal('modal-set-username')">&times;</button>
       <h3 style="font-size:1.3rem; font-weight:800; margin-bottom:8px;">Set Username</h3>
       <p style="font-size:0.85rem; color:var(--muted); margin-bottom:16px;">Choose a permanent username linked to your wallet address.</p>
-      <input type="text" id="username-input" placeholder="e.g. YEMIGRAFFIX" style="width:100%; padding:12px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink); font-weight:700; text-align:center; text-transform:uppercase; margin-bottom:16px;" />
+      <input type="text" id="username-input" placeholder="e.g. YEMIGRAFFIX" oninput="checkUsernameAvailabilityInput()" style="width:100%; padding:12px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; color:var(--ink); font-weight:700; text-align:center; text-transform:uppercase; margin-bottom:6px;" />
+      <div id="username-availability-feedback" style="font-size:0.75rem; font-weight:700; margin-bottom:14px; min-height:18px;"></div>
       <button class="btn-primary-lg full-width" onclick="confirmSetUsername()" style="justify-content:center;">Set Username &rarr;</button>
     </div>
   </div>
