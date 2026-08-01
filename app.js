@@ -202,26 +202,36 @@ function getPosterRating(posterAddress) {
   };
 }
 
+let globalProfiles = {};
+
 // Helper: Get User Profile Data
 function getProfile(walletAddress) {
   if (!walletAddress) return { username: null, avatarUrl: null, joinedAt: null };
   const clean = String(walletAddress).replace(/\s+/g, '').toUpperCase();
   const allProfiles = JSON.parse(localStorage.getItem(STORAGE_KEY_PROFILE) || '{}');
+
   if (!allProfiles[clean]) {
     allProfiles[clean] = { username: null, avatarUrl: null, joinedAt: Date.now() };
-    localStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(allProfiles));
   } else if (!allProfiles[clean].joinedAt) {
     allProfiles[clean].joinedAt = Date.now();
-    localStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(allProfiles));
+  }
+
+  // Merge server-authoritative profile data if present
+  if (globalProfiles && globalProfiles[clean]) {
+    const sProf = globalProfiles[clean];
+    if (sProf.username) allProfiles[clean].username = sProf.username;
+    if (sProf.avatarUrl || sProf.avatar) {
+      allProfiles[clean].avatarUrl = sProf.avatarUrl || sProf.avatar;
+    }
   }
 
   // Persistent avatar fallback check
   const localAvatar = localStorage.getItem(`nimbounty_avatar_${clean}`);
   if (localAvatar && !allProfiles[clean].avatarUrl) {
     allProfiles[clean].avatarUrl = localAvatar;
-    localStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(allProfiles));
   }
 
+  localStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(allProfiles));
   return allProfiles[clean];
 }
 
@@ -233,12 +243,15 @@ function saveProfile(walletAddress, profileData) {
   allProfiles[clean] = profileData;
   localStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(allProfiles));
 
-  // Dedicated persistent avatar key in localStorage (never wiped by server polling)
   if (profileData.avatarUrl) {
     localStorage.setItem(`nimbounty_avatar_${clean}`, profileData.avatarUrl);
   } else {
     localStorage.removeItem(`nimbounty_avatar_${clean}`);
   }
+
+  // Also update globalProfiles in memory
+  if (!globalProfiles) globalProfiles = {};
+  globalProfiles[clean] = { ...globalProfiles[clean], ...profileData };
 
   pushUserProfile(clean, profileData);
 }
@@ -470,15 +483,23 @@ async function fetchGlobalPublicBounties() {
       globalReports = data.reports;
     }
 
-    // 5. Merge global user profiles (PRESERVE custom local avatars)
+    // 5. Merge global user profiles (PRESERVE custom local avatars + sync server avatars)
     if (data.profiles && typeof data.profiles === 'object') {
+      // Update in-memory globalProfiles so getProfile() can merge server data
+      globalProfiles = data.profiles;
+
       const allProfiles = JSON.parse(localStorage.getItem(STORAGE_KEY_PROFILE) || '{}');
       Object.keys(data.profiles).forEach(cleanAddr => {
         const incoming = data.profiles[cleanAddr];
-        if (incoming && incoming.username) {
+        if (incoming) {
           const currentLocal = allProfiles[cleanAddr] || {};
           const localAvatar = localStorage.getItem(`nimbounty_avatar_${cleanAddr}`);
-          const preservedAvatar = currentLocal.avatarUrl || localAvatar || incoming.avatarUrl || null;
+          const serverAvatar = incoming.avatarUrl || incoming.avatar || null;
+          const preservedAvatar = currentLocal.avatarUrl || localAvatar || serverAvatar || null;
+          // Restore local avatar to server if server lost it
+          if (preservedAvatar && !serverAvatar && userAccount && String(userAccount).replace(/\s+/g,'').toUpperCase() === cleanAddr) {
+            setTimeout(() => pushUserProfile(cleanAddr, { ...currentLocal, avatarUrl: preservedAvatar }), 500);
+          }
           allProfiles[cleanAddr] = { ...currentLocal, ...incoming, avatarUrl: preservedAvatar };
         }
       });
@@ -2011,7 +2032,7 @@ function renderBounties() {
 
           <div>
             <div class="bounty-meta-row" style="margin-bottom:12px;">
-              <span>Poster: <strong>${posterDisplayName}</strong></span>
+              <span>Poster: <strong><span class="poster-link" onclick="openUserProfileModal('${b.posterAddress}')" title="View ${posterDisplayName}'s profile">${posterDisplayName}</span></strong></span>
               <span>Slots: <strong>Reserved for You</strong></span>
             </div>
 
@@ -2056,7 +2077,7 @@ function renderBounties() {
         </div>
         <div>
           <div class="bounty-meta-row">
-            <span>Poster: <strong>${posterDisplayName}</strong></span>
+            <span>Poster: <strong><span class="poster-link" onclick="openUserProfileModal('${b.posterAddress}')" title="View ${posterDisplayName}'s profile">${posterDisplayName}</span></strong></span>
             <span>Slots: <strong>${getEffectiveSlotsRemaining(b)} / ${b.slotsTotal || 5}</strong></span>
           </div>
           <button class="btn-primary-sm full-width" onclick="openSubmitProofModal('${b.id}')" ${btnDisabled ? 'disabled' : ''} style="justify-content:center;">
@@ -3724,7 +3745,7 @@ function renderGlobalRegistry() {
 
         <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding-top:10px; border-top:1px dashed var(--border); font-size:0.78rem; flex-wrap:wrap;">
           <div style="color:var(--muted);">
-            Created by: <strong style="color:var(--ink);">${creatorDisplayName}</strong> &bull; ${createdDate}
+            Created by: <strong><span class="poster-link" onclick="openUserProfileModal('${b.posterAddress}')" title="View ${creatorDisplayName}'s profile" style="color:var(--ink);">${creatorDisplayName}</span></strong> &bull; ${createdDate}
           </div>
           <div style="font-weight:700; color:${isSlotsZero ? 'var(--danger)' : 'var(--emerald)'};">
             Slots Remaining: ${getEffectiveSlotsRemaining(b)} / ${b.slotsTotal || 5}
@@ -3735,6 +3756,122 @@ function renderGlobalRegistry() {
   }).join('');
 
   container.innerHTML = subtabsHTML + itemsHTML;
+}
+
+// ==========================================
+// PUBLIC USER PROFILE MODAL
+// ==========================================
+let _profileModalAddress = null;
+
+function openUserProfileModal(posterAddress) {
+  if (!posterAddress) return;
+  const clean = String(posterAddress).replace(/\s+/g, '').toUpperCase();
+  _profileModalAddress = clean;
+
+  const modal = document.getElementById('modal-user-profile');
+  if (!modal) return;
+
+  // Get profile data
+  const profile = getProfile(clean);
+  const displayName = profile.username ? `@${profile.username.toUpperCase()}` : `${clean.substring(0, 6)}...${clean.substring(clean.length - 4)}`;
+
+  // Avatar
+  const avatarEl = document.getElementById('pub-profile-avatar');
+  if (avatarEl) {
+    if (profile.avatarUrl) {
+      avatarEl.innerHTML = `<img src="${profile.avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />`;
+    } else {
+      avatarEl.innerHTML = `<span style="font-size:1.6rem;">👤</span>`;
+    }
+  }
+
+  // Username
+  const usernameEl = document.getElementById('pub-profile-username');
+  if (usernameEl) usernameEl.textContent = displayName;
+
+  // Address
+  const addrEl = document.getElementById('pub-profile-address');
+  if (addrEl) addrEl.textContent = clean;
+
+  // Rating badge
+  const ratingEl = document.getElementById('pub-profile-rating-badge');
+  if (ratingEl) {
+    const ratingData = getPosterRating(clean);
+    ratingEl.innerHTML = ratingData.HTML;
+  }
+
+  // Stats
+  const posterBounties = bounties.filter(b => isSameNimiqAddress(b.posterAddress, clean));
+  const paidOutCount = approvedPayoutsHistory.filter(p => isSameNimiqAddress(p.posterAddress || p.workerAddress, clean)).length;
+  const paidByPosterCount = bounties.filter(b => isSameNimiqAddress(b.posterAddress, clean))
+    .reduce((sum, b) => {
+      return sum + approvedPayoutsHistory.filter(p => String(p.bountyId) === String(b.id)).length;
+    }, 0);
+  const reportsData = getAccountReports(clean);
+
+  const createdEl = document.getElementById('pub-profile-created-count');
+  const paidEl = document.getElementById('pub-profile-paid-count');
+  const reportsEl = document.getElementById('pub-profile-reports-count');
+  if (createdEl) createdEl.textContent = posterBounties.length;
+  if (paidEl) paidEl.textContent = paidByPosterCount;
+  if (reportsEl) reportsEl.textContent = reportsData ? (reportsData.count || 0) : 0;
+
+  // Tasks list
+  const tasksList = document.getElementById('pub-profile-tasks-list');
+  if (tasksList) {
+    if (posterBounties.length === 0) {
+      tasksList.innerHTML = `<div style="text-align:center;padding:24px 16px;color:var(--muted);font-size:0.85rem;">No bounties created by this user yet.</div>`;
+    } else {
+      tasksList.innerHTML = posterBounties.map(b => {
+        const slotsLeft = getEffectiveSlotsRemaining(b);
+        const isActive = slotsLeft > 0 && (!b.expiresAt || b.expiresAt > Date.now());
+        return `
+          <div style="background:var(--bg-subtle);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:10px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;flex-wrap:wrap;">
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                <span class="bounty-category-tag" style="font-size:0.68rem;padding:2px 8px;">${b.categoryName || b.category || 'General'}</span>
+                <span style="font-size:0.72rem;font-weight:800;color:${isActive ? 'var(--emerald)' : 'var(--muted)'};background:${isActive ? 'rgba(16,185,129,0.12)' : 'var(--bg-subtle)'};border:1px solid ${isActive ? 'rgba(16,185,129,0.3)' : 'var(--border)'};padding:2px 8px;border-radius:6px;text-transform:uppercase;">${isActive ? '● ACTIVE' : '✓ CLOSED'}</span>
+              </div>
+              <span style="font-size:0.95rem;font-weight:900;color:var(--gold-text);">${b.reward} NIM</span>
+            </div>
+            <div style="font-size:0.9rem;font-weight:800;color:var(--ink);margin-bottom:4px;">${b.title}</div>
+            <div style="font-size:0.75rem;color:var(--muted);">Slots: ${slotsLeft} / ${b.slotsTotal || 5} remaining</div>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+
+  modal.style.display = 'flex';
+}
+
+function closeUserProfileModalOnBackdrop(event) {
+  if (event.target === document.getElementById('modal-user-profile')) {
+    closeModal('modal-user-profile');
+  }
+}
+
+function copyPosterAddressFromModal() {
+  if (!_profileModalAddress) return;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(_profileModalAddress)
+      .then(() => showToastNotification('Address Copied!', `${_profileModalAddress.substring(0, 10)}... copied to clipboard.`, false))
+      .catch(() => fallbackCopyToClipboard(_profileModalAddress));
+  } else {
+    fallbackCopyToClipboard(_profileModalAddress);
+  }
+}
+
+function fallbackCopyToClipboard(text) {
+  const el = document.createElement('textarea');
+  el.value = text;
+  el.style.position = 'fixed';
+  el.style.opacity = '0';
+  document.body.appendChild(el);
+  el.select();
+  document.execCommand('copy');
+  document.body.removeChild(el);
+  showToastNotification('Address Copied!', `${text.substring(0, 10)}... copied to clipboard.`, false);
 }
 
 function triggerConfetti() {

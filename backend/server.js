@@ -123,12 +123,17 @@ app.post('/api/bounties', (req, res) => {
       }
     }
 
-    // ── 0.2 Sync Profile Data ──────────────────────────────────
+    // ── 0.2 Sync Profile Data (Persists avatar & username on server) ──
     if (body.profile && body.walletAddress) {
       const clean = String(body.walletAddress).replace(/\s+/g, '').toUpperCase();
-      // Strip avatar (too large for server store — stays in local storage)
-      const { avatarUrl, ...profileWithoutAvatar } = body.profile;
-      profiles[clean] = { ...profiles[clean], ...profileWithoutAvatar, updatedAt: Date.now() };
+      const avatarVal = body.profile.avatarUrl || body.profile.avatar || profiles[clean]?.avatarUrl || profiles[clean]?.avatar || '';
+      profiles[clean] = {
+        ...profiles[clean],
+        ...body.profile,
+        avatarUrl: avatarVal,
+        avatar: avatarVal,
+        updatedAt: Date.now()
+      };
       if (body.profile.username) {
         const uname = String(body.profile.username).trim().toUpperCase();
         bounties.forEach(b => {

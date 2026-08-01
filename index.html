@@ -770,6 +770,53 @@
     </main>
   </div>
 
+  <!-- PUBLIC USER PROFILE MODAL -->
+  <div class="modal-overlay" id="modal-user-profile" style="display:none; z-index:99999;" onclick="closeUserProfileModalOnBackdrop(event)">
+    <div class="modal-paper paper-card rise-in" style="max-width:540px; width:100%; max-height:88vh; padding:24px;" onclick="event.stopPropagation()">
+      <button class="modal-close" onclick="closeModal('modal-user-profile')">&times;</button>
+
+      <!-- User Profile Header -->
+      <div style="display:flex; align-items:center; gap:16px; margin-bottom:18px; padding-bottom:16px; border-bottom:1px solid var(--border);">
+        <div id="pub-profile-avatar" style="width:60px; height:60px; border-radius:50%; background:var(--gold-tint); border:2px solid var(--gold-border); display:flex; align-items:center; justify-content:center; font-size:1.8rem; overflow:hidden; flex-shrink:0;">
+          👤
+        </div>
+        <div style="flex:1; min-width:0;">
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <h3 id="pub-profile-username" style="font-size:1.2rem; font-weight:900; color:var(--ink); margin:0;">@POSTER</h3>
+            <span id="pub-profile-rating-badge"></span>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px; margin-top:6px; flex-wrap:wrap;">
+            <span id="pub-profile-address" style="font-size:0.75rem; font-family:var(--font-mono); color:var(--muted); word-break:break-all;">NQ...</span>
+            <button type="button" onclick="copyPosterAddressFromModal()" style="background:var(--gold-tint); border:1px solid var(--gold-border); color:var(--gold-text); font-size:0.7rem; font-weight:800; padding:3px 10px; border-radius:6px; cursor:pointer; flex-shrink:0;">
+              📋 Copy Address
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats Grid -->
+      <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-bottom:18px;">
+        <div style="background:var(--bg-subtle); border:1px solid var(--border); border-radius:14px; padding:12px; text-align:center;">
+          <div id="pub-profile-created-count" style="font-size:1.2rem; font-weight:900; color:var(--ink);">0</div>
+          <div style="font-size:0.68rem; font-weight:800; color:var(--muted); text-transform:uppercase; margin-top:2px;">Bounties Created</div>
+        </div>
+        <div style="background:var(--bg-subtle); border:1px solid var(--border); border-radius:14px; padding:12px; text-align:center;">
+          <div id="pub-profile-paid-count" style="font-size:1.2rem; font-weight:900; color:var(--emerald);">0</div>
+          <div style="font-size:0.68rem; font-weight:800; color:var(--muted); text-transform:uppercase; margin-top:2px;">Payouts Paid</div>
+        </div>
+        <div style="background:var(--bg-subtle); border:1px solid var(--border); border-radius:14px; padding:12px; text-align:center;">
+          <div id="pub-profile-reports-count" style="font-size:1.2rem; font-weight:900; color:var(--danger);">0</div>
+          <div style="font-size:0.68rem; font-weight:800; color:var(--muted); text-transform:uppercase; margin-top:2px;">Reports Filed</div>
+        </div>
+      </div>
+
+      <h4 style="font-size:0.88rem; font-weight:800; color:var(--ink); margin-bottom:10px; text-transform:uppercase; letter-spacing:0.04em;">All Tasks Created by User</h4>
+      <div id="pub-profile-tasks-list" style="flex:1; overflow-y:auto; padding-right:4px;">
+        <!-- Dynamic Tasks List -->
+      </div>
+    </div>
+  </div>
+
   <!-- MODE SWITCH MODAL -->
   <div class="modal-overlay" id="modal-mode-switch" style="display:none;">
     <div class="modal-paper paper-card rise-in" style="max-width:380px; text-align:center;">

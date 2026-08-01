@@ -1192,8 +1192,8 @@ textarea {
     width: 22px !important;
     height: 22px !important;
   }
-  #view-app, #view-orders, #view-faq, #view-protections, #view-how-it-works {
-    padding-bottom: 90px !important;
+  #view-app, #view-orders, #view-faq, #view-protections, #view-how-it-works, #view-registry {
+    padding-bottom: 80px !important;
   }
   .toast-container {
     bottom: 80px;
@@ -1864,7 +1864,7 @@ html, body {
   }
 
   .console-main {
-    padding-bottom: 72px !important;
+    padding-bottom: 16px !important;
   }
 
   .modal-paper {
@@ -1872,4 +1872,18 @@ html, body {
     padding: 18px 14px !important;
     border-radius: 16px !important;
   }
+}
+/* Clickable Poster Names */
+.poster-link {
+  cursor: pointer;
+  color: var(--gold-text);
+  font-weight: inherit;
+  transition: opacity 0.15s ease, text-decoration 0.15s ease;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 2px;
+}
+.poster-link:hover {
+  opacity: 0.78;
+  text-decoration-color: var(--gold-text);
 }
