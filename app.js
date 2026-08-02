@@ -739,8 +739,8 @@ function openDesktopConnectModal() {
 
     const qrBox = document.getElementById('desktop-connect-qr-box');
     if (qrBox) {
-      const shareUrl = window.location.origin + window.location.pathname;
-      renderQrCodeToContainer(qrBox, shareUrl);
+      const deepLink = 'nimiqpay://miniapp?url=https://nimbounty-production.up.railway.app';
+      renderQrCodeToContainer(qrBox, deepLink);
     }
   }
 
