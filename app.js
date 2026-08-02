@@ -723,15 +723,31 @@ function renderQrCodeToContainer(containerEl, url) {
 }
 
 function openDesktopConnectModal() {
-  const qrBox = document.getElementById('desktop-connect-qr-box');
-  if (qrBox) {
-    const shareUrl = window.location.origin + window.location.pathname;
-    renderQrCodeToContainer(qrBox, shareUrl);
+  const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.innerWidth <= 768;
+
+  const mobileSection = document.getElementById('connect-mobile-section');
+  const desktopSection = document.getElementById('connect-desktop-section');
+
+  if (isMobile) {
+    // Show deep link button, hide QR
+    if (mobileSection) mobileSection.style.display = 'block';
+    if (desktopSection) desktopSection.style.display = 'none';
+  } else {
+    // Show QR, hide deep link button
+    if (mobileSection) mobileSection.style.display = 'none';
+    if (desktopSection) desktopSection.style.display = 'block';
+
+    const qrBox = document.getElementById('desktop-connect-qr-box');
+    if (qrBox) {
+      const shareUrl = window.location.origin + window.location.pathname;
+      renderQrCodeToContainer(qrBox, shareUrl);
+    }
   }
 
   const modal = document.getElementById('modal-desktop-connect');
   if (modal) modal.style.display = 'flex';
 }
+
 
 async function triggerWalletGateConnection() {
   const errEl = document.getElementById('wallet-gate-error');

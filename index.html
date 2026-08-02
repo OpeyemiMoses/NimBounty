@@ -872,9 +872,24 @@
         <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="var(--gold)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
       </div>
       <h3 style="font-size:1.3rem; font-weight:800; margin-bottom:8px;">Open inside Nimiq Pay App</h3>
-      <p style="font-size:0.85rem; color:var(--muted); margin-bottom:16px;">Scan this QR code with your mobile camera to open NimBounty instantly in Nimiq Pay MiniApp.</p>
-      
-      <div id="desktop-connect-qr-box" style="display:flex; justify-content:center; margin-bottom:20px; padding:16px; background:#fff; border-radius:16px; border:1px solid var(--border);"></div>
+
+      <!-- MOBILE: Deep Link Button (hidden on desktop) -->
+      <div id="connect-mobile-section" style="display:none;">
+        <p style="font-size:0.85rem; color:var(--muted); margin-bottom:20px;">You're already on mobile. Tap the button below to open NimBounty directly inside the Nimiq Pay app.</p>
+        <a href="https://nimbounty-production.up.railway.app" id="nimiq-deeplink-btn" class="btn-primary-lg full-width" style="justify-content:center; text-decoration:none; margin-bottom:20px; padding:15px; font-size:1rem; display:inline-flex; align-items:center; gap:8px;">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+          Open in Nimiq Pay
+        </a>
+        <div style="font-size:0.75rem; color:var(--muted); margin-bottom:16px; line-height:1.5;">
+          If the app does not open automatically, make sure Nimiq Pay is installed on your device.
+        </div>
+      </div>
+
+      <!-- DESKTOP: QR Code (hidden on mobile) -->
+      <div id="connect-desktop-section">
+        <p style="font-size:0.85rem; color:var(--muted); margin-bottom:16px;">Scan this QR code with your mobile camera to open NimBounty instantly in Nimiq Pay MiniApp.</p>
+        <div id="desktop-connect-qr-box" style="display:flex; justify-content:center; margin-bottom:20px; padding:16px; background:#fff; border-radius:16px; border:1px solid var(--border);"></div>
+      </div>
 
       <div style="font-size:0.75rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:12px;">Don't have Nimiq Pay yet? Download the App:</div>
 
@@ -890,6 +905,7 @@
       </div>
     </div>
   </div>
+
 
   <!-- WALLET MANAGEMENT MODAL -->
   <div class="modal-overlay" id="modal-wallet" style="display:none;">
