@@ -95,6 +95,22 @@ function getEffectiveSlotsRemaining(bounty) {
   return Math.max(0, total - (pendingCount + approvedCount));
 }
 
+// Helper: Check if a bounty timer has expired
+function isBountyExpired(bounty) {
+  if (!bounty) return false;
+  const createdAt = bounty.createdAt || (bounty.id && String(bounty.id).startsWith('bounty-') ? parseInt(String(bounty.id).replace('bounty-', '')) : Date.now());
+  const durationHours = bounty.duration || 336;
+  const expiresAt = bounty.expiresAt || (createdAt + (durationHours * 3600 * 1000));
+  return Date.now() > expiresAt;
+}
+
+// Helper: Check if a bounty is active (has remaining slots AND is not expired)
+function isBountyActive(bounty) {
+  if (!bounty) return false;
+  return getEffectiveSlotsRemaining(bounty) > 0 && !isBountyExpired(bounty);
+}
+
+
 // Helper: Check 24-Hour Post-Expiration Unpaid Defaulter Lockout
 function getDefaulterStatus(walletAddress) {
   if (!walletAddress) return { isDefaulter: false, isWarning: false };
@@ -1053,7 +1069,7 @@ function updateLandingStats() {
   const elBounties = document.getElementById('landing-stat-bounties');
   const elPayouts = document.getElementById('landing-stat-payouts');
 
-  const activeCount = bounties.filter(b => getEffectiveSlotsRemaining(b) > 0).length;
+  const activeCount = bounties.filter(b => isBountyActive(b)).length;
   const livePayoutsSum = approvedPayoutsHistory.reduce((sum, p) => sum + (parseFloat(p.reward) || 0), 0);
 
   if (elBounties) elBounties.textContent = activeCount;
@@ -2037,7 +2053,7 @@ function renderBounties() {
 
     if (!userAccount) {
       // Disconnected or new user sees all active bounties!
-      return matchesSearch && matchesCat && getEffectiveSlotsRemaining(b) > 0;
+      return matchesSearch && matchesCat && isBountyActive(b);
     }
 
     const myApprovedPayout = approvedPayoutsHistory.some(p => String(p.bountyId) === String(b.id) && p.workerAddress && isSameNimiqAddress(p.workerAddress, userAccount)) ||
@@ -2049,7 +2065,7 @@ function renderBounties() {
     const isPublisher = isSameNimiqAddress(b.posterAddress, userAccount);
 
     if (workerSubtab === 'active') {
-      return matchesSearch && matchesCat && getEffectiveSlotsRemaining(b) > 0 && !myApprovedPayout && !hasPendingSub && !hasRejectedSub && !isPublisher;
+      return matchesSearch && matchesCat && isBountyActive(b) && !myApprovedPayout && !hasPendingSub && !hasRejectedSub && !isPublisher;
     } else {
       return matchesSearch && matchesCat && (myApprovedPayout || hasPendingSub || hasRejectedSub);
     }
@@ -2230,6 +2246,11 @@ function openSubmitProofModal(bountyId) {
   const bounty = bounties.find(b => String(b.id) === String(bountyId));
   if (!bounty) return;
 
+  if (isBountyExpired(bounty)) {
+    showToastNotification('Bounty Expired', 'This bounty pool has expired and is no longer accepting new submissions.', true);
+    return;
+  }
+
   if (isSameNimiqAddress(bounty.posterAddress, userAccount)) {
     showToastNotification('Publisher Blocked', 'You are the publisher of this bounty pool!', true);
     return;
@@ -2373,6 +2394,11 @@ async function handleSubmitProof() {
   const bounty = bounties.find(b => String(b.id) === String(currentModalBountyId));
   if (!bounty) {
     showToastNotification('Error', 'Bounty not found. Please close and reopen the modal.', true);
+    return;
+  }
+
+  if (isBountyExpired(bounty)) {
+    showToastNotification('Bounty Expired', 'This bounty pool has expired and is no longer accepting new submissions.', true);
     return;
   }
 
@@ -2732,7 +2758,7 @@ function renderPosterDashboard() {
       const pendingSubCount = pendingSubmissions.filter(s => String(s.bountyId) === String(b.id) && s.status === 'pending').length;
       const isSlotsZero = getEffectiveSlotsRemaining(b) <= 0;
       const isFullyCompleted = (approvedCount >= (b.slotsTotal || 5)) || (isSlotsZero && pendingSubCount === 0 && approvedCount > 0);
-      const isExpired = !isFullyCompleted && (b.expiresAt ? Date.now() > b.expiresAt : false);
+      const isExpired = !isFullyCompleted && isBountyExpired(b);
 
       const statusBadge = isFullyCompleted
         ? `<span style="background:rgba(239,68,68,0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.3); font-size:0.7rem; font-weight:800; padding:3px 8px; border-radius:6px; text-transform:uppercase; letter-spacing:0.04em; display:inline-flex; align-items:center; gap:4px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> CLOSED</span>`
@@ -3954,8 +3980,8 @@ function renderGlobalRegistry() {
     `;
   }
 
-  const activeBounties = bounties.filter(b => getEffectiveSlotsRemaining(b) > 0 && (!b.expiresAt || b.expiresAt > Date.now()));
-  const closedBounties = bounties.filter(b => getEffectiveSlotsRemaining(b) <= 0 || (b.expiresAt && b.expiresAt <= Date.now()));
+  const activeBounties = bounties.filter(b => isBountyActive(b));
+  const closedBounties = bounties.filter(b => !isBountyActive(b));
 
   const currentList = registrySubtab === 'closed' ? closedBounties : activeBounties;
 
@@ -4099,7 +4125,7 @@ function openUserProfileModal(posterAddress) {
     } else {
       tasksList.innerHTML = posterBounties.map(b => {
         const slotsLeft = getEffectiveSlotsRemaining(b);
-        const isActive = slotsLeft > 0 && (!b.expiresAt || b.expiresAt > Date.now());
+        const isActive = isBountyActive(b);
         return `
           <div style="background:var(--bg-subtle);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:10px;">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;flex-wrap:wrap;">
