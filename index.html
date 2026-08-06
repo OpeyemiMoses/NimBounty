@@ -1042,6 +1042,34 @@
     </div>
   </div>
 
+  <!-- ALL PROTOCOL WALLETS MODAL -->
+  <div class="modal-overlay" id="modal-all-wallets" style="display:none;">
+    <div class="modal-paper paper-card rise-in" style="max-width:520px; max-height:85vh; display:flex; flex-direction:column; padding:24px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid var(--border);">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="width:38px; height:38px; background:var(--gold-tint); border:1px solid var(--gold-border); border-radius:50%; display:flex; align-items:center; justify-content:center;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </div>
+          <div>
+            <h3 style="font-size:1.2rem; font-weight:900; color:var(--ink); margin:0;">Protocol Wallets</h3>
+            <div style="font-size:0.75rem; color:var(--muted); font-weight:600;" id="all-wallets-modal-subtitle">All wallets that have interacted with NimBounty</div>
+          </div>
+        </div>
+        <button class="modal-close" onclick="closeModal('modal-all-wallets')" style="position:static;">&times;</button>
+      </div>
+
+      <!-- Search / Filter input -->
+      <div style="margin-bottom:12px;">
+        <input type="text" id="all-wallets-search-input" oninput="renderAllWalletsList()" placeholder="Search by username or wallet address..." style="width:100%; padding:10px 14px; border-radius:10px; border:1px solid var(--border); background:var(--bg-subtle); color:var(--ink); font-size:0.85rem; box-sizing:border-box;">
+      </div>
+
+      <div id="all-wallets-list-container" style="flex:1; overflow-y:auto; padding-right:4px;">
+        <!-- Dynamic Wallet List -->
+      </div>
+    </div>
+  </div>
+
+
 
   <!-- REPORT POSTER MODAL -->
   <div class="modal-overlay" id="modal-report-poster" style="display:none;">

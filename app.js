@@ -1838,6 +1838,19 @@ function renderProfile() {
         <span class="menu-action-arrow" style="color:var(--gold);">&rarr;</span>
       </div>
 
+      <div class="menu-action-card" onclick="openAllWalletsModal()">
+        <div class="menu-action-icon" style="display:flex; align-items:center; justify-content:center;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+        <div style="flex:1;">
+          <div class="menu-action-title" style="display:flex; align-items:center; gap:6px;">
+            Protocol Wallets <span style="background:var(--bg-subtle); border:1px solid var(--border); color:var(--muted); font-size:0.65rem; font-weight:800; padding:2px 6px; border-radius:4px; text-transform:uppercase;">DIRECTORY</span>
+          </div>
+          <div class="menu-action-desc">Directory of all wallets that created or participated in tasks</div>
+        </div>
+        <span class="menu-action-arrow">&rarr;</span>
+      </div>
+
       <div class="menu-action-card" onclick="showView('how-it-works')">
         <div class="menu-action-icon" style="display:flex; align-items:center; justify-content:center;">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
@@ -3936,6 +3949,177 @@ function openLeaderboardModal() {
   if (workerBtn) { workerBtn.style.background = 'var(--gold-tint)'; workerBtn.style.borderColor = 'var(--gold-border)'; workerBtn.style.color = 'var(--gold-text)'; workerBtn.style.fontWeight = '800'; }
   if (posterBtn) { posterBtn.style.background = 'var(--bg-subtle)'; posterBtn.style.borderColor = 'var(--border)'; posterBtn.style.color = 'var(--muted)'; posterBtn.style.fontWeight = '700'; }
   const modal = document.getElementById('modal-leaderboard');
+  if (modal) modal.style.display = 'flex';
+}
+
+// ALL PROTOCOL WALLETS DIRECTORY ENGINE
+// ==========================================
+function renderAllWalletsList() {
+  const container = document.getElementById('all-wallets-list-container');
+  if (!container) return;
+
+  const searchQuery = (document.getElementById('all-wallets-search-input')?.value || '').trim().toLowerCase();
+
+  const walletMap = {};
+
+  function getOrCreateWallet(rawAddr) {
+    if (!rawAddr) return null;
+    const cleanAddr = String(rawAddr).replace(/\s+/g, '').toUpperCase();
+    if (!walletMap[cleanAddr]) {
+      const prof = getProfile(cleanAddr);
+      walletMap[cleanAddr] = {
+        cleanAddress: cleanAddr,
+        rawAddress: rawAddr,
+        username: prof.username || null,
+        joinedAt: prof.joinedAt || null,
+        tasksCreated: 0,
+        totalPaidOut: 0,
+        tasksSubmitted: 0,
+        tasksApproved: 0,
+        totalEarned: 0
+      };
+    }
+    return walletMap[cleanAddr];
+  }
+
+  // 1. Scan bounties (posters)
+  bounties.forEach(b => {
+    if (!b.posterAddress) return;
+    const w = getOrCreateWallet(b.posterAddress);
+    if (w) {
+      w.tasksCreated += 1;
+      if (b.sponsor && !b.sponsor.startsWith('NQ') && !w.username) {
+        w.username = b.sponsor;
+      }
+    }
+  });
+
+  // 2. Scan pendingSubmissions (workers)
+  pendingSubmissions.forEach(s => {
+    if (!s.workerAddress) return;
+    const w = getOrCreateWallet(s.workerAddress);
+    if (w) {
+      w.tasksSubmitted += 1;
+      if (s.status === 'approved') {
+        w.tasksApproved += 1;
+      }
+    }
+  });
+
+  // 3. Scan approvedPayoutsHistory (workers & posters payouts)
+  approvedPayoutsHistory.forEach(p => {
+    if (p.workerAddress) {
+      const w = getOrCreateWallet(p.workerAddress);
+      if (w) {
+        w.totalEarned += (parseFloat(p.reward) || 0);
+      }
+    }
+    if (p.posterAddress) {
+      const w = getOrCreateWallet(p.posterAddress);
+      if (w) {
+        w.totalPaidOut += (parseFloat(p.reward) || 0);
+      }
+    }
+  });
+
+  // 4. Scan globalProfiles cache for any additional registered users
+  Object.keys(globalProfiles).forEach(addr => {
+    const w = getOrCreateWallet(addr);
+    if (w && globalProfiles[addr].username && !w.username) {
+      w.username = globalProfiles[addr].username;
+    }
+    if (w && globalProfiles[addr].joinedAt && !w.joinedAt) {
+      w.joinedAt = globalProfiles[addr].joinedAt;
+    }
+  });
+
+  let walletList = Object.values(walletMap);
+
+  // Filter search
+  if (searchQuery) {
+    walletList = walletList.filter(w => {
+      const addrMatch = w.cleanAddress.toLowerCase().includes(searchQuery);
+      const userMatch = w.username && w.username.toLowerCase().includes(searchQuery);
+      return addrMatch || userMatch;
+    });
+  }
+
+  // Sort by total activity (tasksCreated + tasksSubmitted + totalEarned + totalPaidOut)
+  walletList.sort((a, b) => {
+    const activityA = a.tasksCreated + a.tasksSubmitted + a.totalEarned + a.totalPaidOut;
+    const activityB = b.tasksCreated + b.tasksSubmitted + b.totalEarned + b.totalPaidOut;
+    return activityB - activityA;
+  });
+
+  const subtitleEl = document.getElementById('all-wallets-modal-subtitle');
+  if (subtitleEl) {
+    subtitleEl.textContent = `${walletList.length} wallet${walletList.length === 1 ? '' : 's'} interacted with protocol`;
+  }
+
+  if (walletList.length === 0) {
+    container.innerHTML = `
+      <div style="text-align:center; padding:40px 20px;">
+        <div style="width:56px; height:56px; background:var(--gold-tint); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 14px;">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+        <h4 style="font-size:1.1rem; font-weight:800; color:var(--ink); margin-bottom:6px;">No Wallets Found</h4>
+        <p style="font-size:0.82rem; color:var(--muted); margin-bottom:0;">No protocol wallets match your search query.</p>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = walletList.map(w => {
+    const isMe = userAccount && isSameNimiqAddress(w.cleanAddress, userAccount);
+    const displayAddr = `${w.cleanAddress.substring(0, 6)}...${w.cleanAddress.substring(w.cleanAddress.length - 4)}`;
+    const currentProf = getProfile(w.cleanAddress);
+    const effectiveUsername = currentProf.username || w.username;
+
+    const displayUser = effectiveUsername
+      ? `<span style="font-weight:800; color:var(--ink); font-size:0.88rem;">@${effectiveUsername.toUpperCase()}</span>`
+      : `<span style="color:var(--muted); font-size:0.8rem; font-style:italic;">No username set</span>`;
+
+    const roleBadges = [];
+    if (w.tasksCreated > 0) roleBadges.push(`<span style="background:rgba(255,199,44,0.15); color:var(--gold-text); border:1px solid var(--gold-border); font-size:0.65rem; font-weight:800; padding:1px 6px; border-radius:4px;">CREATOR (${w.tasksCreated})</span>`);
+    if (w.tasksSubmitted > 0 || w.totalEarned > 0) roleBadges.push(`<span style="background:rgba(16,185,129,0.15); color:var(--emerald); border:1px solid rgba(16,185,129,0.3); font-size:0.65rem; font-weight:800; padding:1px 6px; border-radius:4px;">WORKER</span>`);
+
+    const addrEscaped = w.cleanAddress.replace(/'/g, "\\'");
+
+    return `
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:13px 16px; background:${isMe ? 'var(--gold-tint)' : 'var(--card)'}; border:1px solid ${isMe ? 'var(--gold-border)' : 'var(--border)'}; border-radius:14px; margin-bottom:8px;">
+        <div style="display:flex; align-items:center; gap:10px; min-width:0; flex:1;">
+          <div style="width:36px; height:36px; border-radius:50%; background:var(--bg-subtle); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </div>
+          <div style="min-width:0; flex:1;">
+            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:3px;">
+              ${displayUser}
+              ${isMe ? `<span style="background:var(--gold); color:#1a1917; font-size:0.65rem; font-weight:800; padding:1px 5px; border-radius:4px;">YOU</span>` : ''}
+              ${roleBadges.join(' ')}
+            </div>
+            <div style="font-size:0.75rem; font-family:var(--font-mono); color:var(--muted);">${displayAddr}</div>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0;">
+          <div style="font-size:0.8rem; font-weight:800; color:var(--ink); text-align:right;">
+            ${w.totalEarned > 0 ? `<span style="color:var(--emerald);">${w.totalEarned.toFixed(1)} NIM earned</span>` : (w.totalPaidOut > 0 ? `<span style="color:var(--gold-text);">${w.totalPaidOut.toFixed(1)} NIM paid</span>` : '<span style="color:var(--muted);">0 NIM</span>')}
+          </div>
+          <button onclick="closeModal('modal-all-wallets'); setTimeout(() => openUserProfileModal('${addrEscaped}'), 200);" style="background:none; border:1px solid var(--border); color:var(--muted); font-size:0.7rem; font-weight:700; padding:3px 8px; border-radius:7px; cursor:pointer; display:inline-flex; align-items:center; gap:4px; white-space:nowrap;">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+            Profile
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function openAllWalletsModal() {
+  const searchInput = document.getElementById('all-wallets-search-input');
+  if (searchInput) searchInput.value = '';
+  renderAllWalletsList();
+  const modal = document.getElementById('modal-all-wallets');
   if (modal) modal.style.display = 'flex';
 }
 
