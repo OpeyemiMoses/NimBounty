@@ -520,6 +520,19 @@ async function fetchGlobalPublicBounties() {
           allProfiles[cleanAddr] = { ...currentLocal, ...incoming, avatarUrl: preservedAvatar };
         }
       });
+
+      // Auto-push connected user's profile to global server if missing or updated
+      if (userAccount) {
+        const cleanUser = String(userAccount).replace(/\s+/g, '').toUpperCase();
+        const myLocalProfile = allProfiles[cleanUser];
+        if (myLocalProfile && (myLocalProfile.username || myLocalProfile.avatarUrl || myLocalProfile.joinedAt)) {
+          const sProf = data.profiles[cleanUser];
+          if (!sProf || sProf.username !== myLocalProfile.username || (myLocalProfile.avatarUrl && sProf.avatarUrl !== myLocalProfile.avatarUrl)) {
+            setTimeout(() => pushUserProfile(cleanUser, myLocalProfile), 300);
+          }
+        }
+      }
+
       localStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(allProfiles));
     }
 
@@ -4074,10 +4087,17 @@ function renderAllWalletsList() {
     const displayAddr = `${w.cleanAddress.substring(0, 6)}...${w.cleanAddress.substring(w.cleanAddress.length - 4)}`;
     const currentProf = getProfile(w.cleanAddress);
     const effectiveUsername = currentProf.username || w.username;
+    const effectiveAvatar = currentProf.avatarUrl || w.avatarUrl;
 
     const displayUser = effectiveUsername
       ? `<span style="font-weight:800; color:var(--ink); font-size:0.88rem;">@${effectiveUsername.toUpperCase()}</span>`
       : `<span style="color:var(--muted); font-size:0.8rem; font-style:italic;">No username set</span>`;
+
+    const avatarHTML = effectiveAvatar
+      ? `<img src="${effectiveAvatar}" style="width:36px; height:36px; border-radius:50%; object-fit:cover; border:1px solid var(--border);" />`
+      : `<div style="width:36px; height:36px; border-radius:50%; background:var(--bg-subtle); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+         </div>`;
 
     const roleBadges = [];
     if (w.tasksCreated > 0) roleBadges.push(`<span style="background:rgba(255,199,44,0.15); color:var(--gold-text); border:1px solid var(--gold-border); font-size:0.65rem; font-weight:800; padding:1px 6px; border-radius:4px;">CREATOR (${w.tasksCreated})</span>`);
@@ -4088,9 +4108,7 @@ function renderAllWalletsList() {
     return `
       <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:13px 16px; background:${isMe ? 'var(--gold-tint)' : 'var(--card)'}; border:1px solid ${isMe ? 'var(--gold-border)' : 'var(--border)'}; border-radius:14px; margin-bottom:8px;">
         <div style="display:flex; align-items:center; gap:10px; min-width:0; flex:1;">
-          <div style="width:36px; height:36px; border-radius:50%; background:var(--bg-subtle); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-          </div>
+          ${avatarHTML}
           <div style="min-width:0; flex:1;">
             <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:3px;">
               ${displayUser}
